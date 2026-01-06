@@ -9,16 +9,16 @@ export default function PricingPage() {
       <Navbar />
 
       {/* Pricing Header */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">Pricing</h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+      <section className="container mx-auto px-4 py-12 md:py-16 text-center">
+        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Pricing</h1>
+        <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto px-4">
           Transparent pricing for all our social media services. No hidden fees.
         </p>
       </section>
 
       {/* Pricing Cards */}
-      <section className="container mx-auto px-4 pb-16">
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+      <section className="container mx-auto px-4 pb-12 md:pb-16">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
           <Card>
             <CardHeader>
               <CardTitle>Followers</CardTitle>
@@ -88,8 +88,8 @@ export default function PricingPage() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="container mx-auto px-4 pb-16 scroll-mt-20">
-        <h2 className="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
+      <section id="faq" className="container mx-auto px-4 pb-12 md:pb-16 scroll-mt-20">
+        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 md:mb-12 px-4">Frequently Asked Questions</h2>
         <div className="max-w-3xl mx-auto space-y-6">
           <Card>
             <CardHeader>
@@ -138,7 +138,7 @@ export default function PricingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="container mx-auto px-4 pb-16 text-center">
+      <section className="container mx-auto px-4 pb-12 md:pb-16 text-center">
         <Card className="max-w-2xl mx-auto bg-[#1877F2] text-white border-none">
           <CardHeader>
             <CardTitle className="text-white">Ready to get started?</CardTitle>

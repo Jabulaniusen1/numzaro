@@ -1,8 +1,8 @@
 import Link from "next/link"
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ServicesSection } from "@/components/landing/ServicesSection"
+import { Navbar } from "@/components/Navbar"
 
 const reviews = [
   {
@@ -53,34 +53,10 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Navigation */}
-      <nav className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center">
-            <Image
-              src="/numzaro-logo.png"
-              alt="Numzaro"
-              width={140}
-              height={40}
-              className="h-8 w-auto"
-              priority
-            />
-          </Link>
-          <div className="space-x-4">
-            <Link href="/pricing">
-              <Button variant="ghost">Pricing</Button>
-            </Link>
-            <Link href="/auth/login">
-              <Button variant="outline">Sign In</Button>
-            </Link>
-            <Link href="/auth/signup">
-              <Button>Get Started</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center bg-white overflow-hidden">
+      <section className="relative min-h-[80vh] md:min-h-[90vh] flex items-center justify-center bg-white overflow-hidden">
         {/* Light blue gradient accents */}
         <div className="absolute inset-0 opacity-30">
           <div className="absolute left-[10%] top-0 w-1 h-full bg-gradient-to-b from-blue-200 to-blue-100"></div>
@@ -146,14 +122,14 @@ export default function HomePage() {
 
             {/* Center Content */}
             <div className="text-center space-y-6">
-              <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
                 10x Your Social Media Growth!
               </h1>
               <p className="text-lg lg:text-xl text-gray-600 max-w-xl mx-auto">
                 MilexBoost is capable of giving you the social media visibility you need. Super easy to use, delivery within seconds!
               </p>
               <Link href="/auth/signup">
-                <button className="px-8 py-4 my-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-bold text-lg rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200">
+                <button className="px-8 py-4 my-4 bg-[#1877F2] text-white font-bold text-lg rounded-lg shadow-lg hover:shadow-xl hover:bg-[#166fe5] transform hover:scale-105 transition-all duration-200">
                   Get Started Here
                 </button>
               </Link>
@@ -229,16 +205,16 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="container mx-auto px-4 py-20 bg-gradient-to-b from-white to-gray-50">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+      <section className="container mx-auto px-4 py-12 md:py-20 bg-gradient-to-b from-white to-gray-50">
+        <div className="text-center mb-8 md:mb-16">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
             Why Choose SocialBoost?
           </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto px-4">
             Everything you need to grow your social media presence, all in one place
           </p>
         </div>
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 max-w-6xl mx-auto">
           <Card className="border-2 hover:border-[#1877F2] transition-all duration-300 hover:shadow-xl">
             <CardHeader className="pb-4">
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4">
@@ -302,13 +278,13 @@ export default function HomePage() {
       <ServicesSection />
 
       {/* Reviews Section */}
-      <section className="py-20 bg-gradient-to-b from-white to-gray-50 overflow-hidden">
-        <div className="container mx-auto px-4 mb-16">
+      <section className="py-12 md:py-20 bg-gradient-to-b from-white to-gray-50 overflow-hidden">
+        <div className="container mx-auto px-4 mb-8 md:mb-16">
           <div className="text-center">
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
               What Our Customers Say
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto px-4">
               Join thousands of satisfied customers who trust SocialBoost for their social media growth
             </p>
           </div>
@@ -323,10 +299,10 @@ export default function HomePage() {
           <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-white via-gray-50/80 to-transparent z-10 pointer-events-none"></div>
           
           {/* Scrolling Container */}
-          <div className="flex gap-6 animate-scroll-left">
+          <div className="flex gap-4 md:gap-6 animate-scroll-left">
             {/* First set of reviews */}
             {reviews.map((review, index) => (
-              <div key={`first-${index}`} className="flex-shrink-0 w-[320px] md:w-[380px]">
+              <div key={`first-${index}`} className="flex-shrink-0 w-[280px] sm:w-[320px] md:w-[380px]">
                 <Card className="border-2 hover:border-[#1877F2] transition-all duration-300 hover:shadow-xl h-full">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4 mb-4">
@@ -355,7 +331,7 @@ export default function HomePage() {
             
             {/* Duplicate set for seamless loop */}
             {reviews.map((review, index) => (
-              <div key={`second-${index}`} className="flex-shrink-0 w-[320px] md:w-[380px]">
+              <div key={`second-${index}`} className="flex-shrink-0 w-[280px] sm:w-[320px] md:w-[380px]">
                 <Card className="border-2 hover:border-[#1877F2] transition-all duration-300 hover:shadow-xl h-full">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4 mb-4">
@@ -386,9 +362,9 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <h2 className="text-4xl font-bold mb-6">Ready to Grow Your Social Media?</h2>
-        <p className="text-xl text-gray-600 mb-8">
+      <section className="container mx-auto px-4 py-12 md:py-20 text-center">
+        <h2 className="text-3xl sm:text-4xl font-bold mb-4 md:mb-6 px-4">Ready to Grow Your Social Media?</h2>
+        <p className="text-lg sm:text-xl text-gray-600 mb-6 md:mb-8 px-4">
           Join thousands of users who trust SocialBoost for their social media growth.
         </p>
         <Link href="/auth/signup">
@@ -398,11 +374,11 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t bg-white">
-        <div className="container mx-auto px-4 py-12">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
+        <div className="container mx-auto px-4 py-8 md:py-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-8">
             {/* Brand */}
             <div className="space-y-4">
-              <div className="text-2xl font-bold text-[#1877F2]">MilexBoost</div>
+              <div className="text-2xl font-bold text-[#1877F2]">Numzaro</div>
               <p className="text-gray-600 text-sm">
                 The fastest way to grow your social media presence. Real followers, real results.
               </p>
@@ -410,11 +386,6 @@ export default function HomePage() {
                 <a href="#" className="text-gray-400 hover:text-[#1877F2] transition-colors">
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                  </svg>
-                </a>
-                <a href="#" className="text-gray-400 hover:text-[#1877F2] transition-colors">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
                   </svg>
                 </a>
                 <a href="#" className="text-gray-400 hover:text-[#1877F2] transition-colors">
@@ -498,13 +469,13 @@ export default function HomePage() {
           </div>
 
           {/* Bottom Bar */}
-          <div className="border-t pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="border-t pt-6 md:pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
             <p className="text-gray-600 text-sm">
-              &copy; 2024 MilexBoost. All rights reserved.
+              &copy; 2024 Numzaro. All rights reserved.
             </p>
-            <div className="flex gap-6 text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 text-sm text-gray-600">
               <span>827K+ Active Users</span>
-              <span>•</span>
+              <span className="hidden sm:inline">•</span>
               <span>4M+ Orders Delivered</span>
             </div>
           </div>

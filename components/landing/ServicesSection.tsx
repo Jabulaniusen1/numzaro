@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -22,23 +21,12 @@ interface Service {
 
 export function ServicesSection() {
   const [services, setServices] = useState<Service[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [filteredServices, setFilteredServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch services from public API (we'll create this)
+    // Fetch services from public API
     fetchServices();
   }, []);
-
-  useEffect(() => {
-    if (selectedCategory === "all") {
-      setFilteredServices(services);
-    } else {
-      setFilteredServices(services.filter((s) => s.category === selectedCategory));
-    }
-  }, [selectedCategory, services]);
 
   const fetchServices = async () => {
     try {
@@ -48,9 +36,6 @@ export function ServicesSection() {
         const data = await response.json();
         if (Array.isArray(data)) {
           setServices(data);
-          const cats = Array.from(new Set(data.map((s: Service) => s.category))).filter(Boolean) as string[];
-          setCategories(cats);
-          setFilteredServices(data);
         }
       }
     } catch (error) {
@@ -119,56 +104,23 @@ export function ServicesSection() {
         },
       ];
       setServices(sampleServices);
-      const cats = Array.from(new Set(sampleServices.map((s) => s.category))).filter(Boolean);
-      setCategories(cats as string[]);
-      setFilteredServices(sampleServices);
     } finally {
       setLoading(false);
     }
   };
 
+  // Limit services to first 3 for landing page
+  const displayedServices = services.slice(0, 3);
+
   return (
-    <section className="container mx-auto px-4 py-20 bg-gradient-to-b from-gray-50 to-white">
-      <div className="text-center mb-16">
-        <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+    <section className="container mx-auto px-4 py-12 md:py-20 bg-gradient-to-b from-gray-50 to-white">
+      <div className="text-center mb-8 md:mb-16">
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
           Our Services
         </h2>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+        <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto px-4">
           Choose from our range of social media growth services
         </p>
-      </div>
-
-      {/* Dropdown Selector */}
-      <div className="max-w-2xl mx-auto mb-12">
-        <Card className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <div className="flex-1 w-full">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Service Category
-              </label>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Link href="/auth/signup">
-                <Button size="lg" className="w-full sm:w-auto">
-                  Get Started
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </Card>
       </div>
 
       {/* Results Grid */}
@@ -176,9 +128,9 @@ export function ServicesSection() {
         <div className="text-center py-12">
           <p className="text-gray-600">Loading services...</p>
         </div>
-      ) : filteredServices.length > 0 ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {filteredServices.map((service) => (
+      ) : displayedServices.length > 0 ? (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 max-w-6xl mx-auto">
+          {displayedServices.map((service) => (
             <Card
               key={service.id}
               className="border-2 hover:border-[#1877F2] transition-all duration-300 hover:shadow-xl overflow-hidden relative"
@@ -224,6 +176,17 @@ export function ServicesSection() {
       ) : (
         <div className="text-center py-12">
           <p className="text-gray-600">No services found in this category.</p>
+        </div>
+      )}
+
+      {/* See More Button */}
+      {!loading && displayedServices.length > 0 && (
+        <div className="text-center mt-8 md:mt-12">
+          <Link href="/dashboard/services">
+            <Button size="lg" variant="outline" className="px-8">
+              See More Services
+            </Button>
+          </Link>
         </div>
       )}
     </section>
