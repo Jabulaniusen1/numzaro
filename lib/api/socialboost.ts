@@ -143,7 +143,7 @@ async function makeRequest(
     }
 
     // Parse successful response
-    let data;
+    let data: any;
     try {
       data = JSON.parse(responseText);
       console.log("API Success Response (Parsed):", JSON.stringify(data, null, 2));
