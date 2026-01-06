@@ -57,6 +57,8 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <section className="relative min-h-[80vh] md:min-h-[90vh] flex items-center justify-center bg-white overflow-hidden">
+        {/* Faded primary color background */}
+        <div className="absolute inset-0 bg-[#1877F2]/5"></div>
         {/* Light blue gradient accents */}
         <div className="absolute inset-0 opacity-30">
           <div className="absolute left-[10%] top-0 w-1 h-full bg-gradient-to-b from-blue-200 to-blue-100"></div>
