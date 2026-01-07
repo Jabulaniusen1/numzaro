@@ -39,6 +39,9 @@ export function Navbar({ onSignOut }: NavbarProps) {
             <Link href="/dashboard/orders">
               <Button variant="ghost">Orders</Button>
             </Link>
+            <Link href="/dashboard/numbers">
+              <Button variant="ghost">Numbers</Button>
+            </Link>
             <form action={onSignOut}>
               <Button type="submit" variant="outline">
                 Sign Out
@@ -89,6 +92,15 @@ export function Navbar({ onSignOut }: NavbarProps) {
               >
                 <Button variant="ghost" className="w-full justify-start">
                   Orders
+                </Button>
+              </Link>
+              <Link
+                href="/dashboard/numbers"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full"
+              >
+                <Button variant="ghost" className="w-full justify-start">
+                  Numbers
                 </Button>
               </Link>
               <form action={onSignOut} className="w-full">
