@@ -162,7 +162,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
-        <p className="text-gray-600">Loading...</p>
+        <p className="text-purple-800 dark:text-purple-200 font-bold text-xl">Loading...</p>
       </div>
     );
   }
@@ -170,46 +170,50 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-gray-600 mt-2">
-          Welcome back, {profile?.full_name || user?.email}!
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent drop-shadow-lg">
+          🎨 Dashboard
+        </h1>
+        <p className="text-purple-800 dark:text-purple-200 mt-2 text-lg font-semibold">
+          Welcome back, {profile?.full_name || user?.email}! 👋
         </p>
       </div>
 
       <BalanceCard />
 
       <div className="grid md:grid-cols-2 gap-6">
-        <Card>
+        <Card className="border-4 border-pink-400 dark:border-pink-600 bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 dark:from-pink-900/50 dark:via-purple-900/50 dark:to-blue-900/50 rounded-cartoon shadow-xl">
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Get started with services</CardDescription>
+            <CardTitle className="text-purple-900 dark:text-purple-100 text-2xl">⚡ Quick Actions</CardTitle>
+            <CardDescription className="text-purple-700 dark:text-purple-300 font-semibold">Get started with services</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Link href="/dashboard/services">
-              <Button className="w-full">Browse Services</Button>
+              <Button className="w-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 hover:from-pink-600 hover:via-purple-600 hover:to-blue-600 text-white rounded-cartoon border-2 border-white font-bold shadow-lg">
+                🎯 Browse Services
+              </Button>
             </Link>
             <Link href="/dashboard/orders">
-              <Button className="w-full" variant="outline">
-                View Orders
+              <Button className="w-full border-4 border-purple-500 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-cartoon font-bold" variant="outline">
+                📦 View Orders
               </Button>
             </Link>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-4 border-purple-400 dark:border-purple-600 bg-gradient-to-br from-purple-100 via-pink-100 to-yellow-100 dark:from-purple-900/50 dark:via-pink-900/50 dark:to-yellow-900/50 rounded-cartoon shadow-xl">
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle>Recent Orders</CardTitle>
-                <CardDescription>Your latest orders</CardDescription>
+                <CardTitle className="text-purple-900 dark:text-purple-100 text-2xl">📋 Recent Orders</CardTitle>
+                <CardDescription className="text-purple-700 dark:text-purple-300 font-semibold">Your latest orders</CardDescription>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={refreshOrders}
-                className="text-xs"
+                className="text-xs border-2 border-purple-400 dark:border-purple-600 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-cartoon font-bold"
               >
-                Refresh
+                🔄 Refresh
               </Button>
             </div>
           </CardHeader>
@@ -219,19 +223,19 @@ export default function DashboardPage() {
                 {recentOrders.map((order: any) => (
                   <div
                     key={order.id}
-                    className="flex justify-between items-center p-3 border rounded-lg"
+                    className="flex justify-between items-center p-3 border-4 border-purple-300 dark:border-purple-700 rounded-cartoon bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 hover:shadow-lg transition-all"
                   >
                     <div>
-                      <p className="font-medium">
+                      <p className="font-bold text-purple-900 dark:text-purple-100">
                         {order.services?.name || "Service"}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-purple-700 dark:text-purple-300 font-semibold">
                         {order.quantity} items • {order.status}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">{format(order.charge || 0)}</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="font-bold text-purple-900 dark:text-purple-100">{format(order.charge || 0)}</p>
+                      <p className="text-sm text-purple-700 dark:text-purple-300 font-semibold">
                         {new Date(order.created_at).toLocaleDateString()}
                       </p>
                     </div>
@@ -239,11 +243,11 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-600 text-center py-4">
+              <p className="text-purple-800 dark:text-purple-200 text-center py-4 font-semibold">
                 No orders yet.{" "}
                 <Link
                   href="/dashboard/services"
-                  className="text-[#1877F2] hover:underline"
+                  className="text-pink-600 dark:text-pink-400 hover:text-purple-600 dark:hover:text-purple-400 underline font-bold"
                 >
                   Browse services
                 </Link>{" "}

@@ -10,7 +10,7 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="border-b bg-white dark:bg-gray-900 dark:border-gray-800 sticky top-0 z-50">
+    <nav className="border-b-4 border-purple-400 dark:border-purple-600 bg-gradient-to-r from-pink-100 via-purple-100 to-blue-100 dark:from-purple-950 dark:via-pink-950 dark:to-blue-950 sticky top-0 z-50 shadow-lg">
       <div className="container mx-auto px-4 py-4">
         {/* Desktop Navigation */}
         <div className="hidden md:flex justify-between items-center">
@@ -27,19 +27,19 @@ export function Navbar() {
 
           <div className="flex items-center space-x-2">
             <Link href="/pricing">
-              <Button variant="ghost">Pricing</Button>
+              <Button variant="ghost" className="text-purple-800 dark:text-purple-200 hover:text-pink-600 dark:hover:text-pink-400 hover:bg-pink-100 dark:hover:bg-pink-900/30 font-semibold rounded-cartoon">💰 Pricing</Button>
             </Link>
             <Link href="/contact">
-              <Button variant="ghost">Contact</Button>
+              <Button variant="ghost" className="text-purple-800 dark:text-purple-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 font-semibold rounded-cartoon">📧 Contact</Button>
             </Link>
             <Link href="/pricing#faq">
-              <Button variant="ghost">FAQ</Button>
+              <Button variant="ghost" className="text-purple-800 dark:text-purple-200 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 font-semibold rounded-cartoon">❓ FAQ</Button>
             </Link>
             <Link href="/auth/login">
-              <Button variant="outline">Sign In</Button>
+              <Button variant="outline" className="border-2 border-purple-500 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-cartoon font-bold">Sign In</Button>
             </Link>
             <Link href="/auth/signup">
-              <Button>Get Started</Button>
+              <Button className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 hover:from-pink-600 hover:via-purple-600 hover:to-blue-600 text-white rounded-cartoon border-2 border-white shadow-xl font-bold">🚀 Get Started</Button>
             </Link>
           </div>
         </div>
@@ -48,14 +48,14 @@ export function Navbar() {
         <div className="md:hidden flex items-center justify-between w-full">
           {/* Hamburger Menu - Left */}
           <button
-            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-2 rounded-cartoon hover:bg-pink-200 dark:hover:bg-pink-900/30 transition-colors border-2 border-purple-400 dark:border-purple-600"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? (
-              <X className="h-6 w-6" />
+              <X className="h-6 w-6 text-purple-700 dark:text-purple-300" />
             ) : (
-              <Menu className="h-6 w-6" />
+              <Menu className="h-6 w-6 text-purple-700 dark:text-purple-300" />
             )}
           </button>
 
@@ -83,15 +83,15 @@ export function Navbar() {
 
         {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 border-t dark:border-gray-800 pt-4 animate-in slide-in-from-top-2">
+          <div className="md:hidden mt-4 pb-4 border-t-4 border-purple-400 dark:border-purple-600 pt-4 animate-in slide-in-from-top-2 bg-gradient-to-br from-pink-50 to-purple-50 dark:from-pink-950/50 dark:to-purple-950/50 rounded-cartoon">
             <div className="flex flex-col space-y-2">
               <Link
                 href="/pricing"
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full"
               >
-                <Button variant="ghost" className="w-full justify-start">
-                  Pricing
+                <Button variant="ghost" className="w-full justify-start text-purple-800 dark:text-purple-200 hover:bg-pink-200 dark:hover:bg-pink-900/30 font-semibold rounded-cartoon">
+                  💰 Pricing
                 </Button>
               </Link>
               <Link
@@ -99,8 +99,8 @@ export function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full"
               >
-                <Button variant="ghost" className="w-full justify-start">
-                  Contact
+                <Button variant="ghost" className="w-full justify-start text-purple-800 dark:text-purple-200 hover:bg-blue-200 dark:hover:bg-blue-900/30 font-semibold rounded-cartoon">
+                  📧 Contact
                 </Button>
               </Link>
               <Link
@@ -108,17 +108,17 @@ export function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full"
               >
-                <Button variant="ghost" className="w-full justify-start">
-                  FAQ
+                <Button variant="ghost" className="w-full justify-start text-purple-800 dark:text-purple-200 hover:bg-yellow-200 dark:hover:bg-yellow-900/30 font-semibold rounded-cartoon">
+                  ❓ FAQ
                 </Button>
               </Link>
-              <div className="pt-2 space-y-2 border-t dark:border-gray-800">
+              <div className="pt-2 space-y-2 border-t-2 border-purple-400 dark:border-purple-600">
                 <Link
                   href="/auth/login"
                   onClick={() => setMobileMenuOpen(false)}
                   className="w-full"
                 >
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full border-2 border-purple-500 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-cartoon font-bold">
                     Sign In
                   </Button>
                 </Link>
@@ -127,7 +127,9 @@ export function Navbar() {
                   onClick={() => setMobileMenuOpen(false)}
                   className="w-full"
                 >
-                  <Button className="w-full">Get Started</Button>
+                  <Button className="w-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 hover:from-pink-600 hover:via-purple-600 hover:to-blue-600 text-white rounded-cartoon border-2 border-white font-bold">
+                    🚀 Get Started
+                  </Button>
                 </Link>
               </div>
             </div>

@@ -25,11 +25,11 @@ const config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#1877F2",
+          DEFAULT: "hsl(250 100% 65%)", // Bright Purple
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary))",
+          DEFAULT: "hsl(200 100% 70%)", // Bright Sky Blue
           foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
@@ -52,11 +52,21 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Cartoon theme colors
+        cartoon: {
+          pink: "#FF6B9D",
+          purple: "#9B59F7",
+          blue: "#4ECDC4",
+          yellow: "#FFE66D",
+          green: "#95E1D3",
+          orange: "#FFA07A",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        cartoon: "2rem",
       },
       keyframes: {
         "accordion-down": {
