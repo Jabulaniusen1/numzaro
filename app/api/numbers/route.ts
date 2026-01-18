@@ -13,26 +13,19 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const type = searchParams.get("type"); // Filter by type
-    const status = searchParams.get("status"); // Filter by status
-    const country = searchParams.get("country"); // Filter by country
+    const status = searchParams.get("status");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const offset = parseInt(searchParams.get("offset") || "0");
 
     let query = supabase
-      .from("phone_numbers")
+      .from("virtual_numbers")
       .select("*")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (type) {
-      query = query.eq("type", type);
-    }
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (status) {
       query = query.eq("status", status);
-    }
-
-    if (country) {
-      query = query.eq("country", country);
     }
 
     const { data: numbers, error } = await query;
@@ -45,13 +38,44 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ numbers: numbers || [] });
+    // Get stats for each number
+    const numbersWithStats = await Promise.all(
+      (numbers || []).map(async (number) => {
+        // Get message count
+        const { count: messageCount } = await supabase
+          .from("messages")
+          .select("*", { count: "exact", head: true })
+          .eq("number_id", number.id);
+
+        // Get pending OTP count
+        const { count: otpCount } = await supabase
+          .from("otp_codes")
+          .select("*", { count: "exact", head: true })
+          .eq("number_id", number.id)
+          .eq("status", "pending");
+
+        return {
+          ...number,
+          message_count: messageCount || 0,
+          pending_otp_count: otpCount || 0,
+        };
+      })
+    );
+
+    return NextResponse.json({ numbers: numbersWithStats });
   } catch (error: any) {
-    console.error("List numbers error:", error);
+    console.error("Error in GET /api/numbers:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
       { status: 500 }
     );
   }
 }
+
+
+
+
+
+
+
 

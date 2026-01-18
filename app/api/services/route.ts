@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
-import { getServices } from "@/lib/api/socialboost";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     
@@ -15,201 +14,87 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Try to fetch services from database first (fallback)
+    // Get filter parameters from query string
+    const searchParams = request.nextUrl.searchParams;
+    const search = searchParams.get("search") || null;
+    const category = searchParams.get("category") || null;
+    const type = searchParams.get("type") || null;
+
+    // Fetch services from database only (no API call)
+    console.log("Fetching services from database...");
     const { data: dbServices, error: dbError } = await supabase
       .from("services")
       .select("*")
-      .order("category", { ascending: true })
       .order("name", { ascending: true });
 
-    // Try to fetch and sync from API
-    let apiServices = null;
-    try {
-      apiServices = await getServices();
-
-      // Get default markup percentage from admin settings
-      const { data: markupSetting } = await supabase
-        .from("admin_settings")
-        .select("value")
-        .eq("key", "default_markup_percentage")
-        .single();
-      
-      const markupPercentage = markupSetting 
-        ? parseFloat(markupSetting.value) 
-        : 30.00; // Default 30% markup
-
-      // Sync services with database
-      if (apiServices && apiServices.length > 0) {
-        for (const service of apiServices) {
-          const costRate = parseFloat(service.rate); // API cost price
-          const sellingRate = costRate * (1 + markupPercentage / 100); // Your selling price with markup
-          
-          await supabase
-            .from("services")
-            .upsert(
-              {
-                service_id: service.service,
-                name: service.name,
-                category: service.category,
-                type: service.type,
-                cost_rate: costRate, // Store API cost
-                rate: sellingRate, // Store selling price with markup
-                markup_percentage: markupPercentage,
-                min_quantity: parseInt(service.min),
-                max_quantity: parseInt(service.max),
-                refill_allowed: service.refill,
-                cancel_allowed: service.cancel,
-              },
-              {
-                onConflict: "service_id",
-              }
-            );
-        }
-
-        // Fetch updated services from database
-        const { data: updatedServices, error: fetchError } = await supabase
-          .from("services")
-          .select("*")
-          .order("category", { ascending: true })
-          .order("name", { ascending: true });
-
-        if (!fetchError && updatedServices && updatedServices.length > 0) {
-          // Normalize numeric fields and ensure rate is calculated with current markup
-          const normalizedServices = updatedServices.map((service: any) => {
-            const costRate = service.cost_rate ? parseFloat(service.cost_rate) : null;
-            // Always recalculate rate from cost_rate with current markup
-            const rate = costRate 
-              ? costRate * (1 + markupPercentage / 100)
-              : (Number(service.rate) || 0);
-            
-            return {
-              ...service,
-              rate: rate,
-              cost_rate: costRate || service.cost_rate,
-              markup_percentage: markupPercentage,
-              min_quantity: Number(service.min_quantity) || 100,
-              max_quantity: Number(service.max_quantity) || 10000,
-            };
-          });
-          return NextResponse.json(normalizedServices);
-        }
-      }
-    } catch (apiError) {
-      console.error("Error fetching services from API:", apiError);
-      // If API fails but we have database services, return those with recalculated rates
-      if (dbServices && dbServices.length > 0) {
-        // Get current markup percentage to ensure rates are up to date
-        const { data: markupSetting } = await supabase
-          .from("admin_settings")
-          .select("value")
-          .eq("key", "default_markup_percentage")
-          .single();
-        
-        const currentMarkup = markupSetting 
-          ? parseFloat(markupSetting.value) 
-          : 30.00;
-
-        // Recalculate rates with current markup
-        const normalizedServices = dbServices.map((service: any) => {
-          const costRate = service.cost_rate ? parseFloat(service.cost_rate) : null;
-          const rate = costRate 
-            ? costRate * (1 + currentMarkup / 100)
-            : (Number(service.rate) || 0);
-          
-          return {
-            ...service,
-            rate: rate,
-            cost_rate: costRate || service.cost_rate,
-            markup_percentage: currentMarkup,
-            min_quantity: Number(service.min_quantity) || 100,
-            max_quantity: Number(service.max_quantity) || 10000,
-          };
-        });
-        return NextResponse.json(normalizedServices);
-      }
-      // If API fails and no database services, return error with details
-      const errorMessage = apiError instanceof Error ? apiError.message : "Unknown error";
+    if (dbError) {
+      console.error("Error fetching services from database:", dbError);
       return NextResponse.json(
-        { error: "Failed to fetch services from API", details: errorMessage },
+        { error: "Failed to fetch services from database", details: dbError.message },
         { status: 500 }
       );
     }
 
-    // Return database services if available
-    if (dbServices && dbServices.length > 0) {
-      // Get current markup percentage to ensure rates are up to date
-      const { data: markupSetting } = await supabase
-        .from("admin_settings")
-        .select("value")
-        .eq("key", "default_markup_percentage")
-        .single();
-      
-      const currentMarkup = markupSetting 
-        ? parseFloat(markupSetting.value) 
-        : 30.00;
-
-      // Normalize numeric fields and recalculate rate if cost_rate exists
-      const normalizedServices = dbServices.map((service: any) => {
-        const costRate = service.cost_rate ? parseFloat(service.cost_rate) : null;
-        // If cost_rate exists, recalculate rate with current markup
-        // Otherwise use the stored rate
-        const rate = costRate 
-          ? costRate * (1 + currentMarkup / 100)
-          : (Number(service.rate) || 0);
-        
-        return {
-          ...service,
-          rate: rate,
-          cost_rate: costRate || service.cost_rate,
-          markup_percentage: currentMarkup,
-          min_quantity: Number(service.min_quantity) || 100,
-          max_quantity: Number(service.max_quantity) || 10000,
-        };
+    if (!dbServices || dbServices.length === 0) {
+      return NextResponse.json({
+        services: [],
+        filters: {
+          categories: [],
+          types: [],
+        },
       });
-      return NextResponse.json(normalizedServices);
+        }
+
+    // Normalize services from database (with markup already applied)
+    console.log(`Normalizing ${dbServices.length} services from database...`);
+    let normalizedServices = dbServices.map((service: any) => ({
+      id: service.id, // Database primary key
+      service_id: service.service_id, // SHOPRIME API ID
+      name: service.name || "",
+      category: service.category || "",
+      type: service.type || "",
+      rate: parseFloat(service.rate) || 0,
+      cost_rate: parseFloat(service.cost_rate) || 0,
+      markup_percentage: parseFloat(service.markup_percentage) || 0,
+      min_quantity: service.min_quantity || 1,
+      max_quantity: service.max_quantity || 1000000,
+      refill_allowed: service.refill_allowed || false,
+      cancel_allowed: service.cancel_allowed || false,
+    }));
+
+    // Apply filters
+        if (search) {
+          const searchLower = search.toLowerCase();
+      normalizedServices = normalizedServices.filter((s: any) =>
+        s.name.toLowerCase().includes(searchLower) ||
+        s.category?.toLowerCase().includes(searchLower) ||
+              s.type?.toLowerCase().includes(searchLower)
+          );
+        }
+
+    if (category) {
+      normalizedServices = normalizedServices.filter((s: any) => 
+        s.category?.toLowerCase() === category.toLowerCase()
+      );
     }
 
-    // Last resort: return API services if we got them
-    if (apiServices && apiServices.length > 0) {
-      // Get current markup percentage
-      const { data: markupSetting } = await supabase
-        .from("admin_settings")
-        .select("value")
-        .eq("key", "default_markup_percentage")
-        .single();
-      
-      const currentMarkup = markupSetting 
-        ? parseFloat(markupSetting.value) 
-        : 30.00;
+    if (type) {
+      normalizedServices = normalizedServices.filter((s: any) => 
+        s.type?.toLowerCase() === type.toLowerCase()
+          );
+        }
 
-      // Normalize API services and apply markup
-      const normalizedServices = apiServices.map((service: any) => {
-        const costRate = Number(service.rate) || 0;
-        const sellingRate = costRate * (1 + currentMarkup / 100);
-        
-        return {
-          id: service.service,
-          service_id: service.service,
-          name: service.name,
-          category: service.category,
-          type: service.type,
-          rate: sellingRate, // Apply markup to API rate
-          cost_rate: costRate, // Store original API rate as cost
-          markup_percentage: currentMarkup,
-          min_quantity: Number(service.min) || 100,
-          max_quantity: Number(service.max) || 10000,
-          refill_allowed: service.refill || false,
-          cancel_allowed: service.cancel || false,
-        };
-      });
-      return NextResponse.json(normalizedServices);
-    }
+      // Get unique categories and types for filters
+      const categories = [...new Set(normalizedServices.map((s: any) => s.category).filter(Boolean))].sort();
+      const types = [...new Set(normalizedServices.map((s: any) => s.type).filter(Boolean))].sort();
 
-    // No services available
-    return NextResponse.json(
-      { error: "No services available" },
-      { status: 404 }
-    );
+        return NextResponse.json({
+        services: normalizedServices,
+        filters: {
+          categories,
+          types,
+          },
+        });
   } catch (error) {
     console.error("Error fetching services:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -219,4 +104,3 @@ export async function GET() {
     );
   }
 }
-

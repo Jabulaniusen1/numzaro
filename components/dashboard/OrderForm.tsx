@@ -1,148 +1,149 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
+import { Loader2 } from "lucide-react";
 
 interface Service {
   id: number;
   service_id: number;
   name: string;
+  category: string;
+  type: string;
   rate: number;
   min_quantity: number;
   max_quantity: number;
+  refill_allowed: boolean;
+  cancel_allowed: boolean;
 }
 
 interface OrderFormProps {
   service: Service;
   onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
-export function OrderForm({ service, onSuccess }: OrderFormProps) {
-  const router = useRouter();
-  const { toast } = useToast();
-  const { format, loading: currencyLoading } = useCurrency();
+export function OrderForm({ service, onSuccess, onCancel }: OrderFormProps) {
   const [link, setLink] = useState("");
-  const [quantity, setQuantity] = useState(service.min_quantity ?? 100);
+  const [quantity, setQuantity] = useState<number>(service.min_quantity || 100);
+  const [comments, setComments] = useState("");
   const [loading, setLoading] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
-  const [checkingBalance, setCheckingBalance] = useState(true);
+  const [balance, setBalance] = useState<number>(0);
+  const { toast } = useToast();
+  const { format } = useCurrency();
+
+  // Check if service is comment-related
+  const isCommentService = () => {
+    const name = (service.name || "").toLowerCase();
+    const type = (service.type || "").toLowerCase();
+    const category = (service.category || "").toLowerCase();
+    return name.includes("comment") || type.includes("comment") || category.includes("comment");
+  };
 
   useEffect(() => {
-    fetchWalletBalance();
+    fetchBalance();
   }, []);
 
-  const fetchWalletBalance = async () => {
+  const fetchBalance = async () => {
     try {
       const response = await fetch("/api/balance");
       if (response.ok) {
         const data = await response.json();
-        setWalletBalance(parseFloat(data.balance || "0"));
+        setBalance(parseFloat(data.balance || "0"));
       }
     } catch (error) {
-      console.error("Error fetching wallet balance:", error);
-    } finally {
-      setCheckingBalance(false);
+      console.error("Error fetching balance:", error);
     }
   };
 
   const calculateCharge = () => {
-    const rate = parseFloat(service.rate.toString());
-    return (rate * quantity) / 1000;
+    if (!quantity || quantity <= 0) return 0;
+    // Rate is per 1000, so calculate: (quantity / 1000) * rate
+    return (quantity / 1000) * (service.rate || 0);
   };
+
+  const charge = calculateCharge();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation
+    if (!link.trim()) {
+      toast({
+        title: "Link required",
+        description: "Please enter a valid link",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (quantity < service.min_quantity || quantity > service.max_quantity) {
+      toast({
+        title: "Invalid quantity",
+        description: `Quantity must be between ${service.min_quantity.toLocaleString()} and ${service.max_quantity.toLocaleString()}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (charge > balance) {
+      toast({
+        title: "Insufficient balance",
+        description: `You need ${format(charge)} but only have ${format(balance)}. Please fund your wallet.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const minQty = service.min_quantity ?? 100;
-      const maxQty = service.max_quantity ?? 10000;
-      
-      // Validate quantity
-      if (quantity < minQty || quantity > maxQty) {
-        toast({
-          title: "Invalid quantity",
-          description: `Quantity must be between ${minQty.toLocaleString()} and ${maxQty.toLocaleString()}`,
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Validate link
-      if (!link || link.trim() === "") {
-        toast({
-          title: "Link required",
-          description: "Please enter a valid social media link",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      const charge = calculateCharge();
-
-      // Check wallet balance
-      if (walletBalance === null) {
-        await fetchWalletBalance();
-      }
-
-      if (walletBalance !== null && walletBalance < charge) {
-        toast({
-          title: "Insufficient wallet balance",
-          description: `You need $${charge.toFixed(2)} but only have $${walletBalance.toFixed(2)}. Please fund your wallet first.`,
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Create order (deducts from wallet)
-      const orderResponse = await fetch("/api/orders/create", {
+      const response = await fetch("/api/orders/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          service_id: service.service_id, // Use API service_id, not database id
+          service_id: service.id,
           link: link.trim(),
-          quantity: quantity,
+          quantity: Math.floor(quantity),
+          ...(comments.trim() && { comments: comments.trim() }),
         }),
       });
 
-      if (!orderResponse.ok) {
-        const error = await orderResponse.json();
-        // Show detailed error message if available
-        const errorMessage = error.details || error.error || "Failed to create order";
-        throw new Error(errorMessage);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create order");
       }
 
-      const { order } = await orderResponse.json();
-
       toast({
-        title: "Order created successfully",
-        description: "Your order has been placed and will be processed shortly.",
+        title: "Order created successfully!",
+        description: `Your order for ${service.name} has been placed.`,
       });
 
-      // Refresh wallet balance
-      await fetchWalletBalance();
+      // Trigger balance update event
+      window.dispatchEvent(new CustomEvent("balanceUpdated"));
 
       // Reset form
       setLink("");
-      setQuantity(service.min_quantity ?? 100);
+      setQuantity(service.min_quantity || 100);
+      setComments("");
 
+      // Call success callback
       if (onSuccess) {
         onSuccess();
       }
     } catch (error: any) {
+      console.error("Error creating order:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to process order",
+        title: "Order failed",
+        description: error.message || "Failed to create order. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -152,70 +153,102 @@ export function OrderForm({ service, onSuccess }: OrderFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold mb-2">{service.name}</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          {service.category} • {service.type}
+        </p>
+      </div>
+
       <div className="space-y-2">
-        <Label htmlFor="link">Social Media Link</Label>
+        <Label htmlFor="link">Link</Label>
         <Input
           id="link"
           type="url"
-          placeholder="https://instagram.com/yourprofile"
+          placeholder="https://..."
           value={link}
           onChange={(e) => setLink(e.target.value)}
           required
+          disabled={loading}
         />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="quantity">
-          Quantity ({(service.min_quantity ?? 100).toLocaleString()} -{" "}
-          {(service.max_quantity ?? 10000).toLocaleString()})
+          Quantity ({service.min_quantity.toLocaleString()} - {service.max_quantity.toLocaleString()})
         </Label>
         <Input
           id="quantity"
           type="number"
-          min={service.min_quantity ?? 100}
-          max={service.max_quantity ?? 10000}
+          min={service.min_quantity}
+          max={service.max_quantity}
           value={quantity}
-          onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+          onChange={(e) => setQuantity(parseInt(e.target.value) || service.min_quantity)}
           required
+          disabled={loading}
         />
       </div>
 
-      <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Rate:</span>
-          <span className="font-medium">
-            {currencyLoading ? "Loading..." : format(parseFloat(service.rate.toString()))} per 1000
-          </span>
+      {isCommentService() && (
+        <div className="space-y-2">
+          <Label htmlFor="comments">Custom comments (1 per line)</Label>
+          <Textarea
+            id="comments"
+            placeholder="Enter comments, one per line..."
+            value={comments}
+            onChange={(e) => setComments(e.target.value)}
+            rows={6}
+            disabled={loading}
+            className="resize-none"
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Enter each comment on a new line
+          </p>
         </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Quantity:</span>
+      )}
+
+      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600 dark:text-gray-400">Price per 1000:</span>
+          <span className="font-medium">{format(service.rate)}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600 dark:text-gray-400">Quantity:</span>
           <span className="font-medium">{quantity.toLocaleString()}</span>
         </div>
-        <div className="flex justify-between items-center pt-2 border-t">
-          <span className="font-semibold">Total:</span>
-          <span className="text-xl font-bold text-[#1877F2]">
-            {currencyLoading ? "Loading..." : format(calculateCharge())}
-          </span>
-        </div>
-        {!checkingBalance && walletBalance !== null && (
-          <div className="flex justify-between items-center pt-2 border-t">
-            <span className="text-sm text-gray-600">Wallet Balance:</span>
-            <span className={`font-medium ${walletBalance < calculateCharge() ? "text-red-600" : "text-green-600"}`}>
-              {currencyLoading ? "Loading..." : format(walletBalance)}
-            </span>
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+          <div className="flex justify-between">
+            <span className="font-semibold">Total Charge:</span>
+            <span className="font-bold text-lg">{format(charge)}</span>
           </div>
-        )}
-        {!checkingBalance && walletBalance !== null && walletBalance < calculateCharge() && (
-          <p className="text-sm text-red-600 mt-2">
-            Insufficient balance. Please fund your wallet first.
-          </p>
-        )}
+        </div>
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>Your Balance:</span>
+          <span>{format(balance)}</span>
+        </div>
       </div>
 
-      <Button type="submit" className="w-full" disabled={loading || checkingBalance}>
-        {loading ? "Processing..." : "Place Order"}
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={loading}
+          className="flex-1"
+        >
+          Cancel
+        </Button>
+        <Button type="submit" disabled={loading || charge > balance} className="flex-1">
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            "Create Order"
+          )}
+        </Button>
+      </div>
     </form>
   );
 }
-

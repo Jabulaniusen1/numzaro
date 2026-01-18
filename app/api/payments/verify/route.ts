@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTransaction, PaystackError } from "@/lib/paystack/client";
 import { createClient } from "@/lib/supabase/server";
+import { createTransactionNotification } from "@/lib/notifications/create";
 
 export async function GET(request: NextRequest) {
   try {
@@ -115,6 +116,18 @@ export async function GET(request: NextRequest) {
             payment_id: payment.id,
             description: `Wallet deposit via Paystack (${paidCurrency} ${paidAmount.toFixed(2)})`,
           });
+
+        // Create notification for wallet funding
+        await createTransactionNotification(
+          user.id,
+          "wallet_funded",
+          depositAmountUSD,
+          {
+            currency: "USD",
+            payment_id: payment.id,
+            description: `Wallet funded via Paystack`,
+          }
+        );
 
         return NextResponse.redirect(
           new URL(`/dashboard?payment=success&type=wallet&reference=${reference}`, request.url)

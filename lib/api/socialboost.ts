@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://exosupplier.com/api/v2";
+const API_BASE_URL = "https://reallysimplesocial.com/api/v2";
 
 interface Service {
   service: number;
@@ -32,7 +32,7 @@ interface MultipleOrderStatus {
 }
 
 interface RefillResponse {
-  refill: number | { error: string };
+  refill: string | number | { error: string }; // API returns string for single refill, number for multiple
 }
 
 interface MultipleRefillResponse {
@@ -56,6 +56,7 @@ interface CancelResponse {
 
 interface BalanceResponse {
   balance: string;
+  currency?: string;
 }
 
 class SocialBoostAPIError extends Error {
@@ -68,11 +69,23 @@ class SocialBoostAPIError extends Error {
 async function makeRequest(
   params: Record<string, string | number>
 ): Promise<any> {
-  const apiKey = process.env.EXOSUPPLIER_API_KEY;
+  const apiKey = process.env.SHOPRIME_API_KEY;
 
   if (!apiKey) {
-    throw new SocialBoostAPIError("EXOSUPPLIER_API_KEY is not configured");
+    console.error("SHOPRIME_API_KEY is missing from environment variables");
+    console.error("Available env vars with 'API' or 'KEY':", Object.keys(process.env).filter(k => k.includes('API') || k.includes('KEY')).join(', '));
+    throw new SocialBoostAPIError("SHOPRIME_API_KEY is not configured. Please ensure it's set in .env.local and restart the Next.js server.");
   }
+
+  // Log key info (without exposing full key for security)
+  console.log("API Key check:", {
+    keyExists: !!apiKey,
+    keyLength: apiKey?.length || 0,
+    keyPrefix: apiKey?.substring(0, 8) || "N/A",
+    action: params.action,
+    keyHasSpaces: apiKey.includes(' '),
+    keyHasNewlines: apiKey.includes('\n')
+  });
 
   const formData = new URLSearchParams();
   formData.append("key", apiKey);
@@ -133,8 +146,19 @@ async function makeRequest(
       console.error("API Error:", {
         status: response.status,
         errorMessage: errorMessage,
-        rawResponse: responseText
+        rawResponse: responseText,
+        action: params.action,
+        keyUsed: apiKey ? `${apiKey.substring(0, 8)}...` : "N/A"
       });
+      
+      // Check if it's an "Invalid key" error and provide helpful message
+      if (errorMessage.toLowerCase().includes("invalid key") || (errorMessage.toLowerCase().includes("invalid") && errorMessage.toLowerCase().includes("key"))) {
+        console.error("API Key Validation Failed:", {
+          message: "The API rejected the provided key",
+          suggestion: "Please verify SHOPRIME_API_KEY in your .env.local file is correct and matches your API provider account",
+          keyPrefix: apiKey?.substring(0, 8) || "N/A"
+        });
+      }
       
       throw new SocialBoostAPIError(
         errorMessage,
@@ -390,6 +414,15 @@ export async function requestRefill(orderId: number): Promise<number> {
       );
     }
     
+    // API returns refill as string for single refill, convert to number
+    if (typeof data.refill === "string") {
+      const refillId = parseInt(data.refill, 10);
+      if (isNaN(refillId)) {
+        throw new SocialBoostAPIError("Invalid refill ID format");
+      }
+      return refillId;
+    }
+    
     if (typeof data.refill !== "number") {
       throw new SocialBoostAPIError("Invalid response format for refill");
     }
@@ -542,7 +575,7 @@ export async function cancelOrder(orderIds: number[]): Promise<CancelResponse[]>
 /**
  * Get user balance
  */
-export async function getBalance(): Promise<string> {
+export async function getBalance(): Promise<{ balance: string; currency?: string }> {
   try {
     const data = await makeRequest({
       action: "balance",
@@ -552,7 +585,10 @@ export async function getBalance(): Promise<string> {
       throw new SocialBoostAPIError("Invalid response format for balance");
     }
     
-    return data.balance;
+    return {
+      balance: data.balance,
+      currency: data.currency,
+    };
   } catch (error) {
     if (error instanceof SocialBoostAPIError) {
       throw error;

@@ -20,9 +20,39 @@ export async function GET() {
     }
 
     // Get exobooster API balance (admin's account)
-    const balance = await getBalance();
+    const balanceData = await getBalance();
+    const balanceAmount = parseFloat(balanceData.balance || "0");
+    const currency = balanceData.currency || "NGN"; // Default to NGN if not specified
 
-    return NextResponse.json({ balance });
+    // Convert NGN to USD if needed
+    let balanceUSD = balanceAmount;
+    if (currency === "NGN" || currency === "NGN") {
+      try {
+        // Fetch exchange rate from NGN to USD
+        const exchangeRateResponse = await fetch(
+          `https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_RATE_API_KEY}/pair/NGN/USD`
+        );
+        if (exchangeRateResponse.ok) {
+          const rateData = await exchangeRateResponse.json();
+          if (rateData.result === "success" && rateData.conversion_rate) {
+            // Convert from NGN to USD
+            // conversion_rate tells us how many USD per 1 NGN
+            // So we multiply: NGN amount * (USD per NGN) = USD amount
+            balanceUSD = balanceAmount * rateData.conversion_rate;
+          }
+        }
+      } catch (error) {
+        console.error("Error converting currency:", error);
+        // If conversion fails, return the original balance with currency info
+      }
+    }
+
+    return NextResponse.json({ 
+      balance: balanceUSD.toFixed(2),
+      originalBalance: balanceAmount.toFixed(2),
+      originalCurrency: currency,
+      currency: "USD"
+    });
   } catch (error) {
     console.error("Error fetching admin balance:", error);
     return NextResponse.json(

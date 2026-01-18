@@ -1,6 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getTelecomProvider } from "@/lib/telecom";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { purchaseNumber, configureNumberWebhook } from "@/lib/twilio/numbers";
+import { purchaseWithWallet, refundToWallet } from "@/lib/wallet/purchase";
+import { getDefaultMonthlyCost } from "@/lib/twilio/costs";
+
+const COUNTRY_NAMES: Record<string, string> = {
+  US: "United States",
+  CA: "Canada",
+  GB: "United Kingdom",
+  AU: "Australia",
+  DE: "Germany",
+  FR: "France",
+  IT: "Italy",
+  ES: "Spain",
+  NL: "Netherlands",
+  BE: "Belgium",
+  CH: "Switzerland",
+  AT: "Austria",
+  SE: "Sweden",
+  NO: "Norway",
+  DK: "Denmark",
+  FI: "Finland",
+  PL: "Poland",
+  PT: "Portugal",
+  IE: "Ireland",
+  NZ: "New Zealand",
+  SG: "Singapore",
+  HK: "Hong Kong",
+  JP: "Japan",
+  KR: "South Korea",
+  IN: "India",
+  BR: "Brazil",
+  MX: "Mexico",
+  AR: "Argentina",
+  CL: "Chile",
+  CO: "Colombia",
+  ZA: "South Africa",
+  NG: "Nigeria",
+  KE: "Kenya",
+  EG: "Egypt",
+};
+
+function getCountryName(countryCode: string): string {
+  return COUNTRY_NAMES[countryCode.toUpperCase()] || countryCode;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,36 +58,24 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const {
-      phoneNumberId,
-      country,
-      numberType,
-      capabilities,
-      purchaseCost,
-      monthlyCost,
-    } = body;
+    const { phoneNumber, countryCode } = body;
 
-    // Validate required fields
-    if (!phoneNumberId || !country || !numberType || !capabilities) {
+    if (!phoneNumber || !countryCode) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "phoneNumber and countryCode are required" },
         { status: 400 }
       );
     }
 
-    if (!["long_term", "otp", "business"].includes(numberType)) {
-      return NextResponse.json(
-        { error: "Invalid number type" },
-        { status: 400 }
-      );
-    }
+    // Calculate pricing
+    const twilioMonthlyCost = 1.0; // Base Twilio cost
+    const monthlyCost = getDefaultMonthlyCost(countryCode);
+    const countryName = getCountryName(countryCode);
 
-    // Calculate costs
-    const setupCost = parseFloat(purchaseCost || "0");
-    const recurringCost = numberType === "otp" ? null : parseFloat(monthlyCost || "0");
-    const totalCost = setupCost;
+    // Get webhook URL
+    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio/sms`;
 
-    // Check wallet balance
+    // Step 1: Check wallet balance
     const { data: userProfile } = await supabase
       .from("users")
       .select("wallet_balance")
@@ -52,138 +84,182 @@ export async function POST(request: NextRequest) {
 
     const currentBalance = parseFloat(userProfile?.wallet_balance || "0.00");
 
-    if (currentBalance < totalCost) {
+    if (currentBalance < monthlyCost) {
       return NextResponse.json(
         {
           error: "Insufficient wallet balance",
-          required: totalCost,
+          required: monthlyCost,
           available: currentBalance,
         },
         { status: 400 }
       );
     }
 
+    // Step 2: Purchase number from Twilio
+    let purchasedNumber;
     try {
-      // Purchase number from provider
-      const provider = getTelecomProvider();
-      const purchasedNumber = await provider.purchaseNumber(phoneNumberId);
+      purchasedNumber = await purchaseNumber(phoneNumber, webhookUrl);
+    } catch (twilioError: any) {
+      console.error("Twilio purchase error:", twilioError);
+      return NextResponse.json(
+        { error: `Failed to purchase number: ${twilioError.message}` },
+        { status: 500 }
+      );
+    }
 
-      // Get webhook base URL
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      const smsWebhookUrl = `${appUrl}/api/webhooks/sms`;
-      const callWebhookUrl = `${appUrl}/api/webhooks/calls`;
+    // Step 3: Deduct from wallet
+    const walletResult = await purchaseWithWallet(
+      user.id,
+      monthlyCost,
+      `Virtual number purchase: ${purchasedNumber.phoneNumber}`
+    );
 
-      // Configure webhooks
+    if (!walletResult.success) {
+      // Rollback: Release number from Twilio
       try {
-        await provider.configureSMSWebhook(purchasedNumber.providerId, smsWebhookUrl);
-        if (capabilities.includes("voice")) {
-          await provider.configureCallWebhook(
-            purchasedNumber.providerId,
-            callWebhookUrl
-          );
-        }
-      } catch (webhookError) {
-        console.error("Webhook configuration error:", webhookError);
-        // Continue even if webhook config fails - can be configured later
+        const { releaseNumber } = await import("@/lib/twilio/numbers");
+        await releaseNumber(purchasedNumber.sid);
+      } catch (releaseError) {
+        console.error("Error releasing number after wallet failure:", releaseError);
       }
 
-      // Calculate renewal date (30 days from now for long_term/business)
-      const renewalDate =
-        numberType === "otp"
-          ? null
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      return NextResponse.json(
+        { error: walletResult.error || "Failed to deduct from wallet" },
+        { status: 500 }
+      );
+    }
 
-      // Deduct from wallet
-      const balanceAfter = currentBalance - totalCost;
-      const { error: balanceError } = await supabase
-        .from("users")
-        .update({ wallet_balance: balanceAfter })
-        .eq("id", user.id);
-
-      if (balanceError) {
-        // Try to release the number if wallet update fails
-        try {
-          await provider.releaseNumber(purchasedNumber.providerId);
-        } catch (releaseError) {
-          console.error("Failed to release number after wallet error:", releaseError);
-        }
-        return NextResponse.json(
-          { error: "Failed to deduct from wallet" },
-          { status: 500 }
-        );
-      }
-
-      // Create wallet transaction
-      await supabase.from("wallet_transactions").insert({
-        user_id: user.id,
-        type: "order_payment",
-        amount: -totalCost,
-        balance_before: currentBalance,
-        balance_after: balanceAfter,
-        description: `Virtual number purchase: ${purchasedNumber.phoneNumber}`,
-      });
-
-      // Save number to database
-      const { data: phoneNumber, error: dbError } = await supabase
-        .from("phone_numbers")
+    // Step 4: Create database records
+    try {
+      // Create virtual_number record
+      const { data: virtualNumber, error: numberError } = await supabase
+        .from("virtual_numbers")
         .insert({
           user_id: user.id,
-          provider: process.env.TELECOM_PROVIDER || "twilio",
-          country: country,
-          number: purchasedNumber.phoneNumber,
-          type: numberType,
-          capabilities: capabilities,
+          phone_number: purchasedNumber.phoneNumber,
+          country_code: countryCode,
+          country_name: countryName,
+          twilio_sid: purchasedNumber.sid,
           status: "active",
-          purchase_cost: setupCost,
-          monthly_cost: recurringCost,
-          renewal_date: renewalDate,
-          provider_number_id: purchasedNumber.providerId,
+          capabilities: purchasedNumber.capabilities.SMS ? ["sms"] : [],
+          monthly_cost: monthlyCost,
+          twilio_monthly_cost: twilioMonthlyCost,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
         })
         .select()
         .single();
 
-      if (dbError) {
-        console.error("Database error:", dbError);
-        // Try to release the number if DB save fails
+      if (numberError) {
+        console.error("Error creating virtual_number:", numberError);
+        
+        // Rollback: Release number and refund wallet
         try {
-          await provider.releaseNumber(purchasedNumber.providerId);
+          const { releaseNumber } = await import("@/lib/twilio/numbers");
+          await releaseNumber(purchasedNumber.sid);
         } catch (releaseError) {
-          console.error("Failed to release number after DB error:", releaseError);
+          console.error("Error releasing number:", releaseError);
         }
-        // Refund wallet
-        await supabase
-          .from("users")
-          .update({ wallet_balance: currentBalance })
-          .eq("id", user.id);
+
+        await refundToWallet(
+          user.id,
+          monthlyCost,
+          `Refund for failed number purchase: ${purchasedNumber.phoneNumber}`
+        );
+
         return NextResponse.json(
-          { error: "Failed to save number to database" },
+          { error: "Failed to create database record" },
           { status: 500 }
         );
       }
 
-      // Create subscription record if not OTP
-      if (numberType !== "otp" && renewalDate) {
-        await supabase.from("number_subscriptions").insert({
-          number_id: phoneNumber.id,
+      // Create number_purchase record
+      const { error: purchaseError } = await supabase
+        .from("number_purchases")
+        .insert({
           user_id: user.id,
-          next_charge_date: renewalDate,
-          status: "active",
+          virtual_number_id: virtualNumber.id,
+          amount: monthlyCost,
+          currency: "USD",
+          status: "completed",
+          wallet_transaction_id: walletResult.walletTransactionId,
         });
+
+      if (purchaseError) {
+        console.error("Error creating number_purchase:", purchaseError);
+        // Non-critical error, log but don't fail
       }
 
-      return NextResponse.json({ number: phoneNumber });
-    } catch (providerError: any) {
-      console.error("Provider error:", providerError);
-      return NextResponse.json(
-        {
-          error: "Failed to purchase number",
-          details: providerError.message || "Provider API error",
+      // Create twilio_charges record
+      const { error: chargeError } = await supabase
+        .from("twilio_charges")
+        .insert({
+          user_id: user.id,
+          virtual_number_id: virtualNumber.id,
+          charge_type: "number_purchase",
+          twilio_sid: purchasedNumber.sid,
+          actual_cost: twilioMonthlyCost,
+          user_charged: monthlyCost,
+          metadata: {
+            phone_number: purchasedNumber.phoneNumber,
+            country_code: countryCode,
+          },
+        });
+
+      if (chargeError) {
+        console.error("Error creating twilio_charges:", chargeError);
+        // Non-critical error, log but don't fail
+      }
+
+      // Create notification
+      const supabaseForNotification = createServiceRoleClient();
+      await supabaseForNotification.from("notifications").insert({
+        user_id: user.id,
+        type: "transaction",
+        title: "Virtual Number Purchased",
+        message: `Successfully purchased ${purchasedNumber.phoneNumber}`,
+        data: {
+          type: "number_purchased",
+          number: purchasedNumber.phoneNumber,
+          number_id: virtualNumber.id,
+          amount: monthlyCost,
         },
+      });
+
+      return NextResponse.json({
+        success: true,
+        number: {
+          id: virtualNumber.id,
+          phone_number: virtualNumber.phone_number,
+          country_code: virtualNumber.country_code,
+          country_name: virtualNumber.country_name,
+          status: virtualNumber.status,
+          monthly_cost: virtualNumber.monthly_cost,
+        },
+      });
+    } catch (dbError: any) {
+      console.error("Database error:", dbError);
+
+      // Rollback: Release number and refund wallet
+      try {
+        const { releaseNumber } = await import("@/lib/twilio/numbers");
+        await releaseNumber(purchasedNumber.sid);
+      } catch (releaseError) {
+        console.error("Error releasing number:", releaseError);
+      }
+
+      await refundToWallet(
+        user.id,
+        monthlyCost,
+        `Refund for failed number purchase: ${purchasedNumber.phoneNumber}`
+      );
+
+      return NextResponse.json(
+        { error: "Failed to create database record" },
         { status: 500 }
       );
     }
   } catch (error: any) {
-    console.error("Purchase number error:", error);
+    console.error("Error in purchase route:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
       { status: 500 }

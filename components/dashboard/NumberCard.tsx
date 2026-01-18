@@ -3,117 +3,98 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { NumberTypeBadge } from "./NumberTypeBadge";
-import { NumberStatusBadge } from "./NumberStatusBadge";
-import { useCurrency } from "@/lib/hooks/use-currency";
 import Link from "next/link";
-import { Phone, MessageSquare, Trash2, Settings } from "lucide-react";
-
-interface PhoneNumber {
-  id: string;
-  number: string;
-  country: string;
-  type: "long_term" | "otp" | "business";
-  capabilities: string;
-  status: "active" | "released" | "expired";
-  monthly_cost: number | null;
-  renewal_date: string | null;
-  created_at: string;
-}
+import { Phone, MessageSquare, Shield, Calendar } from "lucide-react";
+import { useCurrency } from "@/lib/hooks/use-currency";
+import { format } from "date-fns";
 
 interface NumberCardProps {
-  number: PhoneNumber;
-  onRelease?: (id: string) => void;
+  number: {
+    id: string;
+    phone_number: string;
+    country_code: string;
+    country_name: string;
+    status: string;
+    monthly_cost: number;
+    message_count?: number;
+    pending_otp_count?: number;
+    created_at: string;
+    expires_at: string;
+  };
 }
 
-export function NumberCard({ number, onRelease }: NumberCardProps) {
-  const { format } = useCurrency();
+export function NumberCard({ number }: NumberCardProps) {
+  const { format: formatCurrency, loading: currencyLoading } = useCurrency();
 
-  const getBorderColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "border-green-300";
-      case "released":
-        return "border-gray-300";
-      case "expired":
-        return "border-red-300";
-      default:
-        return "border-gray-300";
-    }
+  const statusColors: Record<string, string> = {
+    active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    suspended: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+    cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
   };
 
   return (
-    <Card className={getBorderColor(number.status)}>
+    <Card>
       <CardHeader>
         <div className="flex justify-between items-start">
-          <div className="flex-1">
+          <div className="space-y-1">
             <CardTitle className="flex items-center gap-2">
               <Phone className="h-5 w-5" />
-              {number.number}
+              {number.phone_number}
             </CardTitle>
-            <CardDescription>{number.country}</CardDescription>
+            <CardDescription>{number.country_name}</CardDescription>
           </div>
-          <div className="flex flex-col gap-2 items-end">
-            <NumberStatusBadge status={number.status} />
-            <NumberTypeBadge type={number.type} />
-          </div>
+          <Badge className={statusColors[number.status] || ""}>
+            {number.status}
+          </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-gray-600">Capabilities</p>
-            <p className="font-medium capitalize">{number.capabilities}</p>
-          </div>
-          {number.monthly_cost !== null && (
+      <CardContent>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-gray-600">Monthly Cost</p>
-              <p className="font-medium">{format(number.monthly_cost)}</p>
-            </div>
-          )}
-          {number.renewal_date && (
-            <div>
-              <p className="text-gray-600">Renewal Date</p>
-              <p className="font-medium">
-                {new Date(number.renewal_date).toLocaleDateString()}
+              <p className="text-muted-foreground">Monthly Cost</p>
+              <p className="font-semibold">
+                {formatCurrency(number.monthly_cost)}
               </p>
             </div>
-          )}
-          <div>
-            <p className="text-gray-600">Created</p>
-            <p className="font-medium">
-              {new Date(number.created_at).toLocaleDateString()}
-            </p>
+            <div>
+              <p className="text-muted-foreground">Messages</p>
+              <p className="font-semibold">{number.message_count || 0}</p>
+            </div>
+            {number.pending_otp_count !== undefined && (
+              <div>
+                <p className="text-muted-foreground">Pending OTPs</p>
+                <p className="font-semibold">{number.pending_otp_count}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-muted-foreground">Expires</p>
+              <p className="font-semibold text-xs">
+                {format(new Date(number.expires_at), "MMM d, yyyy")}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="flex gap-2 pt-2">
-          <Link href={`/dashboard/numbers/${number.id}`}>
-            <Button variant="outline" size="sm" className="flex-1">
-              <Settings className="h-4 w-4 mr-2" />
-              View Details
-            </Button>
-          </Link>
-          {number.type !== "otp" && number.status === "active" && (
-            <Link href={`/dashboard/numbers/${number.id}`}>
-              <Button variant="outline" size="sm">
-                <MessageSquare className="h-4 w-4" />
+          <div className="flex gap-2">
+            <Link href={`/dashboard/numbers/${number.id}`} className="flex-1">
+              <Button variant="outline" className="w-full">
+                View Details
               </Button>
             </Link>
-          )}
-          {number.status === "active" && onRelease && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onRelease(number.id)}
-              className="text-red-600 hover:text-red-700"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
+            <Link href={`/dashboard/numbers/${number.id}/messages`} className="flex-1">
+              <Button variant="outline" className="w-full">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Messages
+              </Button>
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
+
+
+
+
 

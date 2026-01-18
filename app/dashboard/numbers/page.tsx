@@ -1,163 +1,172 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { NumberCard } from "@/components/dashboard/NumberCard";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
-import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { NumberCard } from "@/components/dashboard/NumberCard";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useCurrency } from "@/lib/hooks/use-currency";
+import Link from "next/link";
+import { Phone, Plus, Loader2, Search } from "lucide-react";
 
-interface PhoneNumber {
+interface VirtualNumber {
   id: string;
-  number: string;
-  country: string;
-  type: "long_term" | "otp" | "business";
-  capabilities: string;
-  status: "active" | "released" | "expired";
-  monthly_cost: number | null;
-  renewal_date: string | null;
+  phone_number: string;
+  country_code: string;
+  country_name: string;
+  status: string;
+  monthly_cost: number;
+  message_count?: number;
+  pending_otp_count?: number;
   created_at: string;
+  expires_at: string;
 }
 
 export default function NumbersPage() {
-  const [numbers, setNumbers] = useState<PhoneNumber[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filterType, setFilterType] = useState<string>("");
-  const [filterStatus, setFilterStatus] = useState<string>("");
   const { toast } = useToast();
+  const { format } = useCurrency();
+  const [numbers, setNumbers] = useState<VirtualNumber[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchNumbers();
-  }, [filterType, filterStatus]);
+  }, []);
 
   const fetchNumbers = async () => {
+    setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (filterType) params.append("type", filterType);
-      if (filterStatus) params.append("status", filterStatus);
-
-      const response = await fetch(`/api/numbers?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setNumbers(data.numbers || []);
+      const response = await fetch("/api/numbers");
+      if (!response.ok) {
+        throw new Error("Failed to fetch numbers");
       }
-    } catch (error) {
-      console.error("Error fetching numbers:", error);
+
+      const data = await response.json();
+      setNumbers(data.numbers || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load numbers",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRelease = async (id: string) => {
-    if (!confirm("Are you sure you want to release this number?")) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/numbers/${id}/release`, {
-        method: "POST",
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Number released successfully",
-        });
-        fetchNumbers();
-      } else {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to release number");
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to release number",
-        variant: "destructive",
-      });
-    }
-  };
-
-  if (loading) {
+  const filteredNumbers = numbers.filter((number) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
     return (
-      <div className="flex justify-center items-center py-12">
-        <p className="text-gray-600">Loading numbers...</p>
-      </div>
+      number.phone_number.toLowerCase().includes(query) ||
+      number.country_name.toLowerCase().includes(query) ||
+      number.country_code.toLowerCase().includes(query)
     );
-  }
+  });
+
+  const stats = {
+    total: numbers.length,
+    active: numbers.filter((n) => n.status === "active").length,
+    totalMessages: numbers.reduce((sum, n) => sum + (n.message_count || 0), 0),
+    pendingOTPs: numbers.reduce((sum, n) => sum + (n.pending_otp_count || 0), 0),
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Virtual Numbers</h1>
-          <p className="text-gray-600 mt-2">
-            Manage your virtual phone numbers
+          <h1 className="text-3xl font-bold">My Virtual Numbers</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage your virtual numbers and view messages
           </p>
         </div>
-        <Link href="/dashboard/numbers/buy">
+        <Link href="/numbers">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Buy Number
+            Buy New Number
           </Button>
         </Link>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-4">
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="px-4 py-2 border rounded-md"
-        >
-          <option value="">All Types</option>
-          <option value="long_term">Long-term</option>
-          <option value="business">Business</option>
-          <option value="otp">OTP</option>
-        </select>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-4 py-2 border rounded-md"
-        >
-          <option value="">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="released">Released</option>
-          <option value="expired">Expired</option>
-        </select>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Total Numbers</CardDescription>
+            <CardTitle className="text-2xl">{stats.total}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Active Numbers</CardDescription>
+            <CardTitle className="text-2xl">{stats.active}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Total Messages</CardDescription>
+            <CardTitle className="text-2xl">{stats.totalMessages}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Pending OTPs</CardDescription>
+            <CardTitle className="text-2xl">{stats.pendingOTPs}</CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
-      {numbers.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {numbers.map((number) => (
-            <NumberCard
-              key={number.id}
-              number={number}
-              onRelease={handleRelease}
-            />
-          ))}
+      {/* Search */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by phone number, country..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
         </div>
-      ) : (
+      </div>
+
+      {/* Numbers List */}
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : filteredNumbers.length === 0 ? (
         <Card>
-          <CardContent className="p-12 text-center">
-            <p className="text-gray-600 mb-4">
-              No numbers yet.{" "}
-              <Link
-                href="/dashboard/numbers/buy"
-                className="text-[#1877F2] hover:underline"
-              >
-                Buy a number
-              </Link>{" "}
-              to get started.
+          <CardContent className="py-12 text-center">
+            <Phone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground mb-4">
+              {searchQuery ? "No numbers match your search" : "You don't have any virtual numbers yet"}
             </p>
-            <Link href="/dashboard/numbers/otp">
-              <Button variant="outline">View OTP Numbers</Button>
-            </Link>
+            {!searchQuery && (
+              <Link href="/numbers">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Buy Your First Number
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredNumbers.map((number) => (
+            <NumberCard key={number.id} number={number} />
+          ))}
+        </div>
       )}
     </div>
   );
 }
+
+
+
+
+
+
+
 

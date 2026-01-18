@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getTelecomProvider } from "@/lib/telecom";
+import { releaseNumber } from "@/lib/twilio/numbers";
+import { refundToWallet } from "@/lib/wallet/purchase";
 
 export async function GET(
   request: NextRequest,
@@ -17,7 +18,7 @@ export async function GET(
     }
 
     const { data: number, error } = await supabase
-      .from("phone_numbers")
+      .from("virtual_numbers")
       .select("*")
       .eq("id", params.id)
       .eq("user_id", user.id)
@@ -30,73 +31,25 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ number });
+    // Get message count
+    const { count: messageCount } = await supabase
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+      .eq("number_id", number.id);
+
+    // Get OTP count
+    const { count: otpCount } = await supabase
+      .from("otp_codes")
+      .select("*", { count: "exact", head: true })
+      .eq("number_id", number.id);
+
+    return NextResponse.json({
+      ...number,
+      message_count: messageCount || 0,
+      otp_count: otpCount || 0,
+    });
   } catch (error: any) {
-    console.error("Get number error:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { forwarding_number, voicemail_enabled } = body;
-
-    // Verify ownership
-    const { data: existingNumber } = await supabase
-      .from("phone_numbers")
-      .select("*")
-      .eq("id", params.id)
-      .eq("user_id", user.id)
-      .single();
-
-    if (!existingNumber) {
-      return NextResponse.json(
-        { error: "Number not found" },
-        { status: 404 }
-      );
-    }
-
-    const updateData: any = {};
-    if (forwarding_number !== undefined) {
-      updateData.forwarding_number = forwarding_number;
-    }
-    if (voicemail_enabled !== undefined) {
-      updateData.voicemail_enabled = voicemail_enabled;
-    }
-
-    const { data: updatedNumber, error } = await supabase
-      .from("phone_numbers")
-      .update(updateData)
-      .eq("id", params.id)
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json(
-        { error: "Failed to update number" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ number: updatedNumber });
-  } catch (error: any) {
-    console.error("Update number error:", error);
+    console.error("Error in GET /api/numbers/[id]:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
       { status: 500 }
@@ -118,59 +71,67 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify ownership and get number details
-    const { data: number } = await supabase
-      .from("phone_numbers")
+    // Get number details
+    const { data: number, error: fetchError } = await supabase
+      .from("virtual_numbers")
       .select("*")
       .eq("id", params.id)
       .eq("user_id", user.id)
       .single();
 
-    if (!number) {
+    if (fetchError || !number) {
       return NextResponse.json(
         { error: "Number not found" },
         { status: 404 }
       );
     }
 
-    // Release number from provider
-    if (number.provider_number_id && number.status === "active") {
-      try {
-        const provider = getTelecomProvider();
-        await provider.releaseNumber(number.provider_number_id);
-      } catch (providerError) {
-        console.error("Failed to release number from provider:", providerError);
-        // Continue with deletion even if provider release fails
-      }
+    if (number.status === "cancelled") {
+      return NextResponse.json(
+        { error: "Number is already cancelled" },
+        { status: 400 }
+      );
     }
 
-    // Update status to released (don't actually delete to keep history)
+    // Release number from Twilio
+    try {
+      await releaseNumber(number.twilio_sid);
+    } catch (twilioError: any) {
+      console.error("Error releasing number from Twilio:", twilioError);
+      // Continue with cancellation even if Twilio release fails
+    }
+
+    // Update status in database
     const { error: updateError } = await supabase
-      .from("phone_numbers")
-      .update({ status: "released" })
+      .from("virtual_numbers")
+      .update({ status: "cancelled" })
       .eq("id", params.id);
 
     if (updateError) {
+      console.error("Error updating number status:", updateError);
       return NextResponse.json(
-        { error: "Failed to release number" },
+        { error: "Failed to cancel number" },
         { status: 500 }
       );
     }
 
-    // Cancel any active subscriptions
-    await supabase
-      .from("number_subscriptions")
-      .update({ status: "cancelled" })
-      .eq("number_id", params.id)
-      .eq("status", "active");
+    // Optionally refund prorated amount (implement if needed)
+    // For now, we'll just cancel without refund
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Delete number error:", error);
+    console.error("Error in DELETE /api/numbers/[id]:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
       { status: 500 }
     );
   }
 }
+
+
+
+
+
+
+
 

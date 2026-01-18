@@ -5,7 +5,7 @@
 - Node.js 18+ installed
 - Supabase account
 - Paystack account
-- Exosupplier API key
+- Therealowlet API key
 
 ## Installation Steps
 
@@ -27,19 +27,12 @@ Required environment variables:
 - `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anon key
 - `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key
-- `EXOSUPPLIER_API_KEY` - Your Exosupplier API key
+- `REALOWLET_API_KEY` - Your Therealowlet API key
 - `PAYSTACK_SECRET_KEY` - Your Paystack secret key
 - `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` - Your Paystack public key
 - `NEXT_PUBLIC_APP_URL` - Your app URL (e.g., http://localhost:3000)
 - `ADMIN_EMAILS` - Comma-separated list of admin email addresses (e.g., admin@example.com,owner@example.com)
 - `EXCHANGE_RATE_API_KEY` - Your ExchangeRate-API.com API key (for currency conversion)
-- `TELECOM_PROVIDER` - Telecom provider name (default: "twilio", options: "telnyx" or "twilio")
-- **For Telnyx:**
-  - `TELNYX_API_KEY` - Your Telnyx API key (for virtual numbers)
-  - `TELNYX_WEBHOOK_SECRET` - Telnyx webhook signature secret (optional, defaults to API key)
-- **For Twilio:**
-  - `TWILIO_ACCOUNT_SID` - Your Twilio Account SID
-  - `TWILIO_AUTH_TOKEN` - Your Twilio Auth Token
 - `CRON_SECRET_TOKEN` - Secret token for securing cron endpoints (optional but recommended)
 
 ### 3. Set Up Supabase Database

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getTelecomProvider } from "@/lib/telecom";
+import { searchAvailableNumbers } from "@/lib/twilio/numbers";
+import { getDefaultMonthlyCost } from "@/lib/twilio/costs";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,52 +15,46 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const country = searchParams.get("country");
-    const capabilities = searchParams.get("capabilities") || "sms";
-    const limit = parseInt(searchParams.get("limit") || "10", 10);
-
-    if (!country) {
-      return NextResponse.json(
-        { error: "Country parameter is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!["sms", "voice", "sms+voice"].includes(capabilities)) {
-      return NextResponse.json(
-        { error: "Invalid capabilities. Must be: sms, voice, or sms+voice" },
-        { status: 400 }
-      );
-    }
+    const countryCode = searchParams.get("country") || "US";
+    const capabilities = searchParams.get("capabilities")?.split(",") || ["SMS"];
 
     try {
-      const provider = getTelecomProvider();
-      const availableNumbers = await provider.searchNumbers(
-        country,
-        capabilities as "sms" | "voice" | "sms+voice",
-        limit
-      );
+      const availableNumbers = await searchAvailableNumbers(countryCode, capabilities);
 
-      return NextResponse.json({ numbers: availableNumbers });
-    } catch (providerError: any) {
-      console.error("Provider error:", providerError);
-      console.error("Provider error stack:", providerError.stack);
+      // Add pricing information
+      const numbersWithPricing = availableNumbers.map((number) => {
+        const monthlyCost = getDefaultMonthlyCost(countryCode);
+        return {
+          ...number,
+          monthly_cost: monthlyCost,
+          twilio_monthly_cost: 1.0, // Base Twilio cost
+        };
+      });
+
+      return NextResponse.json({
+        numbers: numbersWithPricing,
+        country_code: countryCode,
+      });
+    } catch (error: any) {
+      console.error("Error searching numbers:", error);
       return NextResponse.json(
-        {
-          error: "Failed to search numbers",
-          details: providerError.message || "Provider API error",
-          code: providerError.code,
-          statusCode: providerError.statusCode,
-        },
+        { error: error.message || "Failed to search numbers" },
         { status: 500 }
       );
     }
   } catch (error: any) {
-    console.error("Search numbers error:", error);
+    console.error("Error in GET /api/numbers/search:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
       { status: 500 }
     );
   }
 }
+
+
+
+
+
+
+
 

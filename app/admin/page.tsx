@@ -27,7 +27,12 @@ export default function AdminPage() {
   const [markupInput, setMarkupInput] = useState("30");
   const [updatingMarkup, setUpdatingMarkup] = useState(false);
   const [apiBalance, setApiBalance] = useState<string | null>(null);
+  const [apiBalanceOriginal, setApiBalanceOriginal] = useState<string | null>(null);
+  const [apiBalanceCurrency, setApiBalanceCurrency] = useState<string>("USD");
+  const [originalCurrency, setOriginalCurrency] = useState<string>("NGN");
+  const [displayCurrency, setDisplayCurrency] = useState<"USD" | "NGN">("USD");
   const [balanceLoading, setBalanceLoading] = useState(true);
+  const [syncingServices, setSyncingServices] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -69,12 +74,21 @@ export default function AdminPage() {
       if (response.ok) {
         const data = await response.json();
         setApiBalance(data.balance || "0.00");
+        setApiBalanceOriginal(data.originalBalance || data.balance || "0.00");
+        setApiBalanceCurrency(data.currency || "USD");
+        setOriginalCurrency(data.originalCurrency || "NGN");
       } else {
         setApiBalance("0.00");
+        setApiBalanceOriginal("0.00");
+        setApiBalanceCurrency("USD");
+        setOriginalCurrency("NGN");
       }
     } catch (error) {
       console.error("Error fetching API balance:", error);
       setApiBalance("0.00");
+      setApiBalanceOriginal("0.00");
+      setApiBalanceCurrency("USD");
+      setOriginalCurrency("NGN");
     } finally {
       setBalanceLoading(false);
     }
@@ -120,6 +134,34 @@ export default function AdminPage() {
     }
   };
 
+  const handleSyncServices = async () => {
+    setSyncingServices(true);
+    try {
+      const response = await fetch("/api/admin/services/sync", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Services synced",
+          description: `Successfully synced ${data.count || 0} services from SHOPRIME API.`,
+        });
+      } else {
+        throw new Error(data.error || data.details || "Failed to sync services");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Sync failed",
+        description: error.message || "Failed to sync services. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingServices(false);
+    }
+  };
+
   const revenueChange =
     stats && stats.lastMonthRevenue > 0
       ? ((stats.thisMonthRevenue - stats.lastMonthRevenue) / stats.lastMonthRevenue) * 100
@@ -147,24 +189,104 @@ export default function AdminPage() {
       {/* API Balance Card */}
       <Card className="border-blue-200 bg-blue-50">
         <CardHeader>
-          <CardTitle className="text-blue-900">API Account Balance</CardTitle>
-          <CardDescription className="text-blue-700">
-            Your exosupplier.com account balance
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-blue-900">API Account Balance</CardTitle>
+              <CardDescription className="text-blue-700">
+                Your therealowlet.com account balance
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-blue-700 font-medium">Currency:</span>
+              <div className="flex border border-blue-300 rounded-md overflow-hidden">
+                <button
+                  onClick={() => setDisplayCurrency("USD")}
+                  className={`px-3 py-1 text-sm font-medium transition-colors ${
+                    displayCurrency === "USD"
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-blue-700 hover:bg-blue-50"
+                  }`}
+                >
+                  USD ($)
+                </button>
+                <button
+                  onClick={() => setDisplayCurrency("NGN")}
+                  className={`px-3 py-1 text-sm font-medium transition-colors border-l border-blue-300 ${
+                    displayCurrency === "NGN"
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-blue-700 hover:bg-blue-50"
+                  }`}
+                >
+                  NGN (₦)
+                </button>
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {balanceLoading ? (
             <p className="text-2xl font-bold text-blue-900">Loading...</p>
           ) : (
-            <div className="flex items-center justify-between">
-              <p className="text-3xl font-bold text-blue-900">
-                ${parseFloat(apiBalance || "0").toFixed(2)}
-              </p>
-              <Button onClick={fetchApiBalance} variant="outline" size="sm">
-                Refresh
-              </Button>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-3xl font-bold text-blue-900">
+                    {displayCurrency === "USD" ? "$" : "₦"}
+                    {displayCurrency === "USD"
+                      ? parseFloat(apiBalance || "0").toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })
+                      : parseFloat(apiBalanceOriginal || "0").toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                  </p>
+                  {displayCurrency === "USD" && apiBalanceOriginal && (
+                    <p className="text-sm text-blue-700 mt-1">
+                      {parseFloat(apiBalanceOriginal || "0").toLocaleString()} {originalCurrency}
+                    </p>
+                  )}
+                  {displayCurrency === "NGN" && apiBalance && (
+                    <p className="text-sm text-blue-700 mt-1">
+                      ${parseFloat(apiBalance || "0").toFixed(2)} USD
+                    </p>
+                  )}
+                </div>
+                <Button onClick={fetchApiBalance} variant="outline" size="sm">
+                  Refresh
+                </Button>
+              </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Services Sync */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Services Management</CardTitle>
+          <CardDescription>Sync services from SHOPRIME API to database</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-2">
+                Fetch the latest services from SHOPRIME API and sync them to the database.
+                Users will see services from the database.
+              </p>
+              <p className="text-xs text-gray-500">
+                Services are fetched from the API, markup is applied, and stored in the database.
+              </p>
+            </div>
+            <Button 
+              onClick={handleSyncServices} 
+              disabled={syncingServices}
+              className="ml-4"
+            >
+              {syncingServices ? "Syncing..." : "Sync Services"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

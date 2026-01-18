@@ -1,250 +1,201 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { NumberStatusBadge } from "@/components/dashboard/NumberStatusBadge";
-import { NumberTypeBadge } from "@/components/dashboard/NumberTypeBadge";
-import { SMSInbox } from "@/components/dashboard/SMSInbox";
-import { CallLogs } from "@/components/dashboard/CallLogs";
-import { ForwardingSettings } from "@/components/dashboard/ForwardingSettings";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
-import { Phone, ArrowLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { ArrowLeft, Phone, Loader2, MessageSquare, Shield, Calendar } from "lucide-react";
+import { format } from "date-fns";
 
-interface PhoneNumber {
+interface VirtualNumber {
   id: string;
-  number: string;
-  country: string;
-  type: "long_term" | "otp" | "business";
-  capabilities: string;
-  status: "active" | "released" | "expired";
-  monthly_cost: number | null;
-  renewal_date: string | null;
-  forwarding_number: string | null;
-  voicemail_enabled: boolean;
-  created_at: string;
-}
-
-interface SMSMessage {
-  id: string;
-  direction: "inbound" | "outbound";
-  message: string;
-  from_number: string;
-  to_number: string;
-  timestamp: string;
-}
-
-interface CallLog {
-  id: string;
-  direction: "inbound" | "outbound";
-  from_number: string | null;
-  to_number: string | null;
-  duration: number | null;
+  phone_number: string;
+  country_code: string;
+  country_name: string;
   status: string;
-  recording_url: string | null;
-  timestamp: string;
+  monthly_cost: number;
+  message_count?: number;
+  otp_count?: number;
+  created_at: string;
+  expires_at: string;
+  capabilities: string[];
 }
 
-export default function NumberDetailsPage() {
+export default function NumberDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { format } = useCurrency();
-  const [number, setNumber] = useState<PhoneNumber | null>(null);
-  const [smsMessages, setSmsMessages] = useState<SMSMessage[]>([]);
-  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
+  const { format: formatCurrency } = useCurrency();
+  const [number, setNumber] = useState<VirtualNumber | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (params.id) {
-      fetchNumberDetails();
-      fetchSMSMessages();
-      fetchCallLogs();
+      fetchNumber();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
-  const fetchNumberDetails = async () => {
+  const fetchNumber = async () => {
+    setLoading(true);
     try {
       const response = await fetch(`/api/numbers/${params.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setNumber(data.number);
+      if (!response.ok) {
+        throw new Error("Failed to fetch number");
       }
-    } catch (error) {
-      console.error("Error fetching number details:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const fetchSMSMessages = async () => {
-    try {
-      const response = await fetch(`/api/numbers/${params.id}/sms`);
-      if (response.ok) {
-        const data = await response.json();
-        setSmsMessages(data.messages || []);
-      }
-    } catch (error) {
-      console.error("Error fetching SMS messages:", error);
-    }
-  };
-
-  const fetchCallLogs = async () => {
-    try {
-      const response = await fetch(`/api/numbers/${params.id}/calls`);
-      if (response.ok) {
-        const data = await response.json();
-        setCallLogs(data.calls || []);
-      }
-    } catch (error) {
-      console.error("Error fetching call logs:", error);
-    }
-  };
-
-  const handleRelease = async () => {
-    if (!confirm("Are you sure you want to release this number?")) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/numbers/${params.id}/release`, {
-        method: "POST",
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Number released successfully",
-        });
-        router.push("/dashboard/numbers");
-      } else {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to release number");
-      }
+      const data = await response.json();
+      setNumber(data);
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to release number",
+        description: error.message || "Failed to load number",
         variant: "destructive",
       });
+      router.push("/dashboard/numbers");
+    } finally {
+      setLoading(false);
     }
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
-        <p className="text-gray-600">Loading number details...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (!number) {
-    return (
-      <div className="space-y-6">
-        <Link href="/dashboard/numbers">
-          <Button variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Numbers
-          </Button>
-        </Link>
-        <Card>
-          <CardContent className="p-12 text-center">
-            <p className="text-gray-600">Number not found</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return null;
   }
+
+  const statusColors: Record<string, string> = {
+    active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    suspended: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+    cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
         <Link href="/dashboard/numbers">
-          <Button variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Numbers
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        {number.status === "active" && (
-          <Button
-            variant="destructive"
-            onClick={handleRelease}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Release Number
-          </Button>
-        )}
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Phone className="h-8 w-8" />
+            {number.phone_number}
+          </h1>
+          <p className="text-muted-foreground">{number.country_name}</p>
+        </div>
+        <Badge className={statusColors[number.status] || ""}>
+          {number.status}
+        </Badge>
       </div>
 
-      {/* Number Details Card */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader>
+            <CardDescription>Monthly Cost</CardDescription>
+            <CardTitle>{formatCurrency(number.monthly_cost)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Total Messages</CardDescription>
+            <CardTitle>{number.message_count || 0}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>OTPs Received</CardDescription>
+            <CardTitle>{number.otp_count || 0}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Phone className="h-6 w-6" />
-              <div>
-                <CardTitle>{number.number}</CardTitle>
-                <CardDescription>{number.country}</CardDescription>
-              </div>
+          <CardTitle>Number Details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Country Code</p>
+              <p className="font-medium">{number.country_code}</p>
             </div>
-            <div className="flex gap-2">
-              <NumberStatusBadge status={number.status} />
-              <NumberTypeBadge type={number.type} />
+            <div>
+              <p className="text-sm text-muted-foreground">Status</p>
+              <Badge className={statusColors[number.status] || ""}>
+                {number.status}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Purchased</p>
+              <p className="font-medium">
+                {format(new Date(number.created_at), "MMM d, yyyy")}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Expires</p>
+              <p className="font-medium">
+                {format(new Date(number.expires_at), "MMM d, yyyy")}
+              </p>
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-600">Capabilities</p>
-              <p className="font-medium capitalize">{number.capabilities}</p>
-            </div>
-            {number.monthly_cost !== null && (
-              <div>
-                <p className="text-sm text-gray-600">Monthly Cost</p>
-                <p className="font-medium">{format(number.monthly_cost)}</p>
-              </div>
-            )}
-            {number.renewal_date && (
-              <div>
-                <p className="text-sm text-gray-600">Next Renewal</p>
-                <p className="font-medium">
-                  {new Date(number.renewal_date).toLocaleDateString()}
-                </p>
-              </div>
-            )}
-            <div>
-              <p className="text-sm text-gray-600">Created</p>
-              <p className="font-medium">
-                {new Date(number.created_at).toLocaleDateString()}
-              </p>
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">Capabilities</p>
+            <div className="flex gap-2">
+              {number.capabilities?.map((cap) => (
+                <Badge key={cap} variant="outline">
+                  {cap.toUpperCase()}
+                </Badge>
+              ))}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* SMS Inbox */}
-      {number.capabilities.includes("sms") && (
-        <SMSInbox messages={smsMessages} />
-      )}
-
-      {/* Call Logs */}
-      {number.capabilities.includes("voice") && (
-        <CallLogs calls={callLogs} />
-      )}
-
-      {/* Forwarding Settings (Business numbers only) */}
-      {number.type === "business" && number.status === "active" && (
-        <ForwardingSettings
-          numberId={number.id}
-          currentForwardingNumber={number.forwarding_number}
-          onUpdate={fetchNumberDetails}
-        />
-      )}
+      <Tabs defaultValue="messages" className="w-full">
+        <TabsList>
+          <TabsTrigger value="messages">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Messages
+          </TabsTrigger>
+          <TabsTrigger value="otps">
+            <Shield className="h-4 w-4 mr-2" />
+            OTPs
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="messages">
+          <Link href={`/dashboard/numbers/${number.id}/messages`}>
+            <Card>
+              <CardContent className="py-8 text-center">
+                <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground mb-4">View all messages for this number</p>
+                <Button>View Messages</Button>
+              </CardContent>
+            </Card>
+          </Link>
+        </TabsContent>
+        <TabsContent value="otps">
+          <Link href={`/dashboard/numbers/${number.id}/otps`}>
+            <Card>
+              <CardContent className="py-8 text-center">
+                <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground mb-4">View all OTPs for this number</p>
+                <Button>View OTPs</Button>
+              </CardContent>
+            </Card>
+          </Link>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
