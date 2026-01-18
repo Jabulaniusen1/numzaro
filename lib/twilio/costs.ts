@@ -110,11 +110,11 @@ export interface NumberCostEstimate {
   estimatedMonthlyCost: number; // For average usage
 }
 
-export function getNumberCostEstimate(
+export async function getNumberCostEstimate(
   countryCode?: string,
   estimatedMessagesPerMonth: number = 100
-): NumberCostEstimate {
-  const monthlyFee = getDefaultMonthlyCost(countryCode);
+): Promise<NumberCostEstimate> {
+  const monthlyFee = await getDefaultMonthlyCost(countryCode);
   const smsCostPerMessage = calculateSMSCost();
   const estimatedMonthlyCost = monthlyFee + smsCostPerMessage * estimatedMessagesPerMonth;
 

@@ -71,10 +71,10 @@ export async function searchAvailableNumbers(
       countryCode: number.phoneNumber?.substring(0, 2) || countryCode,
       capabilities: {
         voice: number.capabilities?.voice || false,
-        SMS: number.capabilities?.SMS || false,
-        MMS: number.capabilities?.MMS || false,
+        SMS: number.capabilities?.sms || false,
+        MMS: number.capabilities?.mms || false,
       },
-      monthlyRate: number.capabilities?.smsEnabled ? "1.00" : "1.00", // Default rate
+      monthlyRate: number.capabilities?.sms ? "1.00" : "1.00", // Default rate
     }));
 
     return {
@@ -120,11 +120,11 @@ export async function purchaseNumber(
       phoneNumber: incomingPhoneNumber.phoneNumber || "",
       friendlyName: incomingPhoneNumber.friendlyName || incomingPhoneNumber.phoneNumber || "",
       countryCode: incomingPhoneNumber.phoneNumber?.substring(0, 2) || "",
-      region: incomingPhoneNumber.region || "",
+      region: "", // Region not available on IncomingPhoneNumberInstance
       capabilities: {
         voice: incomingPhoneNumber.capabilities?.voice || false,
-        SMS: incomingPhoneNumber.capabilities?.SMS || false,
-        MMS: incomingPhoneNumber.capabilities?.MMS || false,
+        SMS: incomingPhoneNumber.capabilities?.sms || false,
+        MMS: incomingPhoneNumber.capabilities?.mms || false,
       },
     };
   } catch (error: any) {
@@ -191,11 +191,11 @@ export async function getNumberDetails(phoneNumberSid: string): Promise<Purchase
       phoneNumber: incomingPhoneNumber.phoneNumber || "",
       friendlyName: incomingPhoneNumber.friendlyName || incomingPhoneNumber.phoneNumber || "",
       countryCode: incomingPhoneNumber.phoneNumber?.substring(0, 2) || "",
-      region: incomingPhoneNumber.region || "",
+      region: "", // Region not available on IncomingPhoneNumberInstance
       capabilities: {
         voice: incomingPhoneNumber.capabilities?.voice || false,
-        SMS: incomingPhoneNumber.capabilities?.SMS || false,
-        MMS: incomingPhoneNumber.capabilities?.MMS || false,
+        SMS: incomingPhoneNumber.capabilities?.sms || false,
+        MMS: incomingPhoneNumber.capabilities?.mms || false,
       },
     };
   } catch (error: any) {
