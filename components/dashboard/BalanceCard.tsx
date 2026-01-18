@@ -146,24 +146,24 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="w-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 hover:from-pink-600 hover:via-purple-600 hover:to-blue-600 text-white rounded-cartoon border-2 border-white font-bold shadow-lg" variant="default">
-          💵 Fund Wallet
+        <Button className="w-full" variant="default">
+          Fund Wallet
         </Button>
       </DialogTrigger>
-      <DialogContent className="border-4 border-purple-400 dark:border-purple-600 rounded-cartoon bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 dark:from-pink-950 dark:via-purple-950 dark:to-blue-950">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-purple-900 dark:text-purple-100 text-2xl">💵 Fund Your Wallet</DialogTitle>
-          <DialogDescription className="text-purple-800 dark:text-purple-200 font-semibold">
+          <DialogTitle>Fund Your Wallet</DialogTitle>
+          <DialogDescription>
             Add funds to your wallet to place orders. A secure payment popup will appear to complete the payment.
             <br />
-            <span className="text-sm font-bold text-purple-700 dark:text-purple-300">
+            <span className="text-sm font-medium text-gray-700">
               Minimum deposit: {format(MINIMUM_DEPOSIT_NGN)}
             </span>
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <label htmlFor="amount" className="text-sm font-bold text-purple-900 dark:text-purple-100">
+            <label htmlFor="amount" className="text-sm font-medium">
               Amount ({currency})
             </label>
             <div className="flex gap-2 mb-2">
@@ -173,11 +173,7 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
                     key={suggestedAmount}
                     type="button"
                     variant={amount === suggestedAmount.toFixed(2) ? "default" : "outline"}
-                    className={`flex-1 rounded-cartoon font-bold ${
-                      amount === suggestedAmount.toFixed(2)
-                        ? "bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white border-2 border-white"
-                        : "border-2 border-purple-400 dark:border-purple-600 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900"
-                    }`}
+                    className="flex-1"
                     onClick={() => setAmount(suggestedAmount.toFixed(2))}
                     disabled={loading}
                   >
@@ -194,18 +190,17 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
               placeholder={`Or enter custom amount (min ${format(MINIMUM_DEPOSIT_NGN)})`}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="border-4 border-purple-400 dark:border-purple-600 rounded-cartoon bg-white dark:bg-purple-900/50 text-purple-900 dark:text-purple-100 font-semibold"
             />
-            <p className="text-xs text-purple-700 dark:text-purple-300 font-bold">
+            <p className="text-xs text-gray-500">
               Minimum deposit: {format(MINIMUM_DEPOSIT_NGN)}
             </p>
           </div>
           <Button
             onClick={handleFund}
             disabled={loading || !amount}
-            className="w-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 hover:from-pink-600 hover:via-purple-600 hover:to-blue-600 text-white rounded-cartoon border-2 border-white font-bold shadow-lg"
+            className="w-full"
           >
-            {loading ? "⏳ Processing..." : "💳 Proceed to Payment"}
+            {loading ? "Processing..." : "Proceed to Payment"}
           </Button>
         </div>
       </DialogContent>
@@ -246,16 +241,16 @@ export function BalanceCard() {
   }, []);
 
   return (
-    <Card className="border-4 border-yellow-400 dark:border-yellow-600 bg-gradient-to-br from-yellow-100 via-pink-100 to-purple-100 dark:from-yellow-900/50 dark:via-pink-900/50 dark:to-purple-900/50 rounded-cartoon shadow-2xl">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-purple-900 dark:text-purple-100 text-2xl">💰 Account Balance</CardTitle>
-        <CardDescription className="text-purple-700 dark:text-purple-300 font-semibold">Your current account balance</CardDescription>
+        <CardTitle>Account Balance</CardTitle>
+        <CardDescription>Your current account balance</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
-          <Skeleton className="h-9 w-48 bg-purple-200 dark:bg-purple-800 rounded-cartoon" />
+          <Skeleton className="h-9 w-48" />
         ) : (
-          <p className="text-4xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent drop-shadow-lg">
+          <p className="text-3xl font-bold text-[#1877F2]">
             {balance !== null ? format(balance) : format(0)}
           </p>
         )}
