@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import {
@@ -20,35 +21,27 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { format, convert, currency, rate, loading: currencyLoading } = useCurrency();
-  const MINIMUM_DEPOSIT_USD = 2.0;
+  const { format, currency } = useCurrency();
+  const MINIMUM_DEPOSIT_NGN = 2000; // Minimum deposit in Naira
   
-  // Calculate minimum deposit in local currency
-  const minimumDepositLocal = currencyLoading ? MINIMUM_DEPOSIT_USD : convert(MINIMUM_DEPOSIT_USD);
-  
-  // Suggested amounts in USD, will be converted to local currency for display
-  const SUGGESTED_AMOUNTS_USD = [5, 10, 20];
+  // Suggested amounts in Naira
+  const SUGGESTED_AMOUNTS_NGN = [5000, 10000, 20000];
 
   const handleFund = async () => {
-    const fundAmountLocal = parseFloat(amount);
-    if (!fundAmountLocal || fundAmountLocal <= 0) {
+    const fundAmount = parseFloat(amount);
+    if (!fundAmount || fundAmount <= 0) {
       toast({
         title: "Invalid amount",
-        description: `Minimum deposit is ${currencyLoading ? "$2.00" : format(MINIMUM_DEPOSIT_USD)}`,
+        description: `Minimum deposit is ${format(MINIMUM_DEPOSIT_NGN)}`,
         variant: "destructive",
       });
       return;
     }
 
-    // Convert local amount to USD for validation
-    // convert() converts USD to local: local = usd * rate
-    // So to reverse: usd = local / rate
-    const fundAmountUSD = currencyLoading ? fundAmountLocal : fundAmountLocal / rate;
-
-    if (fundAmountUSD < MINIMUM_DEPOSIT_USD) {
+    if (fundAmount < MINIMUM_DEPOSIT_NGN) {
       toast({
         title: "Minimum deposit required",
-        description: `You must deposit at least ${currencyLoading ? "$2.00" : format(MINIMUM_DEPOSIT_USD)}`,
+        description: `You must deposit at least ${format(MINIMUM_DEPOSIT_NGN)}`,
         variant: "destructive",
       });
       return;
@@ -62,8 +55,8 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          amount: fundAmountLocal, // Send local currency amount to Paystack
-          currency: currency, // Send currency code for Paystack
+          amount: fundAmount, // Send amount in Naira to Paystack
+          currency: currency, // Send currency code (NGN) for Paystack
         }),
       });
 
@@ -74,8 +67,8 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
 
       const { access_code, reference, email: userEmail } = await response.json();
       
-      // Convert amount to smallest currency unit for Paystack
-      const amountInSmallestUnit = Math.round(fundAmountLocal * 100);
+      // Convert amount to smallest currency unit for Paystack (Naira uses kobo, 100 kobo = 1 Naira)
+      const amountInSmallestUnit = Math.round(fundAmount * 100);
       
       // Use Paystack popup SDK
       if (typeof window !== "undefined" && (window as any).PaystackPop) {
@@ -164,7 +157,7 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
             Add funds to your wallet to place orders. A secure payment popup will appear to complete the payment.
             <br />
             <span className="text-sm font-medium text-gray-700">
-              Minimum deposit: {currencyLoading ? "$2.00" : format(MINIMUM_DEPOSIT_USD)}
+              Minimum deposit: {format(MINIMUM_DEPOSIT_NGN)}
             </span>
           </DialogDescription>
         </DialogHeader>
@@ -174,18 +167,17 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
               Amount ({currency})
             </label>
             <div className="flex gap-2 mb-2">
-              {SUGGESTED_AMOUNTS_USD.map((suggestedAmountUSD) => {
-                const suggestedAmountLocal = currencyLoading ? suggestedAmountUSD : convert(suggestedAmountUSD);
+              {SUGGESTED_AMOUNTS_NGN.map((suggestedAmount) => {
                 return (
                   <Button
-                    key={suggestedAmountUSD}
+                    key={suggestedAmount}
                     type="button"
-                    variant={amount === suggestedAmountLocal.toFixed(2) ? "default" : "outline"}
+                    variant={amount === suggestedAmount.toFixed(2) ? "default" : "outline"}
                     className="flex-1"
-                    onClick={() => setAmount(suggestedAmountLocal.toFixed(2))}
-                    disabled={loading || currencyLoading}
+                    onClick={() => setAmount(suggestedAmount.toFixed(2))}
+                    disabled={loading}
                   >
-                    {currencyLoading ? `$${suggestedAmountUSD}` : format(suggestedAmountUSD)}
+                    {format(suggestedAmount)}
                   </Button>
                 );
               })}
@@ -193,20 +185,19 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
             <Input
               id="amount"
               type="number"
-              min={minimumDepositLocal}
+              min={MINIMUM_DEPOSIT_NGN}
               step="0.01"
-              placeholder={currencyLoading ? "Loading..." : `Or enter custom amount (min ${format(MINIMUM_DEPOSIT_USD)})`}
+              placeholder={`Or enter custom amount (min ${format(MINIMUM_DEPOSIT_NGN)})`}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              disabled={currencyLoading}
             />
             <p className="text-xs text-gray-500">
-              Minimum deposit: {currencyLoading ? "$2.00" : format(MINIMUM_DEPOSIT_USD)}
+              Minimum deposit: {format(MINIMUM_DEPOSIT_NGN)}
             </p>
           </div>
           <Button
             onClick={handleFund}
-            disabled={loading || !amount || currencyLoading}
+            disabled={loading || !amount}
             className="w-full"
           >
             {loading ? "Processing..." : "Proceed to Payment"}
@@ -220,7 +211,7 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
 export function BalanceCard() {
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const { format, loading: currencyLoading } = useCurrency();
+  const { format } = useCurrency();
 
   const fetchBalance = async () => {
     try {
@@ -256,8 +247,8 @@ export function BalanceCard() {
         <CardDescription>Your current account balance</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {loading || currencyLoading ? (
-          <p className="text-2xl font-bold">Loading...</p>
+        {loading ? (
+          <Skeleton className="h-9 w-48" />
         ) : (
           <p className="text-3xl font-bold text-[#1877F2]">
             {balance !== null ? format(balance) : format(0)}

@@ -3,6 +3,7 @@ import { Outfit } from "next/font/google"
 import Script from "next/script"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
+import { ThemeProvider } from "@/lib/hooks/use-theme"
 
 const outfit = Outfit({ 
   subsets: ["latin"],
@@ -24,10 +25,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={outfit.className}>
-        {children}
-        <Toaster />
+        <ThemeProvider defaultTheme="system" storageKey="ui-theme">
+          {children}
+          <Toaster />
+        </ThemeProvider>
         <Script src="https://js.paystack.co/v2/inline.js" strategy="lazyOnload" />
       </body>
     </html>

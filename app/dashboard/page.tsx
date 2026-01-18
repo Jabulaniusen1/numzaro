@@ -48,44 +48,6 @@ export default function DashboardPage() {
       .order("created_at", { ascending: false })
       .limit(5);
     
-    if (orders && orders.length > 0) {
-      // Update status for pending/in-progress orders by polling the API
-      const pendingOrders = orders.filter(
-        (o: any) => o.status === "Pending" || o.status === "In Progress" || o.status === "Partial"
-      );
-      
-      if (pendingOrders.length > 0) {
-        try {
-          // Use batch status endpoint to update multiple orders at once
-          const orderIds = pendingOrders
-            .map((o: any) => o.exosupplier_order_id)
-            .filter((id: any) => id);
-          
-          if (orderIds.length > 0) {
-            const response = await fetch("/api/orders/batch-status", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ order_ids: orderIds }),
-            });
-            
-            if (response.ok) {
-              // Re-fetch orders to get updated status
-              const { data: updatedOrders } = await supabase
-                .from("orders")
-                .select("*, services(name)")
-                .eq("user_id", currentUser.id)
-                .order("created_at", { ascending: false })
-                .limit(5);
-              setRecentOrders(updatedOrders || []);
-              return;
-            }
-          }
-        } catch (error) {
-          console.error("Error updating order statuses:", error);
-        }
-      }
-    }
-    
     setRecentOrders(orders || []);
   };
 
@@ -109,18 +71,6 @@ export default function DashboardPage() {
           const url = new URL(window.location.href);
           url.searchParams.delete("payment");
           url.searchParams.delete("type");
-          url.searchParams.delete("reference");
-          window.history.replaceState({}, "", url.toString());
-        }
-      } else {
-        toast({
-          title: "Payment successful!",
-          description: "Your order has been created and is being processed.",
-        });
-        // Clean up URL params
-        if (typeof window !== "undefined") {
-          const url = new URL(window.location.href);
-          url.searchParams.delete("payment");
           url.searchParams.delete("reference");
           window.history.replaceState({}, "", url.toString());
         }
@@ -228,60 +178,11 @@ export default function DashboardPage() {
 
       <BalanceCard />
 
-      {/* Important Information Card */}
-      <Card className="border-blue-200 bg-blue-50">
-        <CardHeader>
-          <CardTitle className="text-blue-900">⚠️ Important Information</CardTitle>
-          <CardDescription className="text-blue-700">
-            Please read these guidelines before placing an order
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="p-3 bg-white rounded-lg border border-blue-200">
-              <p className="font-semibold text-sm text-gray-900 mb-1">
-                1. Complete Previous Orders First
-              </p>
-              <p className="text-sm text-gray-700">
-                If you have purchased TikTok followers already and want to purchase again, make sure your previous order is completed already!
-              </p>
-            </div>
-            
-            <div className="p-3 bg-white rounded-lg border border-blue-200">
-              <p className="font-semibold text-sm text-gray-900 mb-1">
-                2. TikTok Account Requirements
-              </p>
-              <p className="text-sm text-gray-700">
-                Make sure the TikTok account is not private, and don't change the account's username while followers are being added!
-              </p>
-            </div>
-            
-            <div className="p-3 bg-white rounded-lg border border-blue-200">
-              <p className="font-semibold text-sm text-gray-900 mb-1">
-                3. Follower Retention
-              </p>
-              <p className="text-sm text-gray-700">
-                Almost no drop in followers!
-              </p>
-            </div>
-            
-            <div className="p-3 bg-white rounded-lg border border-blue-200">
-              <p className="font-semibold text-sm text-gray-900 mb-1">
-                4. Average Quality Service
-              </p>
-              <p className="text-sm text-gray-700">
-                Average quality means a shorter guarantee length, semi-real looking accounts/engagements, and average drops.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Get started with SocialBoost</CardDescription>
+            <CardDescription>Get started with services</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Link href="/dashboard/services">
@@ -329,7 +230,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">{format(order.charge || order.customer_charge || 0)}</p>
+                      <p className="font-medium">{format(order.charge || 0)}</p>
                       <p className="text-sm text-gray-600">
                         {new Date(order.created_at).toLocaleDateString()}
                       </p>
