@@ -121,6 +121,10 @@ export default function HomePage() {
                     <span className="px-2 sm:px-3 py-1 bg-black dark:bg-gray-700 text-white rounded-full text-xs font-medium">Twitter/X</span>
                     <span className="px-2 sm:px-3 py-1 bg-black dark:bg-gray-700 text-white rounded-full text-xs font-medium">TikTok</span>
                     <span className="px-2 sm:px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-xs font-medium">YouTube</span>
+                    <span className="px-2 sm:px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">Threads</span>
+                    <span className="px-2 sm:px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">Telegram</span>
+                    <span className="px-2 sm:px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">Spotify</span>
+                    <span className="px-2 sm:px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">Apple Music</span>
                   </div>
                   <Link href="/dashboard/services">
                     <Button className="w-full text-sm sm:text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
