@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/lib/hooks/use-toast";
+import Link from "next/link";
+import { Users, Phone, TrendingUp } from "lucide-react";
 
 interface Stats {
   totalRevenue: number;
@@ -26,6 +28,9 @@ export default function AdminPage() {
   const [markup, setMarkup] = useState<number>(30);
   const [markupInput, setMarkupInput] = useState("30");
   const [updatingMarkup, setUpdatingMarkup] = useState(false);
+  const [phoneMarkup, setPhoneMarkup] = useState<number>(400);
+  const [phoneMarkupInput, setPhoneMarkupInput] = useState("400");
+  const [updatingPhoneMarkup, setUpdatingPhoneMarkup] = useState(false);
   const [apiBalance, setApiBalance] = useState<string | null>(null);
   const [apiBalanceOriginal, setApiBalanceOriginal] = useState<string | null>(null);
   const [apiBalanceCurrency, setApiBalanceCurrency] = useState<string>("USD");
@@ -37,6 +42,7 @@ export default function AdminPage() {
   useEffect(() => {
     fetchStats();
     fetchMarkup();
+    fetchPhoneMarkup();
     fetchApiBalance();
   }, []);
 
@@ -64,6 +70,19 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error("Error fetching markup:", error);
+    }
+  };
+
+  const fetchPhoneMarkup = async () => {
+    try {
+      const response = await fetch("/api/admin/numbers/markup");
+      if (response.ok) {
+        const data = await response.json();
+        setPhoneMarkup(data.markupPercentage);
+        setPhoneMarkupInput(data.markupPercentage.toString());
+      }
+    } catch (error) {
+      console.error("Error fetching phone numbers markup:", error);
     }
   };
 
@@ -162,6 +181,45 @@ export default function AdminPage() {
     }
   };
 
+  const handleUpdatePhoneMarkup = async () => {
+    const newMarkup = parseFloat(phoneMarkupInput);
+    if (isNaN(newMarkup) || newMarkup < 0) {
+      toast({
+        title: "Invalid markup",
+        description: "Please enter a valid percentage",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUpdatingPhoneMarkup(true);
+    try {
+      const response = await fetch("/api/admin/numbers/markup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markupPercentage: newMarkup }),
+      });
+
+      if (response.ok) {
+        setPhoneMarkup(newMarkup);
+        toast({
+          title: "Phone Numbers Markup updated",
+          description: `Markup set to ${newMarkup}%. New number prices will reflect this markup.`,
+        });
+      } else {
+        throw new Error("Failed to update markup");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update phone numbers markup",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingPhoneMarkup(false);
+    }
+  };
+
   const revenueChange =
     stats && stats.lastMonthRevenue > 0
       ? ((stats.thisMonthRevenue - stats.lastMonthRevenue) / stats.lastMonthRevenue) * 100
@@ -181,9 +239,25 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <p className="text-gray-600 mt-2">Monitor profits and manage settings</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <p className="text-gray-600 mt-2">Monitor profits and manage settings</p>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/admin/users">
+            <Button variant="outline">
+              <Users className="h-4 w-4 mr-2" />
+              User Management
+            </Button>
+          </Link>
+          <Link href="/admin/numbers">
+            <Button variant="outline">
+              <Phone className="h-4 w-4 mr-2" />
+              Numbers Analytics
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* API Balance Card */}
@@ -290,11 +364,11 @@ export default function AdminPage() {
         </CardContent>
       </Card>
 
-      {/* Markup Control */}
+      {/* Services Markup Control */}
       <Card>
         <CardHeader>
-          <CardTitle>Profit Markup Settings</CardTitle>
-          <CardDescription>Control the profit margin percentage for all services</CardDescription>
+          <CardTitle>Services Profit Markup Settings</CardTitle>
+          <CardDescription>Control the profit margin percentage for all social media services</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-end gap-4">
@@ -318,6 +392,42 @@ export default function AdminPage() {
             </div>
             <Button onClick={handleUpdateMarkup} disabled={updatingMarkup}>
               {updatingMarkup ? "Updating..." : "Update Markup"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Phone Numbers Markup Control */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Phone Numbers Profit Markup Settings</CardTitle>
+          <CardDescription>Control the profit margin percentage for virtual phone numbers</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-end gap-4">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="phoneMarkup">Markup Percentage</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="phoneMarkup"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={phoneMarkupInput}
+                  onChange={(e) => setPhoneMarkupInput(e.target.value)}
+                  className="w-32"
+                />
+                <span className="text-gray-600">%</span>
+              </div>
+              <p className="text-sm text-gray-500">
+                Current markup: {phoneMarkup}% | Example: $1.00 Twilio cost = ${(1 * (1 + phoneMarkup / 100)).toFixed(2)} customer price
+              </p>
+              <p className="text-xs text-gray-400">
+                Default: 400% (5x cost). This markup applies to monthly number rental fees.
+              </p>
+            </div>
+            <Button onClick={handleUpdatePhoneMarkup} disabled={updatingPhoneMarkup}>
+              {updatingPhoneMarkup ? "Updating..." : "Update Markup"}
             </Button>
           </div>
         </CardContent>

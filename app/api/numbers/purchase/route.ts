@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { purchaseNumber, configureNumberWebhook } from "@/lib/twilio/numbers";
 import { purchaseWithWallet, refundToWallet } from "@/lib/wallet/purchase";
-import { getDefaultMonthlyCost } from "@/lib/twilio/costs";
+import { getDefaultMonthlyCost, getPhoneNumbersMarkup } from "@/lib/twilio/costs";
 
 const COUNTRY_NAMES: Record<string, string> = {
   US: "United States",
@@ -67,9 +67,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate pricing
+    // Calculate pricing with current markup
+    const markupPercentage = await getPhoneNumbersMarkup();
     const twilioMonthlyCost = 1.0; // Base Twilio cost
-    const monthlyCost = getDefaultMonthlyCost(countryCode);
+    const monthlyCost = await getDefaultMonthlyCost(countryCode, markupPercentage);
     const countryName = getCountryName(countryCode);
 
     // Get webhook URL

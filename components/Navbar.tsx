@@ -4,27 +4,28 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { Menu, X } from "lucide-react";
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="border-b bg-white sticky top-0 z-50">
+    <nav className="border-b bg-white dark:bg-gray-900 dark:border-gray-800 sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
-        <div className="flex justify-between items-center">
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex justify-between items-center">
           <Link href="/" className="flex items-center">
             <Image
               src="/numzaro-logo.png"
               alt="Numzaro"
-              width={140}
-              height={40}
-              className="h-8 w-auto"
+              width={180}
+              height={60}
+              className="h-14 w-auto"
               priority
             />
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-2">
+          <div className="flex items-center space-x-2">
             <Link href="/pricing">
               <Button variant="ghost">Pricing</Button>
             </Link>
@@ -41,70 +42,94 @@ export function Navbar() {
               <Button>Get Started</Button>
             </Link>
           </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100"
-            aria-label="Toggle menu"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              {mobileMenuOpen ? (
-                <path d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
         </div>
 
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden mt-4 pb-4 space-y-2 border-t pt-4">
-            <Link
-              href="/pricing"
-              className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/contact"
-              className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Contact
-            </Link>
-            <Link
-              href="/pricing#faq"
-              className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              FAQ
-            </Link>
-            <div className="pt-2 space-y-2 border-t">
-              <Link
-                href="/auth/login"
-                className="block px-4 py-2 text-center border border-gray-300 rounded-md hover:bg-gray-50"
-                onClick={() => setMobileMenuOpen(false)}
-              >
+        {/* Mobile Navigation - Hamburger left, Logo center, Actions right */}
+        <div className="md:hidden flex items-center justify-between w-full">
+          {/* Hamburger Menu - Left */}
+          <button
+            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
+          </button>
+
+          {/* Logo - Center */}
+          <Link href="/" className="flex items-center absolute left-1/2 transform -translate-x-1/2">
+            <Image
+              src="/numzaro-logo.png"
+              alt="Numzaro"
+              width={120}
+              height={34}
+              className="h-10 w-auto"
+              priority
+            />
+          </Link>
+
+          {/* Actions - Right */}
+          <div className="flex items-center gap-2">
+            <Link href="/auth/login">
+              <Button variant="ghost" size="sm" className="text-xs">
                 Sign In
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Mobile Navigation Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden mt-4 pb-4 border-t dark:border-gray-800 pt-4 animate-in slide-in-from-top-2">
+            <div className="flex flex-col space-y-2">
+              <Link
+                href="/pricing"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full"
+              >
+                <Button variant="ghost" className="w-full justify-start">
+                  Pricing
+                </Button>
               </Link>
               <Link
-                href="/auth/signup"
-                className="block px-4 py-2 text-center bg-[#1877F2] text-white rounded-md hover:bg-[#166fe5]"
+                href="/contact"
                 onClick={() => setMobileMenuOpen(false)}
+                className="w-full"
               >
-                Get Started
+                <Button variant="ghost" className="w-full justify-start">
+                  Contact
+                </Button>
               </Link>
+              <Link
+                href="/pricing#faq"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full"
+              >
+                <Button variant="ghost" className="w-full justify-start">
+                  FAQ
+                </Button>
+              </Link>
+              <div className="pt-2 space-y-2 border-t dark:border-gray-800">
+                <Link
+                  href="/auth/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full"
+                >
+                  <Button variant="outline" className="w-full">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link
+                  href="/auth/signup"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full"
+                >
+                  <Button className="w-full">Get Started</Button>
+                </Link>
+              </div>
             </div>
           </div>
         )}

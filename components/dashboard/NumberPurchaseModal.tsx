@@ -31,7 +31,7 @@ export function NumberPurchaseModal({
   onSuccess,
 }: NumberPurchaseModalProps) {
   const { toast } = useToast();
-  const { format, loading: currencyLoading } = useCurrency();
+  const { format, convert, currency, rate } = useCurrency();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
@@ -40,7 +40,7 @@ export function NumberPurchaseModal({
     if (open && number) {
       fetchWalletBalance();
     }
-  }, [open, number]);
+  }, [open, number, currency]);
 
   const fetchWalletBalance = async () => {
     try {
@@ -85,7 +85,7 @@ export function NumberPurchaseModal({
       if (onSuccess) {
         onSuccess();
       }
-      router.push("/dashboard/numbers");
+      router.push("/dashboard/numbers/my-numbers");
     } catch (error: any) {
       toast({
         title: "Purchase Failed",
@@ -99,7 +99,14 @@ export function NumberPurchaseModal({
 
   if (!number) return null;
 
-  const hasEnoughBalance = walletBalance !== null && walletBalance >= number.monthly_cost;
+  // Balance from API is always in NGN, convert to selected currency
+  const balanceInSelectedCurrency = walletBalance !== null 
+    ? (currency === "USD" ? walletBalance / rate : walletBalance)
+    : null;
+  
+  // Convert monthly cost (USD) to selected currency for comparison
+  const monthlyCostInSelectedCurrency = convert(number.monthly_cost);
+  const hasEnoughBalance = balanceInSelectedCurrency !== null && balanceInSelectedCurrency >= monthlyCostInSelectedCurrency;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -118,27 +125,33 @@ export function NumberPurchaseModal({
           </div>
 
           <div>
-            <p className="text-sm text-muted-foreground">Monthly Cost</p>
+            <p className="text-sm text-muted-foreground">Monthly Fee</p>
             <p className="text-2xl font-bold">
-              {format(number.monthly_cost)}
+              {format(convert(number.monthly_cost))} {currency}
+            </p>
+            {currency === "NGN" && (
+              <p className="text-xs text-muted-foreground mt-1">
+                ≈ ${number.monthly_cost.toFixed(2)} USD
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              Additional charges apply per SMS received
             </p>
           </div>
 
           <div>
             <p className="text-sm text-muted-foreground">Wallet Balance</p>
             <p className="text-lg">
-              {walletBalance === null
+              {balanceInSelectedCurrency === null
                 ? "Loading..."
-                : false
-                ? "Loading..."
-                : format(walletBalance)}
+                : format(balanceInSelectedCurrency)}
             </p>
           </div>
 
-          {walletBalance !== null && !hasEnoughBalance && (
+          {balanceInSelectedCurrency !== null && !hasEnoughBalance && (
             <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-              Insufficient balance. You need {format(number.monthly_cost)} but have{" "}
-              {format(walletBalance)}
+              Insufficient balance. You need {format(monthlyCostInSelectedCurrency)} but have{" "}
+              {format(balanceInSelectedCurrency)}
             </div>
           )}
         </div>

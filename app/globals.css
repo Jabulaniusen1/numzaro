@@ -75,3 +75,10 @@
   animation-play-state: paused;
 }
 
+/* Responsive animation speed for mobile */
+@media (max-width: 640px) {
+  .animate-scroll-left {
+    animation: scroll-left 40s linear infinite;
+  }
+}
+

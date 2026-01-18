@@ -31,16 +31,40 @@ export interface PurchasedNumber {
  */
 export async function searchAvailableNumbers(
   countryCode: string,
-  capabilities: string[] = ["SMS"]
-): Promise<AvailableNumber[]> {
+  capabilities: string[] = ["SMS"],
+  page: number = 1,
+  pageSize: number = 50
+): Promise<{ numbers: AvailableNumber[]; hasMore: boolean; totalPages: number }> {
   try {
-    const results = await twilioClient.availablePhoneNumbers(countryCode).local.list({
-      smsEnabled: capabilities.includes("SMS"),
-      voiceEnabled: capabilities.includes("voice"),
-      limit: 20,
-    });
+    console.log(`[Twilio] Searching for numbers in country: ${countryCode}, capabilities:`, capabilities, `page: ${page}, pageSize: ${pageSize}`);
+    
+    const searchParams: any = {
+      pageSize: pageSize,
+      page: page,
+    };
+    
+    if (capabilities.includes("SMS")) {
+      searchParams.smsEnabled = true;
+    }
+    if (capabilities.includes("voice")) {
+      searchParams.voiceEnabled = true;
+    }
+    
+    console.log(`[Twilio] Search parameters:`, searchParams);
+    
+    const results = await twilioClient.availablePhoneNumbers(countryCode).local.list(searchParams);
+    
+    console.log(`[Twilio] Found ${results.length} numbers`);
 
-    return results.map((number) => ({
+    if (results.length === 0) {
+      console.warn(`[Twilio] No numbers found for country ${countryCode}. This might be normal if Twilio has no inventory for this country.`);
+    }
+
+    // Check if there are more pages
+    // Twilio returns a nextPageUri if there are more results
+    const hasMore = results.length === pageSize;
+
+    const numbers = results.map((number) => ({
       friendlyName: number.friendlyName || number.phoneNumber,
       phoneNumber: number.phoneNumber || "",
       region: number.region || "",
@@ -52,8 +76,20 @@ export async function searchAvailableNumbers(
       },
       monthlyRate: number.capabilities?.smsEnabled ? "1.00" : "1.00", // Default rate
     }));
+
+    return {
+      numbers,
+      hasMore,
+      totalPages: hasMore ? page + 1 : page, // Estimate - we don't know exact total
+    };
   } catch (error: any) {
-    console.error("Error searching available numbers:", error);
+    console.error("[Twilio] Error searching available numbers:", error);
+    console.error("[Twilio] Error details:", {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      moreInfo: error.moreInfo,
+    });
     throw new TwilioError(
       error.message || "Failed to search available numbers",
       error.status,

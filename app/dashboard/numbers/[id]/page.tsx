@@ -10,6 +10,8 @@ import { useCurrency } from "@/lib/hooks/use-currency";
 import Link from "next/link";
 import { ArrowLeft, Phone, Loader2, MessageSquare, Shield, Calendar } from "lucide-react";
 import { format } from "date-fns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NumberActions } from "@/components/dashboard/NumberActions";
 
 interface VirtualNumber {
   id: string;
@@ -55,7 +57,7 @@ export default function NumberDetailPage() {
         description: error.message || "Failed to load number",
         variant: "destructive",
       });
-      router.push("/dashboard/numbers");
+      router.push("/dashboard/numbers/my-numbers");
     } finally {
       setLoading(false);
     }
@@ -102,8 +104,8 @@ export default function NumberDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader>
-            <CardDescription>Monthly Cost</CardDescription>
-            <CardTitle>{formatCurrency(number.monthly_cost)}</CardTitle>
+            <CardDescription>Monthly Fee</CardDescription>
+            <CardTitle>${number.monthly_cost.toFixed(2)} USD</CardTitle>
           </CardHeader>
         </Card>
         <Card>
@@ -122,7 +124,18 @@ export default function NumberDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Number Details</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle>Number Details</CardTitle>
+            <NumberActions
+              numberId={number.id}
+              phoneNumber={number.phone_number}
+              status={number.status}
+              monthlyCost={number.monthly_cost}
+              expiresAt={number.expires_at}
+              onRenewed={fetchNumber}
+              onReleased={() => router.push("/dashboard/numbers")}
+            />
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -172,6 +185,10 @@ export default function NumberDetailPage() {
             <Shield className="h-4 w-4 mr-2" />
             OTPs
           </TabsTrigger>
+          <TabsTrigger value="guides">
+            <Calendar className="h-4 w-4 mr-2" />
+            Integration Guides
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="messages">
           <Link href={`/dashboard/numbers/${number.id}/messages`}>
@@ -194,6 +211,32 @@ export default function NumberDetailPage() {
               </CardContent>
             </Card>
           </Link>
+        </TabsContent>
+        <TabsContent value="guides">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Link href={`/dashboard/numbers/${number.id}/whatsapp`}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    WhatsApp Guide
+                  </CardTitle>
+                  <CardDescription>Step-by-step instructions for WhatsApp registration</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+            <Link href={`/dashboard/numbers/${number.id}/telegram`}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    Telegram Guide
+                  </CardTitle>
+                  <CardDescription>Step-by-step instructions for Telegram registration</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

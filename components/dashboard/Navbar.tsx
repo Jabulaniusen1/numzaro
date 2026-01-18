@@ -9,7 +9,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationsIcon } from "@/components/dashboard/NotificationsIcon";
 
 interface NavbarProps {
-  onSignOut: () => void;
+  onSignOut: () => void | Promise<void>;
 }
 
 export function Navbar({ onSignOut }: NavbarProps) {
@@ -20,13 +20,13 @@ export function Navbar({ onSignOut }: NavbarProps) {
       <div className="container mx-auto px-4 py-4">
         {/* Desktop Navigation */}
         <div className="hidden md:flex justify-between items-center">
-          <Link href="/dashboard" className="flex items-center">
+          <Link href="/" className="flex items-center">
             <Image
               src="/numzaro-logo.png"
               alt="Numzaro"
-              width={140}
-              height={40}
-              className="h-8 w-auto"
+              width={180}
+              height={60}
+              className="h-12 w-auto"
               priority
             />
           </Link>
@@ -46,11 +46,9 @@ export function Navbar({ onSignOut }: NavbarProps) {
             </Link>
             <ThemeToggle />
             <NotificationsIcon />
-            <form action={onSignOut}>
-              <Button type="submit" variant="outline">
-                Sign Out
-              </Button>
-            </form>
+            <Button type="button" variant="outline" onClick={() => onSignOut()}>
+              Sign Out
+            </Button>
           </div>
         </div>
 
@@ -76,7 +74,7 @@ export function Navbar({ onSignOut }: NavbarProps) {
               alt="Numzaro"
               width={120}
               height={34}
-              className="h-7 w-auto"
+              className="h-10 w-auto"
               priority
             />
           </Link>
@@ -128,8 +126,8 @@ export function Navbar({ onSignOut }: NavbarProps) {
                   Numbers
                 </Button>
               </Link>
-              <form action={onSignOut} className="w-full">
-                <Button type="submit" variant="outline" className="w-full">
+              <form className="w-full">
+                <Button type="button" variant="outline" className="w-full" onClick={() => onSignOut()}>
                   Sign Out
                 </Button>
               </form>

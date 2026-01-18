@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OTPDisplay } from "@/components/dashboard/OTPDisplay";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useOTPNotifications } from "@/lib/hooks/useOTPNotifications";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
