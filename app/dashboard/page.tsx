@@ -9,6 +9,18 @@ import { Button } from "@/components/ui/button";
 import { BalanceCard } from "@/components/dashboard/BalanceCard";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
+import { 
+  ShoppingBag, 
+  Phone, 
+  Package, 
+  Bell, 
+  Users, 
+  Heart, 
+  Eye, 
+  MessageSquare,
+  ArrowRight,
+  TrendingUp
+} from "lucide-react";
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
@@ -18,9 +30,12 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [serviceCategories, setServiceCategories] = useState<string[]>([]);
+  const [serviceStats, setServiceStats] = useState<{ total: number; categories: Record<string, number> }>({ total: 0, categories: {} });
 
   useEffect(() => {
     fetchData();
+    fetchServiceCategories();
     
     // Auto-refresh orders every 30 seconds to update status
     const interval = setInterval(() => {
@@ -29,6 +44,33 @@ export default function DashboardPage() {
     
     return () => clearInterval(interval);
   }, []);
+  
+  const fetchServiceCategories = async () => {
+    try {
+      const response = await fetch("/api/services");
+      if (response.ok) {
+        const data = await response.json();
+        const categories = data.filters?.categories || [];
+        const services = data.services || [];
+        
+        // Count services per category
+        const categoryCounts: Record<string, number> = {};
+        services.forEach((service: any) => {
+          if (service.category) {
+            categoryCounts[service.category] = (categoryCounts[service.category] || 0) + 1;
+          }
+        });
+        
+        setServiceCategories(categories);
+        setServiceStats({
+          total: services.length,
+          categories: categoryCounts,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching service categories:", error);
+    }
+  };
   
   const refreshOrders = async () => {
     const supabase = createClient();
@@ -178,23 +220,115 @@ export default function DashboardPage() {
 
       <BalanceCard />
 
+      {/* Quick Access Cards */}
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Quick Access</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link href="/dashboard/services">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <ShoppingBag className="h-8 w-8 text-blue-600" />
+                  <ArrowRight className="h-5 w-5 text-gray-400" />
+                </div>
+                <CardTitle className="mt-2">All Services</CardTitle>
+                <CardDescription>
+                  {serviceStats.total > 0 
+                    ? `${serviceStats.total} services available`
+                    : "Browse all services"}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/numbers">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <Phone className="h-8 w-8 text-green-600" />
+                  <ArrowRight className="h-5 w-5 text-gray-400" />
+                </div>
+                <CardTitle className="mt-2">Virtual Numbers</CardTitle>
+                <CardDescription>
+                  Get phone numbers from 100+ countries
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/orders">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <Package className="h-8 w-8 text-purple-600" />
+                  <ArrowRight className="h-5 w-5 text-gray-400" />
+                </div>
+                <CardTitle className="mt-2">Orders</CardTitle>
+                <CardDescription>
+                  View and manage your orders
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/notifications">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <Bell className="h-8 w-8 text-orange-600" />
+                  <ArrowRight className="h-5 w-5 text-gray-400" />
+                </div>
+                <CardTitle className="mt-2">Notifications</CardTitle>
+                <CardDescription>
+                  View your notifications
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        </div>
+      </div>
+
+      {/* Service Categories */}
+      {serviceCategories.length > 0 && (
+        <div>
+          <h2 className="text-2xl font-bold mb-4">Service Categories</h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {serviceCategories.slice(0, 6).map((category) => (
+              <Link 
+                key={category} 
+                href={`/dashboard/services?category=${encodeURIComponent(category)}`}
+              >
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{category}</CardTitle>
+                      <ArrowRight className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <CardDescription>
+                      {serviceStats.categories[category] || 0} services
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))}
+            {serviceCategories.length > 6 && (
+              <Link href="/dashboard/services">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer border-dashed">
+                  <CardHeader>
+                    <div className="flex items-center justify-center h-full py-4">
+                      <CardTitle className="text-lg text-gray-500">
+                        View All Categories
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                </Card>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Get started with services</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Link href="/dashboard/services">
-              <Button className="w-full">Browse Services</Button>
-            </Link>
-            <Link href="/dashboard/orders">
-              <Button className="w-full" variant="outline">
-                View Orders
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader>

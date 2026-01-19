@@ -4,47 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { purchaseNumber, configureNumberWebhook } from "@/lib/twilio/numbers";
 import { purchaseWithWallet, refundToWallet } from "@/lib/wallet/purchase";
 import { getDefaultMonthlyCost, getPhoneNumbersMarkup } from "@/lib/twilio/costs";
-
-const COUNTRY_NAMES: Record<string, string> = {
-  US: "United States",
-  CA: "Canada",
-  GB: "United Kingdom",
-  AU: "Australia",
-  DE: "Germany",
-  FR: "France",
-  IT: "Italy",
-  ES: "Spain",
-  NL: "Netherlands",
-  BE: "Belgium",
-  CH: "Switzerland",
-  AT: "Austria",
-  SE: "Sweden",
-  NO: "Norway",
-  DK: "Denmark",
-  FI: "Finland",
-  PL: "Poland",
-  PT: "Portugal",
-  IE: "Ireland",
-  NZ: "New Zealand",
-  SG: "Singapore",
-  HK: "Hong Kong",
-  JP: "Japan",
-  KR: "South Korea",
-  IN: "India",
-  BR: "Brazil",
-  MX: "Mexico",
-  AR: "Argentina",
-  CL: "Chile",
-  CO: "Colombia",
-  ZA: "South Africa",
-  NG: "Nigeria",
-  KE: "Kenya",
-  EG: "Egypt",
-};
-
-function getCountryName(countryCode: string): string {
-  return COUNTRY_NAMES[countryCode.toUpperCase()] || countryCode;
-}
+import { getCountryName } from "@/lib/data/countries";
 
 export async function POST(request: NextRequest) {
   try {

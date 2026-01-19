@@ -26,6 +26,8 @@ export interface PurchasedNumber {
   };
 }
 
+export type NumberType = "local" | "mobile" | "tollFree";
+
 /**
  * Search for available phone numbers in Twilio inventory
  */
@@ -33,16 +35,19 @@ export async function searchAvailableNumbers(
   countryCode: string,
   capabilities: string[] = ["SMS"],
   page: number = 1,
-  pageSize: number = 50
-): Promise<{ numbers: AvailableNumber[]; hasMore: boolean; totalPages: number }> {
+  pageSize: number = 50,
+  numberType: NumberType = "local"
+): Promise<{ numbers: AvailableNumber[]; hasMore: boolean; totalPages: number; numberType: NumberType }> {
   try {
-    console.log(`[Twilio] Searching for numbers in country: ${countryCode}, capabilities:`, capabilities, `page: ${page}, pageSize: ${pageSize}`);
+    console.log(`[Twilio] Searching for ${numberType} numbers in country: ${countryCode}, capabilities:`, capabilities, `page: ${page}, pageSize: ${pageSize}`);
     
     const searchParams: any = {
       pageSize: pageSize,
       page: page,
     };
     
+    // Only add capability filters if explicitly requested
+    // Some numbers may not have all capabilities but are still available
     if (capabilities.includes("SMS")) {
       searchParams.smsEnabled = true;
     }
@@ -52,12 +57,60 @@ export async function searchAvailableNumbers(
     
     console.log(`[Twilio] Search parameters:`, searchParams);
     
-    const results = await twilioClient.availablePhoneNumbers(countryCode).local.list(searchParams);
+    // Search based on number type
+    let results;
+    try {
+      switch (numberType) {
+        case "mobile":
+          results = await twilioClient.availablePhoneNumbers(countryCode).mobile.list(searchParams);
+          break;
+        case "tollFree":
+          results = await twilioClient.availablePhoneNumbers(countryCode).tollFree.list(searchParams);
+          break;
+        case "local":
+        default:
+          results = await twilioClient.availablePhoneNumbers(countryCode).local.list(searchParams);
+          break;
+      }
+    } catch (typeError: any) {
+      // If a specific number type is not available, log detailed error info
+      console.warn(`[Twilio] ${numberType} numbers not available for country ${countryCode}:`, {
+        message: typeError.message,
+        code: typeError.code,
+        status: typeError.status,
+        moreInfo: typeError.moreInfo,
+      });
+      
+      // Handle different error codes
+      if (typeError.code === 20003 || typeError.status === 400 || typeError.status === 404) {
+        // Invalid country code or number type not supported
+        // This is expected for some country/type combinations
+        return {
+          numbers: [],
+          hasMore: false,
+          totalPages: 0,
+          numberType,
+        };
+      }
+      throw typeError;
+    }
     
-    console.log(`[Twilio] Found ${results.length} numbers`);
+    console.log(`[Twilio] Found ${results.length} ${numberType} numbers`);
 
     if (results.length === 0) {
-      console.warn(`[Twilio] No numbers found for country ${countryCode}. This might be normal if Twilio has no inventory for this country.`);
+      console.warn(`[Twilio] No ${numberType} numbers found for country ${countryCode}.`, {
+        possibleReasons: [
+          "No inventory available for this number type in this country",
+          "Search filters may be too restrictive (try removing capability filters)",
+          "Regulatory requirements may need to be met",
+          "Account may need address verification for this country",
+        ],
+        suggestions: [
+          "Try searching for 'mobile' or 'tollFree' number types",
+          "Try removing SMS/voice capability filters",
+          "Check if your Twilio account has address verification for this country",
+        ],
+      });
     }
 
     // Check if there are more pages
@@ -75,12 +128,14 @@ export async function searchAvailableNumbers(
         MMS: number.capabilities?.mms || false,
       },
       monthlyRate: number.capabilities?.sms ? "1.00" : "1.00", // Default rate
+      numberType, // Include number type in response
     }));
 
     return {
       numbers,
       hasMore,
       totalPages: hasMore ? page + 1 : page, // Estimate - we don't know exact total
+      numberType,
     };
   } catch (error: any) {
     console.error("[Twilio] Error searching available numbers:", error);

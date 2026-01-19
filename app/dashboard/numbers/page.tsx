@@ -16,26 +16,8 @@ import { useCurrency } from "@/lib/hooks/use-currency";
 import { NumberPurchaseModal } from "@/components/dashboard/NumberPurchaseModal";
 import { Phone, Search, Loader2, ChevronRight } from "lucide-react";
 import Link from "next/link";
-
-const COUNTRIES = [
-  { code: "US", name: "United States" },
-  { code: "CA", name: "Canada" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "AU", name: "Australia" },
-  { code: "DE", name: "Germany" },
-  { code: "FR", name: "France" },
-  { code: "IT", name: "Italy" },
-  { code: "ES", name: "Spain" },
-  { code: "NL", name: "Netherlands" },
-  { code: "BE", name: "Belgium" },
-  { code: "SG", name: "Singapore" },
-  { code: "HK", name: "Hong Kong" },
-  { code: "JP", name: "Japan" },
-  { code: "KR", name: "South Korea" },
-  { code: "IN", name: "India" },
-  { code: "BR", name: "Brazil" },
-  { code: "MX", name: "Mexico" },
-];
+import { Combobox } from "@/components/ui/combobox";
+import { COUNTRIES, getCountryName } from "@/lib/data/countries";
 
 interface AvailableNumber {
   friendlyName: string;
@@ -49,34 +31,35 @@ interface AvailableNumber {
   };
   monthly_cost: number;
   twilio_monthly_cost: number;
+  numberType?: "local" | "mobile" | "tollFree";
 }
 
 export default function NumbersPage() {
   const { toast } = useToast();
   const { format, convert, currency, rate, switchCurrency, loading: currencyLoading } = useCurrency();
   const [country, setCountry] = useState("US");
+  const [numberType, setNumberType] = useState<"local" | "mobile" | "tollFree">("local");
   const [numbers, setNumbers] = useState<AvailableNumber[]>([]);
   const [filteredNumbers, setFilteredNumbers] = useState<AvailableNumber[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedNumber, setSelectedNumber] = useState<AvailableNumber | null>(null);
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [capabilityFilter, setCapabilityFilter] = useState<string>("all");
-  const [maxPrice, setMaxPrice] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    // Reset to page 1 when country changes
+    // Reset to page 1 when country or number type changes
     setCurrentPage(1);
     setNumbers([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     searchNumbers(1, true);
-  }, [country]);
+  }, [country, numberType]);
 
   useEffect(() => {
-    // Filter numbers based on search, capabilities, and price
+    // Filter numbers based on search and capabilities
     let filtered = [...numbers];
 
     // Filter by search query (phone number or region)
@@ -99,18 +82,8 @@ export default function NumbersPage() {
       });
     }
 
-    // Filter by max price (convert max price to USD for comparison since API prices are in USD)
-    if (maxPrice) {
-      const maxPriceNum = parseFloat(maxPrice);
-      if (!isNaN(maxPriceNum)) {
-        // Convert max price from selected currency to USD for comparison
-        const maxPriceUSD = currency === "USD" ? maxPriceNum : maxPriceNum / rate;
-        filtered = filtered.filter((n) => n.monthly_cost <= maxPriceUSD);
-      }
-    }
-
     setFilteredNumbers(filtered);
-  }, [numbers, searchQuery, capabilityFilter, maxPrice, currency, rate]);
+  }, [numbers, searchQuery, capabilityFilter]);
 
   const searchNumbers = async (page: number = 1, reset: boolean = false) => {
     if (reset) {
@@ -120,7 +93,7 @@ export default function NumbersPage() {
     }
     
     try {
-      const response = await fetch(`/api/numbers/search?country=${country}&capabilities=SMS&page=${page}&pageSize=50`);
+      const response = await fetch(`/api/numbers/search?country=${country}&type=${numberType}&capabilities=SMS&page=${page}&pageSize=50`);
       
       const data = await response.json();
       
@@ -142,10 +115,17 @@ export default function NumbersPage() {
       setCurrentPage(page);
       
       if ((data.numbers || []).length === 0 && page === 1) {
+        const typeLabel = numberType === "local" ? "local" : numberType === "mobile" ? "mobile" : "toll-free";
+        const suggestions = data.suggestions || [
+          "Try selecting a different number type (Mobile or Toll-Free)",
+          "Some countries may have limited inventory",
+          "Check if your account meets regulatory requirements",
+        ];
         toast({
           title: "No Numbers Found",
-          description: `No available numbers found for ${country}. Try a different country or check Twilio account.`,
+          description: data.message || `No available ${typeLabel} numbers found for ${getCountryName(country)}. ${suggestions[0]}`,
           variant: "default",
+          duration: 5000,
         });
       }
     } catch (error: any) {
@@ -196,16 +176,28 @@ export default function NumbersPage() {
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Country</label>
-              <Select value={country} onValueChange={setCountry}>
+              <Combobox
+                options={COUNTRIES.map((c) => ({
+                  value: c.code,
+                  label: c.name,
+                }))}
+                value={country}
+                onValueChange={setCountry}
+                placeholder="Select country..."
+                searchPlaceholder="Search countries..."
+                emptyMessage="No countries found."
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-sm font-medium mb-2 block">Number Type</label>
+              <Select value={numberType} onValueChange={(value) => setNumberType(value as "local" | "mobile" | "tollFree")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select country" />
+                  <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {COUNTRIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="mobile">Mobile</SelectItem>
+                  <SelectItem value="local">Local</SelectItem>
+                  <SelectItem value="tollFree">Toll-Free</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -234,17 +226,6 @@ export default function NumbersPage() {
                   <SelectItem value="NGN">NGN (₦)</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-2 block">Max Price ({currency})</label>
-              <Input
-                type="number"
-                placeholder="No limit"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                min="0"
-                step="0.01"
-              />
             </div>
             <div className="flex items-end">
               <Button onClick={() => {
@@ -289,18 +270,66 @@ export default function NumbersPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <Phone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground mb-2">
               {numbers.length === 0
-                ? "No numbers available for this country"
+                ? `No ${numberType === "local" ? "local" : numberType === "mobile" ? "mobile" : "toll-free"} numbers available for ${getCountryName(country)}`
                 : "No numbers match your filters"}
             </p>
+            {numbers.length === 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm text-muted-foreground">Try a different number type:</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {numberType !== "mobile" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setNumberType("mobile");
+                        setCurrentPage(1);
+                        setNumbers([]);
+                        searchNumbers(1, true);
+                      }}
+                    >
+                      Try Mobile Numbers
+                    </Button>
+                  )}
+                  {numberType !== "tollFree" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setNumberType("tollFree");
+                        setCurrentPage(1);
+                        setNumbers([]);
+                        searchNumbers(1, true);
+                      }}
+                    >
+                      Try Toll-Free Numbers
+                    </Button>
+                  )}
+                  {numberType !== "local" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setNumberType("local");
+                        setCurrentPage(1);
+                        setNumbers([]);
+                        searchNumbers(1, true);
+                      }}
+                    >
+                      Try Local Numbers
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
             {numbers.length > 0 && (
               <Button
                 variant="outline"
                 onClick={() => {
                   setSearchQuery("");
                   setCapabilityFilter("all");
-                  setMaxPrice("");
                 }}
                 className="mt-4"
               >
@@ -367,6 +396,17 @@ export default function NumbersPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    {number.numberType && (
+                      <span className={`text-xs px-2 py-1 rounded font-medium ${
+                        number.numberType === "local" 
+                          ? "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                          : number.numberType === "mobile"
+                          ? "bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200"
+                          : "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200"
+                      }`}>
+                        {number.numberType === "local" ? "Local" : number.numberType === "mobile" ? "Mobile" : "Toll-Free"}
+                      </span>
+                    )}
                     {number.capabilities.SMS && (
                       <span className="text-xs bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">
                         SMS

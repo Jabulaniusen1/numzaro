@@ -16,14 +16,17 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const countryCode = searchParams.get("country") || "US";
-    const capabilities = searchParams.get("capabilities")?.split(",") || ["SMS"];
+    // Allow empty capabilities to search without filters (less restrictive)
+    const capabilitiesParam = searchParams.get("capabilities");
+    const capabilities = capabilitiesParam ? capabilitiesParam.split(",") : [];
     const page = parseInt(searchParams.get("page") || "1", 10);
     const pageSize = parseInt(searchParams.get("pageSize") || "50", 10);
+    const numberType = (searchParams.get("type") || "local") as "local" | "mobile" | "tollFree";
 
     try {
-      console.log(`Searching Twilio for numbers in ${countryCode} with capabilities:`, capabilities, `page: ${page}`);
-      const result = await searchAvailableNumbers(countryCode, capabilities, page, pageSize);
-      console.log(`Found ${result.numbers.length} numbers from Twilio (hasMore: ${result.hasMore})`);
+      console.log(`Searching Twilio for ${numberType} numbers in ${countryCode} with capabilities:`, capabilities, `page: ${page}`);
+      const result = await searchAvailableNumbers(countryCode, capabilities, page, pageSize, numberType);
+      console.log(`Found ${result.numbers.length} ${numberType} numbers from Twilio (hasMore: ${result.hasMore})`);
 
       // Get current markup percentage from admin settings
       const markupPercentage = await getPhoneNumbersMarkup();
@@ -44,11 +47,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         numbers: numbersWithPricing,
         country_code: countryCode,
+        number_type: result.numberType,
         pagination: {
           page,
           pageSize,
           hasMore: result.hasMore,
         },
+        // Add helpful message when no results
+        ...(numbersWithPricing.length === 0 && {
+          message: `No ${result.numberType} numbers found for ${countryCode}. Try selecting a different number type (Mobile or Toll-Free) or a different country.`,
+          suggestions: [
+            "Try Mobile or Toll-Free number types",
+            "Some countries may have limited inventory",
+            "Check if your account meets regulatory requirements for this country",
+          ],
+        }),
       });
     } catch (error: any) {
       console.error("Error searching numbers:", error);
