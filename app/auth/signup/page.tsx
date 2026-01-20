@@ -83,7 +83,14 @@ export default function SignupPage() {
       }
     }
 
-    router.push("/dashboard");
+    // Check for redirect destination in localStorage
+    const redirectPath = typeof window !== "undefined" ? localStorage.getItem("redirectAfterAuth") : null;
+    if (redirectPath) {
+      localStorage.removeItem("redirectAfterAuth");
+      router.push(redirectPath);
+    } else {
+      router.push("/dashboard");
+    }
     router.refresh();
   };
 
@@ -91,11 +98,17 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
+    // Store redirect destination if it exists
+    const redirectPath = typeof window !== "undefined" ? localStorage.getItem("redirectAfterAuth") : null;
+    const callbackUrl = redirectPath 
+      ? `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectPath)}`
+      : `${window.location.origin}/auth/callback`;
+
     const supabase = createClient();
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl,
       },
     });
 
@@ -114,10 +127,17 @@ export default function SignupPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
       {/* Left Side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center bg-white p-8">
-        <div className="w-full max-w-md space-y-8">
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-white dark:bg-gray-900 p-8 relative overflow-hidden">
+        {/* Decorative background elements for dark mode */}
+        <div className="absolute inset-0 opacity-0 dark:opacity-100 pointer-events-none">
+          <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-blue-900/20 to-transparent"></div>
+          <div className="absolute bottom-0 right-0 w-1/2 h-full bg-gradient-to-l from-purple-900/20 to-transparent"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
+        </div>
+
+        <div className="w-full max-w-md space-y-8 relative z-10">
           <div>
             <Link href="/" className="mb-6 inline-block">
               <Image
@@ -125,18 +145,18 @@ export default function SignupPage() {
                 alt="Numzaro"
                 width={140}
                 height={40}
-                className="h-8 w-auto"
+                className="h-8 w-auto dark:brightness-0 dark:invert"
                 priority
               />
             </Link>
-            <h2 className="text-3xl font-bold text-gray-900">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
               Create your account
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
               Already have an account?{" "}
               <Link
                 href="/auth/login"
-                className="font-medium text-[#1877F2] hover:text-[#166fe5]"
+                className="font-medium text-[#1877F2] hover:text-[#166fe5] dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
               >
                 Sign in
               </Link>
@@ -145,8 +165,8 @@ export default function SignupPage() {
 
           <form className="mt-8 space-y-6" onSubmit={handleSignup}>
             {error && (
-              <div className="rounded-md bg-red-50 p-4 border border-red-200">
-                <div className="text-sm text-red-800">{error}</div>
+              <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800/50">
+                <div className="text-sm text-red-800 dark:text-red-200">{error}</div>
               </div>
             )}
 
@@ -197,7 +217,7 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none transition-colors"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? (
@@ -227,10 +247,10 @@ export default function SignupPage() {
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+                <div className="w-full border-t border-gray-300 dark:border-gray-700" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                <span className="px-2 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">Or continue with</span>
               </div>
             </div>
 
@@ -268,11 +288,11 @@ export default function SignupPage() {
       </div>
 
       {/* Right Side - Design with Reviews */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#1877F2] via-blue-600 to-purple-600 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#1877F2] via-blue-600 to-purple-600 dark:from-blue-700 dark:via-blue-800 dark:to-purple-700 relative overflow-hidden">
         {/* Decorative elements */}
-        <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0 opacity-10 dark:opacity-20">
           <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-300 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-300 dark:bg-pink-400 rounded-full blur-3xl"></div>
         </div>
 
         <div className="relative z-10 w-full flex flex-col items-center justify-center p-12 text-white">

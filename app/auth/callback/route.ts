@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const redirectParam = requestUrl.searchParams.get("redirect");
 
   if (code) {
     const supabase = await createClient();
@@ -31,6 +32,8 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(new URL("/dashboard", requestUrl.origin));
+  // Redirect to specified path or default to dashboard
+  const redirectPath = redirectParam || "/dashboard";
+  return NextResponse.redirect(new URL(redirectPath, requestUrl.origin));
 }
 

@@ -243,7 +243,7 @@ export default function DashboardPage() {
 
           <Link href="/dashboard/numbers">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-              <CardHeader>
+          <CardHeader>
                 <div className="flex items-center justify-between">
                   <Phone className="h-8 w-8 text-green-600" />
                   <ArrowRight className="h-5 w-5 text-gray-400" />
@@ -252,11 +252,11 @@ export default function DashboardPage() {
                 <CardDescription>
                   Get phone numbers from 100+ countries
                 </CardDescription>
-              </CardHeader>
+          </CardHeader>
             </Card>
-          </Link>
+            </Link>
 
-          <Link href="/dashboard/orders">
+            <Link href="/dashboard/orders">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -309,7 +309,7 @@ export default function DashboardPage() {
                     </CardDescription>
                   </CardHeader>
                 </Card>
-              </Link>
+            </Link>
             ))}
             {serviceCategories.length > 6 && (
               <Link href="/dashboard/services">
@@ -321,7 +321,7 @@ export default function DashboardPage() {
                       </CardTitle>
                     </div>
                   </CardHeader>
-                </Card>
+        </Card>
               </Link>
             )}
           </div>
