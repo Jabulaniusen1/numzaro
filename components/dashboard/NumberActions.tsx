@@ -14,7 +14,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/lib/hooks/use-toast";
-import { Loader2, RefreshCw, Trash2, Settings } from "lucide-react";
+import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface NumberActionsProps {
@@ -116,13 +116,14 @@ export function NumberActions({
   const isExpired = new Date(expiresAt) < new Date();
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
       {status === "active" && (
         <>
           <Button
             onClick={handleRenew}
             disabled={renewing || releasing}
             variant="outline"
+            className="w-full sm:w-auto"
           >
             {renewing ? (
               <>
@@ -132,7 +133,8 @@ export function NumberActions({
             ) : (
               <>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Renew (${monthlyCost.toFixed(2)} USD)
+                <span className="hidden sm:inline">Renew (${monthlyCost.toFixed(2)} USD)</span>
+                <span className="sm:hidden">Renew</span>
               </>
             )}
           </Button>
@@ -142,6 +144,7 @@ export function NumberActions({
               <Button
                 variant="destructive"
                 disabled={renewing || releasing}
+                className="w-full sm:w-auto"
               >
                 {releasing ? (
                   <>
@@ -180,7 +183,7 @@ export function NumberActions({
         <Button
           onClick={handleRenew}
           disabled={renewing || releasing}
-          className="bg-yellow-600 hover:bg-yellow-700"
+          className="bg-yellow-600 hover:bg-yellow-700 w-full sm:w-auto"
         >
           {renewing ? (
             <>
@@ -190,7 +193,8 @@ export function NumberActions({
           ) : (
               <>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Renew Expired Number (${monthlyCost.toFixed(2)} USD)
+                <span className="hidden sm:inline">Renew Expired Number (${monthlyCost.toFixed(2)} USD)</span>
+                <span className="sm:hidden">Renew Expired</span>
               </>
           )}
         </Button>

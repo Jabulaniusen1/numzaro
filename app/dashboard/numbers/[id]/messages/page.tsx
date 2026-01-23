@@ -121,9 +121,9 @@ export default function NumberMessagesPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-3xl font-bold">Messages</h1>
-          <p className="text-muted-foreground">All messages for this number</p>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold">Messages</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">All messages for this number</p>
         </div>
       </div>
 

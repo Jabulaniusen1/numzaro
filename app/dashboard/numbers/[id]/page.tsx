@@ -81,24 +81,52 @@ export default function NumberDetailPage() {
     cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
   };
 
+  // Extract country code from phone number (e.g., +972 from +972535633758)
+  const extractCountryCode = (phoneNumber: string): string => {
+    if (!phoneNumber) return "";
+    // Remove any spaces and get the part after +
+    const cleaned = phoneNumber.replace(/\s+/g, "");
+    if (cleaned.startsWith("+")) {
+      // Try to extract country code (1-3 digits after +)
+      // Common patterns: +1 (US/CA), +44 (UK), +972 (IL), etc.
+      const match = cleaned.match(/^\+(\d{1,3})/);
+      if (match) {
+        return `+${match[1]}`;
+      }
+    }
+    return "";
+  };
+
+  const phoneCountryCode = extractCountryCode(number.phone_number);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <Link href="/dashboard/numbers">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Phone className="h-8 w-8" />
-            {number.phone_number}
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 flex-wrap">
+            <Phone className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0" />
+            <span className="break-all">{number.phone_number}</span>
           </h1>
-          <p className="text-muted-foreground">{number.country_name}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-muted-foreground">{number.country_name}</p>
+            {phoneCountryCode && (
+              <>
+                <span className="text-muted-foreground">•</span>
+                <p className="text-muted-foreground font-mono">{phoneCountryCode}</p>
+              </>
+            )}
+          </div>
         </div>
-        <Badge className={statusColors[number.status] || ""}>
-          {number.status}
-        </Badge>
+        <div className="">
+          <Badge className={statusColors[number.status] || "self-start sm:self-auto"}>
+            {number.status}
+          </Badge>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -114,17 +142,17 @@ export default function NumberDetailPage() {
             <CardTitle>{number.message_count || 0}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        {/* <Card>
           <CardHeader>
             <CardDescription>OTPs Received</CardDescription>
             <CardTitle>{number.otp_count || 0}</CardTitle>
           </CardHeader>
-        </Card>
+        </Card> */}
       </div>
 
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <CardTitle>Number Details</CardTitle>
             <NumberActions
               numberId={number.id}
@@ -138,10 +166,14 @@ export default function NumberDetailPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Country</p>
+              <p className="font-medium">{number.country_name}</p>
+            </div>
             <div>
               <p className="text-sm text-muted-foreground">Country Code</p>
-              <p className="font-medium">{number.country_code}</p>
+              <p className="font-medium font-mono">{phoneCountryCode || number.country_code}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Status</p>
@@ -176,18 +208,20 @@ export default function NumberDetailPage() {
       </Card>
 
       <Tabs defaultValue="messages" className="w-full">
-        <TabsList>
-          <TabsTrigger value="messages">
+        <TabsList className="w-full sm:w-auto overflow-x-auto">
+          <TabsTrigger value="messages" className="flex-shrink-0">
             <MessageSquare className="h-4 w-4 mr-2" />
-            Messages
+            <span className="hidden sm:inline">Messages</span>
+            <span className="sm:hidden">SMS</span>
           </TabsTrigger>
-          <TabsTrigger value="otps">
+          <TabsTrigger value="otps" className="flex-shrink-0">
             <Shield className="h-4 w-4 mr-2" />
             OTPs
           </TabsTrigger>
-          <TabsTrigger value="guides">
+          <TabsTrigger value="guides" className="flex-shrink-0">
             <Calendar className="h-4 w-4 mr-2" />
-            Integration Guides
+            <span className="hidden sm:inline">Integration Guides</span>
+            <span className="sm:hidden">Guides</span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value="messages">

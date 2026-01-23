@@ -179,6 +179,57 @@ export async function PATCH(
       );
     }
 
+    if (action === "configure_webhook") {
+      // Configure webhook URL for the number
+      const { webhookUrl } = body;
+      
+      if (!webhookUrl) {
+        return NextResponse.json(
+          { error: "webhookUrl is required" },
+          { status: 400 }
+        );
+      }
+
+      // Validate webhook URL format
+      try {
+        const url = new URL(webhookUrl);
+        if (url.protocol !== "https:" && !url.hostname.includes("localhost")) {
+          return NextResponse.json(
+            { error: "Webhook URL must be HTTPS (or localhost for development)" },
+            { status: 400 }
+          );
+        }
+      } catch {
+        return NextResponse.json(
+          { error: "Invalid webhook URL format" },
+          { status: 400 }
+        );
+      }
+
+      // Configure webhook in Twilio
+      try {
+        const { configureNumberWebhook } = await import("@/lib/twilio/numbers");
+        await configureNumberWebhook(number.twilio_sid, webhookUrl);
+        
+        console.log("[Webhook Config] Successfully configured webhook:", {
+          numberId: number.id,
+          phoneNumber: number.phone_number,
+          webhookUrl,
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: "Webhook configured successfully",
+        });
+      } catch (twilioError: any) {
+        console.error("[Webhook Config] Error configuring webhook:", twilioError);
+        return NextResponse.json(
+          { error: `Failed to configure webhook: ${twilioError.message}` },
+          { status: 500 }
+        );
+      }
+    }
+
     if (action === "renew") {
       // Renew number - extend expiry by 30 days
       const currentExpires = new Date(number.expires_at);

@@ -63,35 +63,36 @@ export function MessagesList({ messages, loading }: MessagesListProps) {
           <CardContent className="pt-6">
             <div className="space-y-3">
               <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant={message.direction === "inbound" ? "default" : "outline"}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <Badge variant={message.direction === "inbound" ? "default" : "outline"} className="text-xs">
                       {message.direction}
                     </Badge>
                     {message.is_otp && (
-                      <Badge variant="secondary">OTP</Badge>
+                      <Badge variant="secondary" className="text-xs">OTP</Badge>
                     )}
                     {message.otp_service && (
-                      <Badge variant="outline">{message.otp_service}</Badge>
+                      <Badge variant="outline" className="text-xs break-all">{message.otp_service}</Badge>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground mb-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1 break-all">
                     From: {message.from_number}
                   </p>
-                  <p className="text-sm text-muted-foreground mb-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-2">
                     {format(new Date(message.created_at), "MMM d, yyyy HH:mm")}
                   </p>
                 </div>
               </div>
               <div className="bg-muted rounded-lg p-3">
-                <p className="whitespace-pre-wrap">{message.body}</p>
+                <p className="whitespace-pre-wrap break-words text-sm sm:text-base">{message.body}</p>
                 {message.otp_code && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="font-mono font-bold text-lg">{message.otp_code}</span>
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <span className="font-mono font-bold text-base sm:text-lg break-all">{message.otp_code}</span>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => copyToClipboard(message.otp_code!, message.id)}
+                      className="flex-shrink-0"
                     >
                       {copiedId === message.id ? (
                         <Check className="h-4 w-4" />
@@ -109,6 +110,7 @@ export function MessagesList({ messages, loading }: MessagesListProps) {
     </div>
   );
 }
+
 
 
 

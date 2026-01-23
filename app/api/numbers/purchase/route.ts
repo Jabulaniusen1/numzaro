@@ -33,8 +33,11 @@ export async function POST(request: NextRequest) {
     const monthlyCost = await getDefaultMonthlyCost(countryCode, markupPercentage);
     const countryName = getCountryName(countryCode);
 
-    // Get webhook URL
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio/sms`;
+    // Get webhook URL - construct from NEXT_PUBLIC_APP_URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+    const webhookUrl = baseUrl 
+      ? `${baseUrl}/api/webhooks/twilio/sms`
+      : undefined;
 
     // Step 1: Check wallet balance
     const { data: userProfile } = await supabase
@@ -60,6 +63,15 @@ export async function POST(request: NextRequest) {
     let purchasedNumber;
     try {
       purchasedNumber = await purchaseNumber(phoneNumber, webhookUrl);
+      
+      // If webhook wasn't set during purchase (development mode), log a warning
+      if (!webhookUrl) {
+        console.warn(
+          `[Development Mode] Number purchased without webhook URL. ` +
+          `Configure webhook manually in Twilio Console for number: ${purchasedNumber.phoneNumber} ` +
+          `or set NEXT_PUBLIC_APP_URL to a publicly accessible HTTPS URL.`
+        );
+      }
     } catch (twilioError: any) {
       console.error("Twilio purchase error:", twilioError);
       return NextResponse.json(

@@ -127,16 +127,16 @@ export default function TelegramGuidePage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link href={`/dashboard/numbers/${number.id}`}>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" className="flex-shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Send className="h-8 w-8" />
-            Telegram Registration Guide
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2 flex-wrap">
+            <Send className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0" />
+            <span>Telegram Registration Guide</span>
           </h1>
-          <p className="text-muted-foreground">Step-by-step instructions for registering Telegram</p>
+          <p className="text-muted-foreground text-sm sm:text-base">Step-by-step instructions for registering Telegram</p>
         </div>
       </div>
 
@@ -147,11 +147,11 @@ export default function TelegramGuidePage() {
           <CardDescription>Use this number to register Telegram</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-            <div className="flex items-center gap-3">
-              <Phone className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="font-mono text-lg font-bold">{number.phone_number}</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-muted rounded-lg">
+            <div className="flex items-center gap-3 min-w-0">
+              <Phone className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-base sm:text-lg font-bold break-all">{number.phone_number}</p>
                 <p className="text-sm text-muted-foreground">{number.country_name}</p>
               </div>
             </div>
@@ -159,6 +159,7 @@ export default function TelegramGuidePage() {
               variant="outline"
               size="sm"
               onClick={() => copyToClipboard(number.phone_number)}
+              className="self-start sm:self-auto"
             >
               <Copy className="h-4 w-4 mr-2" />
               Copy
@@ -175,81 +176,81 @@ export default function TelegramGuidePage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm sm:text-base">
                 1
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Install Telegram</h3>
-                <p className="text-muted-foreground">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Install Telegram</h3>
+                <p className="text-muted-foreground text-sm sm:text-base">
                   Download and install Telegram from your app store or visit web.telegram.org on your computer.
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm sm:text-base">
                 2
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Start Registration</h3>
-                <p className="text-muted-foreground">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Start Registration</h3>
+                <p className="text-muted-foreground text-sm sm:text-base">
                   Open Telegram and tap "Start Messaging" or "Get Started". When prompted, enter your country and phone number.
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm sm:text-base">
                 3
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Enter Your Virtual Number</h3>
-                <p className="text-muted-foreground mb-2">
-                  Enter your virtual number: <code className="bg-muted px-2 py-1 rounded">{number.phone_number}</code>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Enter Your Virtual Number</h3>
+                <p className="text-muted-foreground mb-2 text-sm sm:text-base">
+                  Enter your virtual number: <code className="bg-muted px-2 py-1 rounded break-all">{number.phone_number}</code>
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Select your country from the dropdown (Telegram should auto-detect based on your number).
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm sm:text-base">
                 4
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Wait for Verification Code</h3>
-                <p className="text-muted-foreground mb-2">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Wait for Verification Code</h3>
+                <p className="text-muted-foreground mb-2 text-sm sm:text-base">
                   Telegram will send a verification code via SMS to your virtual number. This usually arrives within seconds.
                 </p>
                 <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                  <p className="text-xs sm:text-sm text-yellow-800 dark:text-yellow-200 font-medium">
                     💡 The verification code will automatically appear in your dashboard below once received!
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm sm:text-base">
                 5
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Enter Verification Code</h3>
-                <p className="text-muted-foreground">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Enter Verification Code</h3>
+                <p className="text-muted-foreground text-sm sm:text-base">
                   Copy the verification code from the dashboard below and enter it into Telegram when prompted.
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm sm:text-base">
                 6
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Complete Setup</h3>
-                <p className="text-muted-foreground">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Complete Setup</h3>
+                <p className="text-muted-foreground text-sm sm:text-base">
                   Follow Telegram's prompts to set up your profile (name, photo). Your Telegram account is now registered with your virtual number!
                 </p>
               </div>

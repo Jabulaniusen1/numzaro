@@ -129,16 +129,16 @@ export default function WhatsAppGuidePage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link href={`/dashboard/numbers/${number.id}`}>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" className="flex-shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <MessageSquare className="h-8 w-8" />
-            WhatsApp Registration Guide
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2 flex-wrap">
+            <MessageSquare className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0" />
+            <span>WhatsApp Registration Guide</span>
           </h1>
-          <p className="text-muted-foreground">Step-by-step instructions for registering WhatsApp</p>
+          <p className="text-muted-foreground text-sm sm:text-base">Step-by-step instructions for registering WhatsApp</p>
         </div>
       </div>
 
@@ -149,11 +149,11 @@ export default function WhatsAppGuidePage() {
           <CardDescription>Use this number to register WhatsApp</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-            <div className="flex items-center gap-3">
-              <Phone className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="font-mono text-lg font-bold">{number.phone_number}</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-muted rounded-lg">
+            <div className="flex items-center gap-3 min-w-0">
+              <Phone className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-base sm:text-lg font-bold break-all">{number.phone_number}</p>
                 <p className="text-sm text-muted-foreground">{number.country_name}</p>
               </div>
             </div>
@@ -161,6 +161,7 @@ export default function WhatsAppGuidePage() {
               variant="outline"
               size="sm"
               onClick={() => copyToClipboard(number.phone_number)}
+              className="self-start sm:self-auto"
             >
               <Copy className="h-4 w-4 mr-2" />
               Copy
@@ -177,81 +178,81 @@ export default function WhatsAppGuidePage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm sm:text-base">
                 1
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Install WhatsApp</h3>
-                <p className="text-muted-foreground">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Install WhatsApp</h3>
+                <p className="text-muted-foreground text-sm sm:text-base">
                   Download and install WhatsApp on your device if you haven't already.
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm sm:text-base">
                 2
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Open WhatsApp and Start Registration</h3>
-                <p className="text-muted-foreground">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Open WhatsApp and Start Registration</h3>
+                <p className="text-muted-foreground text-sm sm:text-base">
                   Open WhatsApp, tap "Agree and Continue", and then tap "Not Now" when asked about contacts.
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm sm:text-base">
                 3
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Enter Your Virtual Number</h3>
-                <p className="text-muted-foreground mb-2">
-                  When prompted, enter your virtual number: <code className="bg-muted px-2 py-1 rounded">{number.phone_number}</code>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Enter Your Virtual Number</h3>
+                <p className="text-muted-foreground mb-2 text-sm sm:text-base">
+                  When prompted, enter your virtual number: <code className="bg-muted px-2 py-1 rounded break-all">{number.phone_number}</code>
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Make sure to include the country code (e.g., +1 for US, +44 for UK).
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm sm:text-base">
                 4
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Wait for Verification Code</h3>
-                <p className="text-muted-foreground mb-2">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Wait for Verification Code</h3>
+                <p className="text-muted-foreground mb-2 text-sm sm:text-base">
                   WhatsApp will send a 6-digit verification code to your virtual number. This may take a few moments.
                 </p>
                 <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                  <p className="text-xs sm:text-sm text-yellow-800 dark:text-yellow-200 font-medium">
                     💡 The verification code will automatically appear in your dashboard below once received!
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm sm:text-base">
                 5
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Enter Verification Code</h3>
-                <p className="text-muted-foreground">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Enter Verification Code</h3>
+                <p className="text-muted-foreground text-sm sm:text-base">
                   Copy the verification code from the dashboard below and paste it into WhatsApp when prompted.
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+            <div className="flex gap-3 sm:gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm sm:text-base">
                 6
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Complete Registration</h3>
-                <p className="text-muted-foreground">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">Complete Registration</h3>
+                <p className="text-muted-foreground text-sm sm:text-base">
                   Follow the remaining prompts in WhatsApp to complete your profile setup. Your WhatsApp is now registered with your virtual number!
                 </p>
               </div>

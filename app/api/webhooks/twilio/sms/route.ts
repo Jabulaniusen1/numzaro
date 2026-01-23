@@ -7,9 +7,23 @@ export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("[SMS Webhook] ===== WEBHOOK CALLED =====");
+    console.log("[SMS Webhook] URL:", request.url);
+    console.log("[SMS Webhook] Headers:", {
+      "content-type": request.headers.get("content-type"),
+      "x-twilio-signature": request.headers.get("x-twilio-signature") ? "present" : "missing",
+    });
+    
     // Get raw body for signature validation
     const formData = await request.formData();
     const webhookData = parseIncomingSMS(formData);
+
+    console.log("[SMS Webhook] Received message:", {
+      from: webhookData.From,
+      to: webhookData.To,
+      body: webhookData.Body.substring(0, 100), // Log first 100 chars
+      messageSid: webhookData.MessageSid,
+    });
 
     // Validate webhook signature
     const signature = request.headers.get("X-Twilio-Signature");
@@ -25,23 +39,95 @@ export async function POST(request: NextRequest) {
       const isValid = validateWebhookSignature(url, params, signature, authToken);
 
       if (!isValid) {
-        console.error("Invalid Twilio webhook signature");
+        console.error("[SMS Webhook] Invalid Twilio webhook signature");
         return new NextResponse("Invalid signature", { status: 403 });
       }
+    } else {
+      console.warn("[SMS Webhook] Skipping signature validation (no signature or auth token)");
     }
 
     // Use service role client for database operations
     const supabase = createServiceRoleClient();
 
     // Find virtual number by phone number
-    const { data: virtualNumber, error: numberError } = await supabase
+    // Twilio sends numbers in E.164 format (+1234567890)
+    // Try exact match first, then try without + prefix
+    let virtualNumber = null;
+    let numberError = null;
+    
+    // Try exact match first
+    const { data: exactMatch, error: exactError } = await supabase
       .from("virtual_numbers")
       .select("id, user_id, phone_number")
       .eq("phone_number", webhookData.To)
-      .single();
+      .maybeSingle();
+    
+    if (exactMatch) {
+      virtualNumber = exactMatch;
+    } else {
+      // Try without + prefix
+      const toWithoutPlus = webhookData.To.startsWith("+") ? webhookData.To.slice(1) : webhookData.To;
+      const { data: noPlusMatch, error: noPlusError } = await supabase
+        .from("virtual_numbers")
+        .select("id, user_id, phone_number")
+        .eq("phone_number", toWithoutPlus)
+        .maybeSingle();
+      
+      if (noPlusMatch) {
+        virtualNumber = noPlusMatch;
+      } else {
+        // Try with + prefix if it wasn't there
+        const toWithPlus = webhookData.To.startsWith("+") ? webhookData.To : `+${webhookData.To}`;
+        const { data: withPlusMatch, error: withPlusError } = await supabase
+          .from("virtual_numbers")
+          .select("id, user_id, phone_number")
+          .eq("phone_number", toWithPlus)
+          .maybeSingle();
+        
+        if (withPlusMatch) {
+          virtualNumber = withPlusMatch;
+        } else {
+          numberError = exactError || noPlusError || withPlusError;
+        }
+      }
+    }
 
     if (numberError || !virtualNumber) {
-      console.error("Virtual number not found:", webhookData.To, numberError);
+      console.error("[SMS Webhook] Virtual number not found:", {
+        to: webhookData.To,
+        error: numberError,
+        message: "This number may not be registered in our system",
+        attempts: [
+          `Exact: ${webhookData.To}`,
+          `Without +: ${webhookData.To.startsWith("+") ? webhookData.To.slice(1) : "N/A"}`,
+          `With +: ${webhookData.To.startsWith("+") ? "N/A" : `+${webhookData.To}`}`,
+        ],
+      });
+      
+      // Log all numbers in database for debugging
+      const { data: allNumbers } = await supabase
+        .from("virtual_numbers")
+        .select("phone_number, id, status")
+        .limit(10);
+      console.log("[SMS Webhook] Available numbers in database:", allNumbers?.map(n => ({
+        phone_number: n.phone_number,
+        id: n.id,
+        status: n.status,
+      })));
+      
+      // Try case-insensitive and normalized matching
+      const normalizedTo = webhookData.To.replace(/\s+/g, "").trim();
+      const { data: normalizedMatch } = await supabase
+        .from("virtual_numbers")
+        .select("id, user_id, phone_number")
+        .ilike("phone_number", `%${normalizedTo.replace(/^\+/, "")}%`)
+        .maybeSingle();
+      
+      if (normalizedMatch) {
+        console.log("[SMS Webhook] Found number with normalized matching:", normalizedMatch);
+        virtualNumber = normalizedMatch;
+      }
+      
       // Return 200 to Twilio even if number not found (to avoid retries)
       return new NextResponse(
         '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
@@ -51,6 +137,12 @@ export async function POST(request: NextRequest) {
         }
       );
     }
+
+    console.log("[SMS Webhook] Found virtual number:", {
+      numberId: virtualNumber.id,
+      phoneNumber: virtualNumber.phone_number,
+      userId: virtualNumber.user_id,
+    });
 
     // Store message in database
     const { data: message, error: messageError } = await supabase
@@ -81,6 +173,13 @@ export async function POST(request: NextRequest) {
 
     // Detect OTP
     const otpResult = extractOTP(webhookData.Body);
+    
+    console.log("[SMS Webhook] OTP Detection:", {
+      detected: !!otpResult.code,
+      code: otpResult.code,
+      service: otpResult.service,
+      messagePreview: webhookData.Body.substring(0, 200),
+    });
 
     if (otpResult.code) {
       // Mark message as OTP

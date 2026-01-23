@@ -88,10 +88,10 @@ export function OTPDisplay({ otps, loading, onMarkUsed }: OTPDisplayProps) {
                   </p>
                 </div>
               </div>
-              <div className="bg-muted rounded-lg p-4 flex items-center justify-between">
-                <div className="flex-1">
+              <div className="bg-muted rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground mb-1">OTP Code</p>
-                  <p className="font-mono font-bold text-2xl">{otp.code}</p>
+                  <p className="font-mono font-bold text-xl sm:text-2xl break-all">{otp.code}</p>
                   {otp.status === "pending" && (
                     <p className="text-xs text-muted-foreground mt-1">
                       Expires: {format(new Date(otp.expires_at), "MMM d, yyyy HH:mm")}
@@ -103,7 +103,7 @@ export function OTPDisplay({ otps, loading, onMarkUsed }: OTPDisplayProps) {
                     </p>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 self-start sm:self-auto">
                   <Button
                     variant="outline"
                     size="sm"
@@ -121,7 +121,8 @@ export function OTPDisplay({ otps, loading, onMarkUsed }: OTPDisplayProps) {
                       size="sm"
                       onClick={() => onMarkUsed(otp.id)}
                     >
-                      Mark Used
+                      <span className="hidden sm:inline">Mark Used</span>
+                      <span className="sm:hidden">Used</span>
                     </Button>
                   )}
                 </div>
@@ -133,6 +134,7 @@ export function OTPDisplay({ otps, loading, onMarkUsed }: OTPDisplayProps) {
     </div>
   );
 }
+
 
 
 
