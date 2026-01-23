@@ -74,8 +74,21 @@ export async function POST(request: NextRequest) {
       }
     } catch (twilioError: any) {
       console.error("Twilio purchase error:", twilioError);
+      
+      // Provide helpful error messages for common issues
+      let errorMessage = twilioError.message || "Failed to purchase number";
+      
+      // Handle bundle requirement errors
+      if (errorMessage.includes("Bundle required") || errorMessage.includes("bundle")) {
+        errorMessage = `This number type requires a Bundle (regulatory compliance). ` +
+          `For ${countryName} (${countryCode}), please try: ` +
+          `1) Select "Local" number type instead of "Mobile", or ` +
+          `2) Use a different country that doesn't require bundles. ` +
+          `Note: Bundles require address verification and business registration in Twilio.`;
+      }
+      
       return NextResponse.json(
-        { error: `Failed to purchase number: ${twilioError.message}` },
+        { error: errorMessage },
         { status: 500 }
       );
     }
