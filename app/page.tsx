@@ -123,139 +123,15 @@ function ServiceCTA({ destination, children, variant = "default" }: { destinatio
 }
 
 export default function HomePage() {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const scrollContentRef = useRef<HTMLDivElement>(null);
-  const [isUserScrolling, setIsUserScrolling] = useState(false);
-  const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastScrollLeftRef = useRef(0);
-  const isHoveringRef = useRef(false);
-  const isAutoScrollingRef = useRef(false);
-
-  // Auto-scroll functionality
-  useEffect(() => {
-    if (!scrollContainerRef.current || isUserScrolling || isHoveringRef.current) {
-      if (autoScrollIntervalRef.current) {
-        clearInterval(autoScrollIntervalRef.current);
-        autoScrollIntervalRef.current = null;
-      }
-      return;
-    }
-
-    const scrollContainer = scrollContainerRef.current;
-    const scrollContent = scrollContentRef.current;
-    if (!scrollContent) return;
-
-    const scrollSpeed = 0.5; // pixels per frame (slower for smoother scroll)
-    const targetFPS = 60;
-    const interval = 1000 / targetFPS;
-
-    autoScrollIntervalRef.current = setInterval(() => {
-      isAutoScrollingRef.current = true;
-      const maxScroll = scrollContent.scrollWidth / 2;
-      if (scrollContainer.scrollLeft >= maxScroll - 10) {
-        // Reset to beginning when reaching halfway (seamless loop)
-        scrollContainer.scrollLeft = 0;
-      } else {
-        scrollContainer.scrollLeft += scrollSpeed;
-      }
-      lastScrollLeftRef.current = scrollContainer.scrollLeft;
-      // Reset flag after a short delay to allow scroll event to process
-      setTimeout(() => {
-        isAutoScrollingRef.current = false;
-      }, 50);
-    }, interval);
-
-    return () => {
-      if (autoScrollIntervalRef.current) {
-        clearInterval(autoScrollIntervalRef.current);
-        autoScrollIntervalRef.current = null;
-      }
-    };
-  }, [isUserScrolling]);
-
-  // Handle manual scroll detection
-  const handleScroll = () => {
-    if (!scrollContainerRef.current || isAutoScrollingRef.current) return;
-    
-    const currentScrollLeft = scrollContainerRef.current.scrollLeft;
-    const scrollDifference = Math.abs(currentScrollLeft - lastScrollLeftRef.current);
-    
-    // If scroll difference is significant and not from auto-scroll, user is manually scrolling
-    if (scrollDifference > 2) {
-      setIsUserScrolling(true);
-      
-      if (autoScrollIntervalRef.current) {
-        clearInterval(autoScrollIntervalRef.current);
-        autoScrollIntervalRef.current = null;
-      }
-
-      // Clear existing timeout
-      if (userScrollTimeoutRef.current) {
-        clearTimeout(userScrollTimeoutRef.current);
-      }
-
-      // Resume auto-scroll after 3 seconds of no user interaction
-      userScrollTimeoutRef.current = setTimeout(() => {
-        setIsUserScrolling(false);
-      }, 3000);
-    }
-    
-    lastScrollLeftRef.current = currentScrollLeft;
-  };
-
-  // Handle hover to pause auto-scroll
-  const handleMouseEnter = () => {
-    isHoveringRef.current = true;
-    if (autoScrollIntervalRef.current) {
-      clearInterval(autoScrollIntervalRef.current);
-      autoScrollIntervalRef.current = null;
-    }
-  };
-
-  const handleMouseLeave = () => {
-    isHoveringRef.current = false;
-    if (!isUserScrolling) {
-      // Restart auto-scroll if not manually scrolling
-      setIsUserScrolling(false);
-    }
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (autoScrollIntervalRef.current) {
-        clearInterval(autoScrollIntervalRef.current);
-      }
-      if (userScrollTimeoutRef.current) {
-        clearTimeout(userScrollTimeoutRef.current);
-      }
-    };
-  }, []);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-purple-950/20 dark:to-blue-950/20">
       {/* Navigation */}
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center justify-center overflow-hidden">
-        {/* Video Background */}
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-        >
-          <source src="/grok-video-b75530d2-cbcb-43e4-aff5-d740aa64a994.mp4" type="video/mp4" />
-        </video>
-        
-        {/* Dimming overlay for text readability */}
-        <div className="absolute inset-0 bg-black/60 dark:bg-black/70"></div>
-        
-        {/* Animated background elements (optional decorative elements) */}
-        <div className="absolute inset-0 opacity-10 dark:opacity-5 pointer-events-none">
+      <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center justify-center bg-gradient-to-br from-primary/10 via-secondary/10 to-purple-500/10 dark:from-primary/20 dark:via-secondary/20 dark:to-purple-500/20 overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 opacity-20 dark:opacity-10">
           <div className="absolute left-[10%] top-0 w-1 h-full bg-gradient-to-b from-blue-200 to-purple-200 dark:from-blue-800 dark:to-purple-800"></div>
           <div className="absolute right-[10%] top-0 w-1 h-full bg-gradient-to-b from-purple-200 to-pink-200 dark:from-purple-800 dark:to-pink-800"></div>
         </div>
@@ -276,7 +152,7 @@ export default function HomePage() {
               </h1>
 
               {/* Subheadline */}
-              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-purple-300 dark:text-primary/70 max-w-3xl mx-auto leading-relaxed px-4">
+              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-primary/80 dark:text-primary/70 max-w-3xl mx-auto leading-relaxed px-4 font-medium">
                 Unlock global reach with powerful services across 100+ countries
               </p>
                 
@@ -294,7 +170,7 @@ export default function HomePage() {
                   <ServiceCTA destination="services" variant="outline">
                     <div className="flex items-center gap-2 justify-center">
                       <ShoppingBag className="w-5 h-5" />
-                      Boost your socials
+                      View All Services
                     </div>
                   </ServiceCTA>
                 </div>
@@ -444,24 +320,8 @@ export default function HomePage() {
           {/* Right Fade Gradient - Responsive width */}
           <div className="absolute right-0 top-0 bottom-0 w-16 md:w-32 bg-gradient-to-l from-white via-gray-50/80 to-transparent dark:from-gray-900 dark:via-gray-950/80 dark:to-transparent z-10 pointer-events-none"></div>
           
-          {/* Scrolling Container - Manual scroll with auto-scroll */}
-          <div 
-            ref={scrollContainerRef}
-            className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide pb-4 scroll-smooth"
-            style={{
-              scrollbarWidth: 'thin',
-              scrollbarColor: 'rgba(155, 155, 155, 0.5) transparent',
-            }}
-            onScroll={handleScroll}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onMouseDown={() => setIsUserScrolling(true)}
-            onTouchStart={() => setIsUserScrolling(true)}
-          >
-            <div 
-              ref={scrollContentRef}
-              className="flex gap-4 md:gap-6 min-w-max"
-            >
+          {/* Scrolling Container */}
+          <div className="flex gap-4 md:gap-6 animate-scroll-left">
             {/* First set of reviews */}
             {reviews.map((review, index) => (
               <div key={`first-${index}`} className="flex-shrink-0 w-[280px] sm:w-[320px] md:w-[380px]">
@@ -519,7 +379,6 @@ export default function HomePage() {
                 </Card>
               </div>
             ))}
-            </div>
           </div>
         </div>
       </section>

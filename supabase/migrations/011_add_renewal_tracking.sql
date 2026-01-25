@@ -15,5 +15,3 @@ CHECK (status IN ('active', 'suspended', 'cancelled', 'restricted'));
 -- Create index for renewal queries
 CREATE INDEX IF NOT EXISTS idx_virtual_numbers_expires_at ON public.virtual_numbers(expires_at);
 CREATE INDEX IF NOT EXISTS idx_virtual_numbers_status_expires ON public.virtual_numbers(status, expires_at);
-
-
