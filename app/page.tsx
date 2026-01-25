@@ -103,7 +103,7 @@ function ServiceCTA({ destination, children, variant = "default" }: { destinatio
     // Show loading state or default link
     return (
       <Link href={destination === "numbers" ? "/dashboard/numbers" : "/dashboard/services"} className="w-full sm:w-auto">
-        <Button size="lg" variant={variant} className={`w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-5 md:py-6 text-base sm:text-lg ${variant === "default" ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" : "border-2 hover:bg-gray-50 dark:hover:bg-gray-800"}`}>
+        <Button size="lg" variant={variant} className={`w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-5 md:py-6 text-base sm:text-lg ${variant === "default" ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" : "border-2 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"}`}>
           {children}
         </Button>
       </Link>
@@ -114,7 +114,7 @@ function ServiceCTA({ destination, children, variant = "default" }: { destinatio
     <Button 
       size="lg" 
       variant={variant} 
-      className={`w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-5 md:py-6 text-base sm:text-lg ${variant === "default" ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" : "border-2 hover:bg-gray-50 dark:hover:bg-gray-800"}`}
+      className={`w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-5 md:py-6 text-base sm:text-lg ${variant === "default" ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" : "border-2 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"}`}
       onClick={handleClick}
     >
       {children}
@@ -136,7 +136,7 @@ export default function HomePage() {
           loop
           muted
           playsInline
-          className="absolute inset-0 w-full h-full object-cover z-0"
+          className="absolute inset-0 w-full h-full object-cover z-0 blur-sm"
         >
           <source src="/grok-video-b75530d2-cbcb-43e4-aff5-d740aa64a994.mp4" type="video/mp4" />
         </video>
@@ -167,7 +167,7 @@ export default function HomePage() {
 
               {/* Subheadline */}
               <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-purple-200 dark:text-primary/70 max-w-3xl mx-auto leading-relaxed px-4 font-light">
-                Unlock global reach with powerful services across 100+ countries
+                Virtual phone numbers for SMS verification & social media boosting services to grow your online presence
               </p>
                 
               {/* Dual CTAs */}
@@ -213,6 +213,122 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Services Overview Section */}
+      <section className="container mx-auto px-4 py-12 sm:py-16 md:py-20">
+        <div className="text-center mb-8 sm:mb-12 md:mb-16">
+          <div className="relative inline-block">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-secondary/10 to-purple-500/10 dark:from-primary/20 dark:via-secondary/20 dark:to-purple-500/20 rounded-2xl blur-xl"></div>
+            <div className="relative">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-3 sm:mb-4 px-4">
+                Our Services
+              </h2>
+            </div>
+          </div>
+          <p className="text-base sm:text-lg md:text-xl text-primary/80 dark:text-primary/70 max-w-2xl mx-auto px-4 font-medium">
+            Two powerful solutions to help you grow your business and online presence
+          </p>
+        </div>
+        <div className="grid md:grid-cols-2 gap-6 md:gap-8 max-w-6xl mx-auto mb-12">
+          {/* Virtual Numbers Service */}
+          <Card className="border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <CardHeader className="pb-3 sm:pb-4">
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mb-4 shadow-md">
+                <Phone className="w-8 h-8 md:w-10 md:h-10 text-white" />
+              </div>
+              <CardTitle className="text-xl sm:text-2xl md:text-3xl text-blue-900 dark:text-blue-100">Virtual Phone Numbers</CardTitle>
+              <CardDescription className="text-sm sm:text-base text-blue-700 dark:text-blue-300">
+                Get phone numbers from 100+ countries
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm sm:text-base text-blue-800 dark:text-blue-200 leading-relaxed mb-4">
+                Purchase virtual phone numbers for SMS verification, OTP services, and business communications. Perfect for account verification, two-factor authentication, and receiving SMS messages from any platform.
+              </p>
+              <ul className="space-y-2 text-sm sm:text-base text-blue-800 dark:text-blue-200">
+                <li className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>SMS verification for any platform</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Instant activation within minutes</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Real numbers from verified carriers</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Access messages and OTPs in real-time</span>
+                </li>
+              </ul>
+              <div className="mt-6">
+                <ServiceCTA destination="numbers" variant="default">
+                  Get Virtual Numbers
+                </ServiceCTA>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Social Media Boosting Service */}
+          <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <CardHeader className="pb-3 sm:pb-4">
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-4 shadow-md">
+                <ShoppingBag className="w-8 h-8 md:w-10 md:h-10 text-white" />
+              </div>
+              <CardTitle className="text-xl sm:text-2xl md:text-3xl text-purple-900 dark:text-purple-100">Social Media Boosting</CardTitle>
+              <CardDescription className="text-sm sm:text-base text-purple-700 dark:text-purple-300">
+                Grow your social media presence across 15+ platforms
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm sm:text-base text-purple-800 dark:text-purple-200 leading-relaxed mb-4">
+                Boost your social media accounts with followers, likes, views, comments, and more. Support for Instagram, Facebook, TikTok, YouTube, Twitter, LinkedIn, and many other platforms.
+              </p>
+              <ul className="space-y-2 text-sm sm:text-base text-purple-800 dark:text-purple-200">
+                <li className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Followers, likes, views, and comments</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>15+ platforms supported</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Fast delivery and real engagement</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Refill and cancel options available</span>
+                </li>
+              </ul>
+              <div className="mt-6">
+                <ServiceCTA destination="services" variant="outline">
+                  Boost Your Socials
+                </ServiceCTA>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="container mx-auto px-4 py-12 sm:py-16 md:py-20">
         <div className="text-center mb-8 sm:mb-12 md:mb-16">
@@ -225,7 +341,7 @@ export default function HomePage() {
             </div>
           </div>
           <p className="text-base sm:text-lg md:text-xl text-primary/80 dark:text-primary/70 max-w-2xl mx-auto px-4 font-medium">
-            Everything you need for phone number management, all in one powerful platform
+            Everything you need for phone numbers and social media growth, all in one powerful platform
           </p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto">
@@ -238,12 +354,12 @@ export default function HomePage() {
               </div>
               <CardTitle className="text-lg sm:text-xl md:text-2xl text-blue-900 dark:text-blue-100">Fast Delivery</CardTitle>
               <CardDescription className="text-sm sm:text-base text-blue-700 dark:text-blue-300">
-                Phone number services delivered quickly
+                Services delivered quickly
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm sm:text-base text-blue-800 dark:text-blue-200 leading-relaxed">
-                Get virtual phone numbers activated within minutes. Automated setup for instant access to SMS and call services.
+                Get virtual phone numbers activated within minutes. Social media orders start processing immediately. Automated setup for instant access to all services.
               </p>
             </CardContent>
           </Card>
@@ -252,17 +368,17 @@ export default function HomePage() {
             <CardHeader className="pb-3 sm:pb-4">
               <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center mb-3 sm:mb-4 shadow-md">
                 <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
               </div>
-              <CardTitle className="text-lg sm:text-xl md:text-2xl text-green-900 dark:text-green-100">Phone Numbers</CardTitle>
+              <CardTitle className="text-lg sm:text-xl md:text-2xl text-green-900 dark:text-green-100">Social Media Growth</CardTitle>
               <CardDescription className="text-sm sm:text-base text-green-700 dark:text-green-300">
-                Virtual numbers for SMS & calls
+                Boost followers, likes, views & more
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm sm:text-base text-green-800 dark:text-green-200 leading-relaxed">
-                Get virtual phone numbers from multiple countries. Perfect for SMS verification, business communications, and OTP services.
+                Grow your social media presence across 15+ platforms including Instagram, Facebook, TikTok, YouTube, and more. Get real followers, likes, views, and comments to boost your online presence.
               </p>
             </CardContent>
           </Card>
@@ -276,12 +392,12 @@ export default function HomePage() {
               </div>
               <CardTitle className="text-lg sm:text-xl md:text-2xl text-purple-900 dark:text-purple-100">Reliable Service</CardTitle>
               <CardDescription className="text-sm sm:text-base text-purple-700 dark:text-purple-300">
-                Reliable phone number services
+                Trusted by thousands of users
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm sm:text-base text-purple-800 dark:text-purple-200 leading-relaxed">
-                We provide real, working phone numbers from verified carriers to ensure reliable SMS and call services.
+                We provide real, working phone numbers from verified carriers and authentic social media engagement from real accounts. Quality you can trust.
               </p>
             </CardContent>
           </Card>
@@ -321,7 +437,7 @@ export default function HomePage() {
               </div>
             </div>
             <p className="text-base md:text-xl text-primary/80 dark:text-primary/70 max-w-2xl mx-auto px-4 font-medium">
-              Join thousands of satisfied customers who trust Numzaro for phone number services
+              Join thousands of satisfied customers who trust Numzaro for virtual numbers and social media growth
             </p>
           </div>
         </div>
@@ -401,17 +517,17 @@ export default function HomePage() {
       <section className="container mx-auto px-4 py-20 text-center bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl my-20 dark:from-blue-600 dark:to-purple-700">
         <h2 className="text-4xl font-bold mb-6 text-white">Ready to Boost Your Business?</h2>
         <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-          Join thousands of users who trust Numzaro for phone number services.
+          Join thousands of users who trust Numzaro for virtual phone numbers and social media growth services.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
-          <Link href="/auth/signup">
-            <Button size="lg" className="bg-white text-[#1877F2] hover:bg-gray-100">
-              Get Started Free
-            </Button>
-          </Link>
           <Link href="/dashboard/numbers">
             <Button size="lg" variant="outline" className="border-white hover:bg-white/10 hover:text-white">
-              View Phone Numbers
+              Get Virtual Numbers
+            </Button>
+          </Link>
+          <Link href="/dashboard/services">
+            <Button size="lg" variant="outline" className="border-white hover:bg-white/10 hover:text-white">
+              Boost Your Socials
             </Button>
           </Link>
         </div>
@@ -425,7 +541,7 @@ export default function HomePage() {
             <div className="space-y-4">
               <div className="text-2xl font-bold text-[#1877F2]">Numzaro</div>
               <p className="text-gray-600 dark:text-gray-300 text-sm">
-                Phone number services in one powerful platform. Virtual numbers, real results.
+                Virtual phone numbers and social media boosting services in one powerful platform. Grow your business and online presence.
               </p>
               <div className="flex gap-4">
                 <a href="#" className="text-gray-400 hover:text-[#1877F2] transition-colors">
