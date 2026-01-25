@@ -35,14 +35,14 @@ export function Navbar({ onSignOut }: NavbarProps) {
             <Link href="/dashboard">
               <Button variant="ghost">Dashboard</Button>
             </Link>
+            <Link href="/dashboard/numbers">
+              <Button variant="ghost">VirtualNumbers</Button>
+            </Link>
             <Link href="/dashboard/services">
-              <Button variant="ghost">Services</Button>
+              <Button variant="ghost">Boost your socials</Button>
             </Link>
             <Link href="/dashboard/orders">
               <Button variant="ghost">Orders</Button>
-            </Link>
-            <Link href="/dashboard/numbers">
-              <Button variant="ghost">Numbers</Button>
             </Link>
             <Link href="/dashboard/transactions">
               <Button variant="ghost">Transactions</Button>
@@ -108,16 +108,7 @@ export function Navbar({ onSignOut }: NavbarProps) {
                 className="w-full"
               >
                 <Button variant="ghost" className="w-full justify-start">
-                  Services
-                </Button>
-              </Link>
-              <Link
-                href="/dashboard/orders"
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full"
-              >
-                <Button variant="ghost" className="w-full justify-start">
-                  Orders
+                  Boost your socials
                 </Button>
               </Link>
               <Link
@@ -126,7 +117,16 @@ export function Navbar({ onSignOut }: NavbarProps) {
                 className="w-full"
               >
                 <Button variant="ghost" className="w-full justify-start">
-                  Numbers
+                  Virtual Numbers
+                </Button>
+              </Link>
+              <Link
+                href="/dashboard/orders"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full"
+              >
+                <Button variant="ghost" className="w-full justify-start">
+                  My Orders
                 </Button>
               </Link>
               <Link
