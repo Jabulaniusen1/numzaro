@@ -1,4 +1,5 @@
 import { twilioClient, TwilioError } from "./client";
+import { getTwilioMonthlyCost } from "./costs";
 
 export interface AvailableNumber {
   friendlyName: string;
@@ -11,6 +12,8 @@ export interface AvailableNumber {
     MMS: boolean;
   };
   monthlyRate: string;
+  basePrice?: number; // Actual Twilio base price in USD
+  currentPrice?: number; // Current price (may differ from basePrice)
 }
 
 export interface PurchasedNumber {
@@ -73,16 +76,26 @@ export async function searchAvailableNumbers(
           break;
       }
     } catch (typeError: any) {
-      // If a specific number type is not available, log detailed error info
-      console.warn(`[Twilio] ${numberType} numbers not available for country ${countryCode}:`, {
+      // Log detailed error info
+      console.warn(`[Twilio] Error searching for ${numberType} numbers in country ${countryCode}:`, {
         message: typeError.message,
         code: typeError.code,
         status: typeError.status,
         moreInfo: typeError.moreInfo,
       });
       
-      // Handle different error codes
-      if (typeError.code === 20003 || typeError.status === 400 || typeError.status === 404) {
+      // Handle authentication errors separately (401 or code 20003 with 401 status)
+      if (typeError.status === 401 || (typeError.code === 20003 && typeError.status === 401)) {
+        console.error("[Twilio] Authentication failed. Please check your TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN environment variables.");
+        throw new TwilioError(
+          "Twilio authentication failed. Please verify your Twilio credentials (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN) are correct and set in your environment variables.",
+          typeError.status,
+          typeError.code
+        );
+      }
+      
+      // Handle invalid country code or number type not supported (400, 404)
+      if (typeError.status === 400 || typeError.status === 404) {
         // Invalid country code or number type not supported
         // This is expected for some country/type combinations
         return {
@@ -92,6 +105,8 @@ export async function searchAvailableNumbers(
           numberType,
         };
       }
+      
+      // For other errors, re-throw them
       throw typeError;
     }
     
@@ -117,19 +132,68 @@ export async function searchAvailableNumbers(
     // Twilio returns a nextPageUri if there are more results
     const hasMore = results.length === pageSize;
 
-    const numbers = results.map((number) => ({
-      friendlyName: number.friendlyName || number.phoneNumber,
-      phoneNumber: number.phoneNumber || "",
-      region: number.region || "",
-      countryCode: number.phoneNumber?.substring(0, 2) || countryCode,
-      capabilities: {
-        voice: number.capabilities?.voice || false,
-        SMS: number.capabilities?.sms || false,
-        MMS: number.capabilities?.mms || false,
-      },
-      monthlyRate: number.capabilities?.sms ? "1.00" : "1.00", // Default rate
-      numberType, // Include number type in response
-    }));
+    const numbers = results.map((number: any) => {
+      // Extract actual price from Twilio response
+      // Twilio API returns pricing in different formats depending on the endpoint
+      // Check for common price properties
+      let basePrice: number | null = null;
+      
+      // Try to extract price from various possible properties
+      if (number.basePrice !== undefined && number.basePrice !== null) {
+        basePrice = typeof number.basePrice === 'string' 
+          ? parseFloat(number.basePrice) 
+          : typeof number.basePrice === 'number' 
+          ? number.basePrice 
+          : null;
+      } else if (number.price !== undefined && number.price !== null) {
+        basePrice = typeof number.price === 'string' 
+          ? parseFloat(number.price) 
+          : typeof number.price === 'number' 
+          ? number.price 
+          : null;
+      } else if (number.monthlyPrice !== undefined && number.monthlyPrice !== null) {
+        basePrice = typeof number.monthlyPrice === 'string' 
+          ? parseFloat(number.monthlyPrice) 
+          : typeof number.monthlyPrice === 'number' 
+          ? number.monthlyPrice 
+          : null;
+      }
+      
+      // Log first number to debug pricing structure (only once)
+      if (results.indexOf(number) === 0) {
+        console.log(`[Twilio] Sample number pricing data:`, {
+          phoneNumber: number.phoneNumber,
+          basePrice: number.basePrice,
+          price: number.price,
+          monthlyPrice: number.monthlyPrice,
+          allKeys: Object.keys(number).filter(k => k.toLowerCase().includes('price') || k.toLowerCase().includes('cost')),
+          extractedBasePrice: basePrice,
+        });
+      }
+
+      const currentPrice = number.currentPrice 
+        ? (typeof number.currentPrice === 'string' ? parseFloat(number.currentPrice) : number.currentPrice)
+        : basePrice;
+
+      // Fallback to our lookup if Twilio doesn't provide price
+      const twilioCost = basePrice || getTwilioMonthlyCost(countryCode, numberType);
+      
+      return {
+        friendlyName: number.friendlyName || number.phoneNumber,
+        phoneNumber: number.phoneNumber || "",
+        region: number.region || "",
+        countryCode: number.phoneNumber?.substring(0, 2) || countryCode,
+        capabilities: {
+          voice: number.capabilities?.voice || false,
+          SMS: number.capabilities?.sms || false,
+          MMS: number.capabilities?.mms || false,
+        },
+        monthlyRate: twilioCost.toFixed(2),
+        basePrice: basePrice || twilioCost,
+        currentPrice: currentPrice || twilioCost,
+        numberType, // Include number type in response
+      };
+    });
 
     return {
       numbers,

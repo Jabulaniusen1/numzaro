@@ -8,9 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import Link from "next/link";
-import { ArrowLeft, Phone, Loader2, MessageSquare, Shield, Calendar } from "lucide-react";
+import { ArrowLeft, Phone, Loader2, MessageSquare, Shield } from "lucide-react";
 import { format } from "date-fns";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NumberActions } from "@/components/dashboard/NumberActions";
 
 interface VirtualNumber {
@@ -79,6 +78,7 @@ export default function NumberDetailPage() {
     active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
     suspended: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
     cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+    restricted: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   };
 
   // Extract country code from phone number (e.g., +972 from +972535633758)
@@ -207,46 +207,32 @@ export default function NumberDetailPage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="messages" className="w-full">
-        <TabsList className="w-full sm:w-auto overflow-x-auto">
-          <TabsTrigger value="messages" className="flex-shrink-0">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Messages</span>
-            <span className="sm:hidden">SMS</span>
-          </TabsTrigger>
-          <TabsTrigger value="otps" className="flex-shrink-0">
-            <Shield className="h-4 w-4 mr-2" />
-            OTPs
-          </TabsTrigger>
-          <TabsTrigger value="guides" className="flex-shrink-0">
-            <Calendar className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Integration Guides</span>
-            <span className="sm:hidden">Guides</span>
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="messages">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link href={`/dashboard/numbers/${number.id}/messages`}>
-            <Card>
-              <CardContent className="py-8 text-center">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+              <CardContent className="py-6 text-center">
                 <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground mb-4">View all messages for this number</p>
-                <Button>View Messages</Button>
+                <h3 className="font-semibold mb-2">Messages</h3>
+                <p className="text-sm text-muted-foreground mb-4">View all messages for this number</p>
+                <Button className="w-full">View Messages</Button>
               </CardContent>
             </Card>
           </Link>
-        </TabsContent>
-        <TabsContent value="otps">
           <Link href={`/dashboard/numbers/${number.id}/otps`}>
-            <Card>
-              <CardContent className="py-8 text-center">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+              <CardContent className="py-6 text-center">
                 <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground mb-4">View all OTPs for this number</p>
-                <Button>View OTPs</Button>
+                <h3 className="font-semibold mb-2">OTPs</h3>
+                <p className="text-sm text-muted-foreground mb-4">View all OTPs for this number</p>
+                <Button className="w-full">View OTPs</Button>
               </CardContent>
             </Card>
           </Link>
-        </TabsContent>
-        <TabsContent value="guides">
+        </div>
+
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Integration Guides</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Link href={`/dashboard/numbers/${number.id}/whatsapp`}>
               <Card className="hover:shadow-lg transition-shadow cursor-pointer">
@@ -271,8 +257,8 @@ export default function NumberDetailPage() {
               </Card>
             </Link>
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 }

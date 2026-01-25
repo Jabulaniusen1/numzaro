@@ -107,20 +107,111 @@ export default function OrdersPage() {
   if (loading && orders.length === 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Orders</h1>
-          <p className="text-gray-600 mt-2">View and manage your orders</p>
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-rose-500/10 dark:from-purple-500/20 dark:via-pink-500/20 dark:to-rose-500/20 rounded-2xl blur-xl"></div>
+          <div className="relative">
+            <Skeleton className="h-9 w-32 bg-gradient-to-r from-purple-600 to-pink-600" />
+            <Skeleton className="h-5 w-48 mt-2 bg-gradient-to-r from-purple-300 to-pink-300 dark:from-purple-700 dark:to-pink-700" />
+          </div>
         </div>
 
-        <Card>
+        {/* Filter Skeleton */}
+        <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20">
           <CardContent className="pt-6">
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-20 w-full" />
-              ))}
+            <Skeleton className="h-10 w-48 bg-gradient-to-r from-purple-300 to-pink-300 dark:from-purple-700 dark:to-pink-700" />
+          </CardContent>
+        </Card>
+
+        {/* Desktop Table Skeleton */}
+        <Card className="hidden md:block border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20">
+          <CardHeader>
+            <Skeleton className="h-6 w-32 bg-gradient-to-r from-purple-300 to-pink-300 dark:from-purple-700 dark:to-pink-700" />
+            <Skeleton className="h-4 w-40 mt-2 bg-gradient-to-r from-purple-200 to-pink-200 dark:from-purple-800 dark:to-pink-800" />
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-gray-200 dark:border-gray-700">
+                    <th className="text-left p-2">Service</th>
+                    <th className="text-left p-2">Link</th>
+                    <th className="text-right p-2">Quantity</th>
+                    <th className="text-center p-2">Status</th>
+                    <th className="text-right p-2">Charge</th>
+                    <th className="text-left p-2">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...Array(5)].map((_, i) => (
+                    <tr key={i} className="border-b border-gray-100 dark:border-gray-800">
+                      <td className="p-2">
+                        <Skeleton className="h-5 w-32 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                        <Skeleton className="h-3 w-24 mt-1 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                      </td>
+                      <td className="p-2">
+                        <Skeleton className="h-4 w-40 bg-gradient-to-r from-blue-300 to-cyan-300 dark:from-blue-700 dark:to-cyan-700" />
+                      </td>
+                      <td className="p-2 text-right">
+                        <Skeleton className="h-4 w-16 ml-auto bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                      </td>
+                      <td className="p-2 text-center">
+                        <Skeleton className="h-6 w-20 mx-auto rounded-full bg-gradient-to-r from-green-200 to-green-100 dark:from-green-800 dark:to-green-700" />
+                      </td>
+                      <td className="p-2 text-right">
+                        <Skeleton className="h-5 w-20 ml-auto bg-gradient-to-r from-primary/30 to-secondary/30 dark:from-primary/20 dark:to-secondary/20" />
+                      </td>
+                      <td className="p-2">
+                        <Skeleton className="h-4 w-24 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
+
+        {/* Mobile Cards Skeleton */}
+        <div className="md:hidden space-y-4">
+          {[...Array(5)].map((_, i) => {
+            const colors = [
+              { bg: "from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30", border: "border-purple-200 dark:border-purple-800" },
+              { bg: "from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30", border: "border-blue-200 dark:border-blue-800" },
+              { bg: "from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30", border: "border-green-200 dark:border-green-800" },
+            ];
+            const colorScheme = colors[i % colors.length];
+            return (
+              <Card key={i} className={`border-2 ${colorScheme.border} bg-gradient-to-br ${colorScheme.bg}`}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2">
+                      <Skeleton className="h-6 w-40 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                      <Skeleton className="h-4 w-32 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                    </div>
+                    <Skeleton className="h-6 w-20 rounded-full bg-gradient-to-r from-green-200 to-green-100 dark:from-green-800 dark:to-green-700" />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <Skeleton className="h-3 w-12 mb-1 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                    <Skeleton className="h-4 w-full bg-gradient-to-r from-blue-300 to-cyan-300 dark:from-blue-700 dark:to-cyan-700" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Skeleton className="h-3 w-16 mb-1 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                      <Skeleton className="h-5 w-20 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                    </div>
+                    <div>
+                      <Skeleton className="h-3 w-16 mb-1 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                      <Skeleton className="h-5 w-24 bg-gradient-to-r from-primary/30 to-secondary/30 dark:from-primary/20 dark:to-secondary/20" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-4 w-28 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -128,9 +219,12 @@ export default function OrdersPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold">Orders</h1>
-          <p className="text-gray-600 mt-2">View and manage your orders</p>
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-rose-500/10 dark:from-purple-500/20 dark:via-pink-500/20 dark:to-rose-500/20 rounded-2xl blur-xl"></div>
+          <div className="relative">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Orders</h1>
+            <p className="text-purple-700 dark:text-purple-300 mt-2 font-medium">View and manage your orders</p>
+          </div>
         </div>
         <Button
           variant="outline"

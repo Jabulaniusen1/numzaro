@@ -27,8 +27,10 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
+    "inngest": "^3.49.3",
     "lucide-react": "^0.344.0",
     "next": "^14.2.0",
+    "nodemailer": "^7.0.12",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-hook-form": "^7.50.0",
@@ -39,6 +41,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "@types/nodemailer": "^7.0.5",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.17",

@@ -30,12 +30,11 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [serviceCategories, setServiceCategories] = useState<string[]>([]);
-  const [serviceStats, setServiceStats] = useState<{ total: number; categories: Record<string, number> }>({ total: 0, categories: {} });
+  const [serviceStats, setServiceStats] = useState<{ total: number }>({ total: 0 });
 
   useEffect(() => {
     fetchData();
-    fetchServiceCategories();
+    fetchServiceStats();
     
     // Auto-refresh orders every 30 seconds to update status
     const interval = setInterval(() => {
@@ -45,30 +44,19 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
   
-  const fetchServiceCategories = async () => {
+  const fetchServiceStats = async () => {
     try {
       const response = await fetch("/api/services");
       if (response.ok) {
         const data = await response.json();
-        const categories = data.filters?.categories || [];
         const services = data.services || [];
         
-        // Count services per category
-        const categoryCounts: Record<string, number> = {};
-        services.forEach((service: any) => {
-          if (service.category) {
-            categoryCounts[service.category] = (categoryCounts[service.category] || 0) + 1;
-          }
-        });
-        
-        setServiceCategories(categories);
         setServiceStats({
           total: services.length,
-          categories: categoryCounts,
         });
       }
     } catch (error) {
-      console.error("Error fetching service categories:", error);
+      console.error("Error fetching service stats:", error);
     }
   };
   
@@ -211,11 +199,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-gray-600 mt-2">
-          Welcome back, {profile?.full_name || user?.email}!
-        </p>
+      <div className="relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-secondary/10 to-purple-500/10 dark:from-primary/20 dark:via-secondary/20 dark:to-purple-500/20 rounded-2xl blur-xl"></div>
+        <div className="relative p-6 rounded-2xl border-2 border-primary/20 dark:border-primary/30 bg-gradient-to-br from-white/80 to-purple-50/80 dark:from-gray-900/80 dark:to-purple-950/80 backdrop-blur-sm">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Dashboard</h1>
+          <p className="text-primary/80 dark:text-primary/70 mt-2 font-medium">
+            Welcome back, {profile?.full_name || user?.email}!
+          </p>
+        </div>
       </div>
 
       <BalanceCard />
@@ -225,14 +216,16 @@ export default function DashboardPage() {
         <h2 className="text-2xl font-bold mb-4">Quick Access</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link href="/dashboard/services">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+            <Card className="hover:shadow-xl transition-all cursor-pointer h-full border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 hover:scale-105">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <ShoppingBag className="h-8 w-8 text-blue-600" />
-                  <ArrowRight className="h-5 w-5 text-gray-400" />
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500">
+                    <ShoppingBag className="h-6 w-6 text-white" />
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
-                <CardTitle className="mt-2">All Services</CardTitle>
-                <CardDescription>
+                <CardTitle className="mt-2 text-blue-900 dark:text-blue-100">All Services</CardTitle>
+                <CardDescription className="text-blue-700 dark:text-blue-300">
                   {serviceStats.total > 0 
                     ? `${serviceStats.total} services available`
                     : "Browse all services"}
@@ -242,14 +235,16 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/dashboard/numbers">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+            <Card className="hover:shadow-xl transition-all cursor-pointer h-full border-2 border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 hover:scale-105">
           <CardHeader>
                 <div className="flex items-center justify-between">
-                  <Phone className="h-8 w-8 text-green-600" />
-                  <ArrowRight className="h-5 w-5 text-gray-400" />
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500">
+                    <Phone className="h-6 w-6 text-white" />
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
-                <CardTitle className="mt-2">Virtual Numbers</CardTitle>
-                <CardDescription>
+                <CardTitle className="mt-2 text-green-900 dark:text-green-100">Virtual Numbers</CardTitle>
+                <CardDescription className="text-green-700 dark:text-green-300">
                   Get phone numbers from 100+ countries
                 </CardDescription>
           </CardHeader>
@@ -257,14 +252,16 @@ export default function DashboardPage() {
             </Link>
 
             <Link href="/dashboard/orders">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+            <Card className="hover:shadow-xl transition-all cursor-pointer h-full border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 hover:scale-105">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <Package className="h-8 w-8 text-purple-600" />
-                  <ArrowRight className="h-5 w-5 text-gray-400" />
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500">
+                    <Package className="h-6 w-6 text-white" />
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
-                <CardTitle className="mt-2">Orders</CardTitle>
-                <CardDescription>
+                <CardTitle className="mt-2 text-purple-900 dark:text-purple-100">Orders</CardTitle>
+                <CardDescription className="text-purple-700 dark:text-purple-300">
                   View and manage your orders
                 </CardDescription>
               </CardHeader>
@@ -272,14 +269,16 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/dashboard/notifications">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+            <Card className="hover:shadow-xl transition-all cursor-pointer h-full border-2 border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 hover:scale-105">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <Bell className="h-8 w-8 text-orange-600" />
-                  <ArrowRight className="h-5 w-5 text-gray-400" />
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500">
+                    <Bell className="h-6 w-6 text-white" />
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                 </div>
-                <CardTitle className="mt-2">Notifications</CardTitle>
-                <CardDescription>
+                <CardTitle className="mt-2 text-orange-900 dark:text-orange-100">Notifications</CardTitle>
+                <CardDescription className="text-orange-700 dark:text-orange-300">
                   View your notifications
                 </CardDescription>
               </CardHeader>
@@ -288,60 +287,20 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Service Categories */}
-      {serviceCategories.length > 0 && (
-        <div>
-          <h2 className="text-2xl font-bold mb-4">Service Categories</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {serviceCategories.slice(0, 6).map((category) => (
-              <Link 
-                key={category} 
-                href={`/dashboard/services?category=${encodeURIComponent(category)}`}
-              >
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{category}</CardTitle>
-                      <ArrowRight className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <CardDescription>
-                      {serviceStats.categories[category] || 0} services
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-            </Link>
-            ))}
-            {serviceCategories.length > 6 && (
-              <Link href="/dashboard/services">
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer border-dashed">
-                  <CardHeader>
-                    <div className="flex items-center justify-center h-full py-4">
-                      <CardTitle className="text-lg text-gray-500">
-                        View All Categories
-                      </CardTitle>
-                    </div>
-                  </CardHeader>
-        </Card>
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
-
       <div className="grid md:grid-cols-2 gap-6">
 
-        <Card>
+        <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20">
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle>Recent Orders</CardTitle>
-                <CardDescription>Your latest orders</CardDescription>
+                <CardTitle className="text-purple-900 dark:text-purple-100">Recent Orders</CardTitle>
+                <CardDescription className="text-purple-700 dark:text-purple-300">Your latest orders</CardDescription>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={refreshOrders}
-                className="text-xs"
+                className="text-xs text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900"
               >
                 Refresh
               </Button>
@@ -353,19 +312,19 @@ export default function DashboardPage() {
                 {recentOrders.map((order: any) => (
                   <div
                     key={order.id}
-                    className="flex justify-between items-center p-3 border rounded-lg"
+                    className="flex justify-between items-center p-3 border-2 border-purple-100 dark:border-purple-900 rounded-lg bg-white/60 dark:bg-gray-800/60 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors"
                   >
                     <div>
-                      <p className="font-medium">
+                      <p className="font-medium text-purple-900 dark:text-purple-100">
                         {order.services?.name || "Service"}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-purple-700 dark:text-purple-300">
                         {order.quantity} items • {order.status}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">{format(order.charge || 0)}</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="font-medium text-purple-900 dark:text-purple-100">{format(order.charge || 0)}</p>
+                      <p className="text-sm text-purple-600 dark:text-purple-400">
                         {new Date(order.created_at).toLocaleDateString()}
                       </p>
                     </div>
@@ -373,11 +332,11 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-600 text-center py-4">
+              <p className="text-purple-700 dark:text-purple-300 text-center py-4">
                 No orders yet.{" "}
                 <Link
                   href="/dashboard/services"
-                  className="text-[#1877F2] hover:underline"
+                  className="text-purple-600 dark:text-purple-400 hover:underline font-medium"
                 >
                   Browse services
                 </Link>{" "}

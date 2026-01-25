@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { TrendingUp } from "lucide-react";
 
 function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -241,18 +242,23 @@ export function BalanceCard() {
   }, []);
 
   return (
-    <Card>
+    <Card className="border-2 border-primary/20 dark:border-primary/30 bg-gradient-to-br from-primary/10 via-secondary/10 to-purple-500/10 dark:from-primary/20 dark:via-secondary/20 dark:to-purple-500/20 shadow-lg">
       <CardHeader>
-        <CardTitle>Account Balance</CardTitle>
-        <CardDescription>Your current account balance</CardDescription>
+        <CardTitle className="text-primary dark:text-primary">Account Balance</CardTitle>
+        <CardDescription className="text-primary/70 dark:text-primary/70">Your current account balance</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
-          <Skeleton className="h-9 w-48" />
+          <Skeleton className="h-9 w-48 bg-primary/20" />
         ) : (
-          <p className="text-3xl font-bold text-[#1877F2]">
-            {balance !== null ? format(balance) : format(0)}
-          </p>
+          <div className="flex items-center gap-2">
+            <div className="p-3 rounded-lg bg-gradient-to-br from-primary to-secondary">
+              <TrendingUp className="h-6 w-6 text-white" />
+            </div>
+            <p className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              {balance !== null ? format(balance) : format(0)}
+            </p>
+          </div>
         )}
         <FundWalletButton onFunded={fetchBalance} />
       </CardContent>

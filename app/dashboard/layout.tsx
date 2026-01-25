@@ -24,7 +24,7 @@ export default async function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-purple-950/20 dark:to-blue-950/20">
       <Navbar onSignOut={handleSignOut} />
       <main className="container mx-auto px-4 py-8">{children}</main>
     </div>

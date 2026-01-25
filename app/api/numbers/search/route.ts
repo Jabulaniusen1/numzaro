@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { searchAvailableNumbers } from "@/lib/twilio/numbers";
-import { getDefaultMonthlyCost, getPhoneNumbersMarkup } from "@/lib/twilio/costs";
+import { getDefaultMonthlyCost, getPhoneNumbersMarkup, getTwilioMonthlyCost, calculateUserPrice } from "@/lib/twilio/costs";
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,14 +32,20 @@ export async function GET(request: NextRequest) {
       const markupPercentage = await getPhoneNumbersMarkup();
       console.log(`Using markup percentage: ${markupPercentage}%`);
 
-      // Add pricing information
+      // Add accurate pricing information - use actual price from Twilio if available
       const numbersWithPricing = await Promise.all(
         result.numbers.map(async (number) => {
-          const monthlyCost = await getDefaultMonthlyCost(countryCode, markupPercentage);
+          // Use the actual basePrice from Twilio if available, otherwise fallback to lookup
+          const twilioCost = number.basePrice 
+            ? number.basePrice 
+            : getTwilioMonthlyCost(countryCode, result.numberType);
+          
+          // Calculate user price with markup
+          const monthlyCost = calculateUserPrice(twilioCost, markupPercentage);
           return {
             ...number,
             monthly_cost: monthlyCost,
-            twilio_monthly_cost: 1.0, // Base Twilio cost (should be extracted from API)
+            twilio_monthly_cost: twilioCost,
           };
         })
       );
@@ -71,13 +77,27 @@ export async function GET(request: NextRequest) {
         code: error.code,
         stack: error.stack,
       });
+      
+      // Handle authentication errors specifically
+      if (error.statusCode === 401 || (error.code === 20003 && error.statusCode === 401)) {
+        return NextResponse.json(
+          { 
+            error: "Twilio authentication failed",
+            message: "Please verify your Twilio credentials are correctly configured in your environment variables (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN).",
+            details: error.code || error.statusCode,
+            numbers: []
+          },
+          { status: 401 }
+        );
+      }
+      
       return NextResponse.json(
         { 
           error: error.message || "Failed to search numbers",
           details: error.code || error.statusCode,
           numbers: [] // Return empty array on error
         },
-        { status: 500 }
+        { status: error.statusCode || 500 }
       );
     }
   } catch (error: any) {

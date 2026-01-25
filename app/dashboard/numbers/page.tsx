@@ -14,10 +14,19 @@ import {
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import { NumberPurchaseModal } from "@/components/dashboard/NumberPurchaseModal";
-import { Phone, Search, Loader2, ChevronRight } from "lucide-react";
+import { Phone, Search, Loader2, ChevronRight, Filter, X, List } from "lucide-react";
 import Link from "next/link";
 import { Combobox } from "@/components/ui/combobox";
 import { COUNTRIES, getCountryName } from "@/lib/data/countries";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface AvailableNumber {
   friendlyName: string;
@@ -38,29 +47,41 @@ export default function NumbersPage() {
   const { toast } = useToast();
   const { format, convert, currency, rate, switchCurrency, loading: currencyLoading } = useCurrency();
   const [country, setCountry] = useState("US");
-  const [numberType, setNumberType] = useState<"local" | "mobile" | "tollFree">("local");
   const [numbers, setNumbers] = useState<AvailableNumber[]>([]);
   const [filteredNumbers, setFilteredNumbers] = useState<AvailableNumber[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedNumber, setSelectedNumber] = useState<AvailableNumber | null>(null);
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
+  const [numberTypeFilter, setNumberTypeFilter] = useState<string>("all");
   const [capabilityFilter, setCapabilityFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState({ local: 1, mobile: 1, tollFree: 1 });
+  const [hasMore, setHasMore] = useState({ local: false, mobile: false, tollFree: false });
   const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
-    // Reset to page 1 when country or number type changes
-    setCurrentPage(1);
+    // Reset to page 1 when country changes
+    setCurrentPage({ local: 1, mobile: 1, tollFree: 1 });
     setNumbers([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    searchNumbers(1, true);
-  }, [country, numberType]);
+    searchAllNumberTypes(1, true);
+  }, [country]);
 
   useEffect(() => {
-    // Filter numbers based on search and capabilities
+    // Filter numbers based on search, capabilities, and number type
     let filtered = [...numbers];
+
+    // Filter by number type
+    if (numberTypeFilter !== "all") {
+      filtered = filtered.filter((n) => {
+        const type = n.numberType || "local";
+        if (numberTypeFilter === "mobile") return type === "mobile";
+        if (numberTypeFilter === "local") return type === "local";
+        if (numberTypeFilter === "tollFree") return type === "tollFree";
+        return true;
+      });
+    }
 
     // Filter by search query (phone number or region)
     if (searchQuery) {
@@ -83,9 +104,9 @@ export default function NumbersPage() {
     }
 
     setFilteredNumbers(filtered);
-  }, [numbers, searchQuery, capabilityFilter]);
+  }, [numbers, searchQuery, capabilityFilter, numberTypeFilter]);
 
-  const searchNumbers = async (page: number = 1, reset: boolean = false) => {
+  const searchAllNumberTypes = async (page: number = 1, reset: boolean = false) => {
     if (reset) {
     setLoading(true);
     } else {
@@ -93,37 +114,109 @@ export default function NumbersPage() {
     }
     
     try {
-      const response = await fetch(`/api/numbers/search?country=${country}&type=${numberType}&capabilities=SMS&page=${page}&pageSize=50`);
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        console.error("API Error:", data);
-        throw new Error(data.error || data.details || "Failed to search numbers");
+      // Fetch all three number types in parallel
+      const [localResponse, mobileResponse, tollFreeResponse] = await Promise.allSettled([
+        fetch(`/api/numbers/search?country=${country}&type=local&capabilities=SMS&page=${page}&pageSize=50`),
+        fetch(`/api/numbers/search?country=${country}&type=mobile&capabilities=SMS&page=${page}&pageSize=50`),
+        fetch(`/api/numbers/search?country=${country}&type=tollFree&capabilities=SMS&page=${page}&pageSize=50`),
+      ]);
+
+      const allNumbers: AvailableNumber[] = [];
+      const newHasMore = { local: false, mobile: false, tollFree: false };
+
+      // Process local numbers
+      if (localResponse.status === "fulfilled" && localResponse.value.ok) {
+        const data = await localResponse.value.json();
+        if (data.numbers) {
+          allNumbers.push(...data.numbers);
+          newHasMore.local = data.pagination?.hasMore || false;
+        }
       }
 
-      console.log("Search results:", data);
+      // Process mobile numbers
+      if (mobileResponse.status === "fulfilled" && mobileResponse.value.ok) {
+        const data = await mobileResponse.value.json();
+        if (data.numbers) {
+          allNumbers.push(...data.numbers);
+          newHasMore.mobile = data.pagination?.hasMore || false;
+        }
+      }
+
+      // Process toll-free numbers
+      if (tollFreeResponse.status === "fulfilled" && tollFreeResponse.value.ok) {
+        const data = await tollFreeResponse.value.json();
+        if (data.numbers) {
+          allNumbers.push(...data.numbers);
+          newHasMore.tollFree = data.pagination?.hasMore || false;
+        }
+      }
+
+      // Check for errors
+      const errors: string[] = [];
+      if (localResponse.status === "rejected") errors.push("Local numbers: " + localResponse.reason);
+      if (mobileResponse.status === "rejected") errors.push("Mobile numbers: " + mobileResponse.reason);
+      if (tollFreeResponse.status === "rejected") errors.push("Toll-free numbers: " + tollFreeResponse.reason);
+
+      // Try to get error messages from failed responses
+      const errorPromises = [
+        localResponse.status === "fulfilled" && !localResponse.value.ok ? localResponse.value.json() : null,
+        mobileResponse.status === "fulfilled" && !mobileResponse.value.ok ? mobileResponse.value.json() : null,
+        tollFreeResponse.status === "fulfilled" && !tollFreeResponse.value.ok ? tollFreeResponse.value.json() : null,
+      ].filter(Boolean);
+
+      if (errorPromises.length > 0) {
+        const errorData = await Promise.all(errorPromises);
+        errorData.forEach((err: any) => {
+          if (err?.error && !err.error.includes("authentication")) {
+            console.warn("Number search warning:", err.error);
+          }
+        });
+      }
+
+      // Sort numbers: Mobile first, then Local, then Toll-Free, then by price
+      const sortedNumbers = allNumbers.sort((a, b) => {
+        // First sort by type priority: mobile > local > tollFree
+        const typeOrder = { mobile: 0, local: 1, tollFree: 2 };
+        const aType = a.numberType || "local";
+        const bType = b.numberType || "local";
+        const typeDiff = (typeOrder[aType as keyof typeof typeOrder] || 1) - (typeOrder[bType as keyof typeof typeOrder] || 1);
+        if (typeDiff !== 0) return typeDiff;
+        // Then sort by price (ascending)
+        return (a.monthly_cost || 0) - (b.monthly_cost || 0);
+      });
       
       if (reset) {
-      setNumbers(data.numbers || []);
+        setNumbers(sortedNumbers);
       } else {
         // Append new numbers to existing ones
-        setNumbers((prev) => [...prev, ...(data.numbers || [])]);
+        setNumbers((prev) => {
+          // Avoid duplicates by checking phone number
+          const existingPhones = new Set(prev.map(n => n.phoneNumber));
+          const newNumbers = sortedNumbers.filter(n => !existingPhones.has(n.phoneNumber));
+          const combined = [...prev, ...newNumbers];
+          // Re-sort combined list
+          return combined.sort((a, b) => {
+            const typeOrder = { mobile: 0, local: 1, tollFree: 2 };
+            const aType = a.numberType || "local";
+            const bType = b.numberType || "local";
+            const typeDiff = (typeOrder[aType as keyof typeof typeOrder] || 1) - (typeOrder[bType as keyof typeof typeOrder] || 1);
+            if (typeDiff !== 0) return typeDiff;
+            return (a.monthly_cost || 0) - (b.monthly_cost || 0);
+          });
+        });
       }
       
-      setHasMore(data.pagination?.hasMore || false);
-      setCurrentPage(page);
+      setHasMore(newHasMore);
+      setCurrentPage(prev => ({
+        local: newHasMore.local ? page : prev.local,
+        mobile: newHasMore.mobile ? page : prev.mobile,
+        tollFree: newHasMore.tollFree ? page : prev.tollFree,
+      }));
       
-      if ((data.numbers || []).length === 0 && page === 1) {
-        const typeLabel = numberType === "local" ? "local" : numberType === "mobile" ? "mobile" : "toll-free";
-        const suggestions = data.suggestions || [
-          "Try selecting a different number type (Mobile or Toll-Free)",
-          "Some countries may have limited inventory",
-          "Check if your account meets regulatory requirements",
-        ];
+      if (allNumbers.length === 0 && page === 1) {
         toast({
           title: "No Numbers Found",
-          description: data.message || `No available ${typeLabel} numbers found for ${getCountryName(country)}. ${suggestions[0]}`,
+          description: `No available numbers found for ${getCountryName(country)}. Try a different country.`,
           variant: "default",
           duration: 5000,
         });
@@ -145,8 +238,9 @@ export default function NumbersPage() {
   };
 
   const loadNextPage = () => {
-    if (!loadingMore && hasMore) {
-      searchNumbers(currentPage + 1, false);
+    if (!loadingMore && (hasMore.local || hasMore.mobile || hasMore.tollFree)) {
+      const nextPage = Math.max(currentPage.local, currentPage.mobile, currentPage.tollFree) + 1;
+      searchAllNumberTypes(nextPage, false);
     }
   };
 
@@ -159,13 +253,14 @@ export default function NumbersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Virtual Number Marketplace</h1>
+          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Virtual Number Marketplace</h1>
           <p className="text-muted-foreground">
             Browse and purchase virtual numbers from different countries
           </p>
         </div>
         <Link href="/dashboard/numbers/my-numbers">
           <Button variant="outline">
+            <List className="h-4 w-4 mr-2" />
             My Numbers
           </Button>
         </Link>
@@ -173,7 +268,9 @@ export default function NumbersPage() {
 
       <Card className="mb-6">
         <CardContent className="pt-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {/* Desktop Filters */}
+          <div className="hidden md:block">
+            <div className="grid grid-cols-5 gap-4">
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Country</label>
               <Combobox
@@ -190,11 +287,12 @@ export default function NumbersPage() {
             </div>
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Number Type</label>
-              <Select value={numberType} onValueChange={(value) => setNumberType(value as "local" | "mobile" | "tollFree")}>
+                <Select value={numberTypeFilter} onValueChange={setNumberTypeFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="mobile">Mobile</SelectItem>
                   <SelectItem value="local">Local</SelectItem>
                   <SelectItem value="tollFree">Toll-Free</SelectItem>
@@ -229,9 +327,9 @@ export default function NumbersPage() {
             </div>
             <div className="flex items-end">
               <Button onClick={() => {
-                setCurrentPage(1);
+                  setCurrentPage({ local: 1, mobile: 1, tollFree: 1 });
                 setNumbers([]);
-                searchNumbers(1, true);
+                  searchAllNumberTypes(1, true);
               }} disabled={loading} className="w-full">
                 {loading ? (
                   <>
@@ -246,8 +344,138 @@ export default function NumbersPage() {
                 )}
               </Button>
             </div>
+            </div>
+          </div>
+
+          {/* Mobile Filters - Compact Buttons */}
+          <div className="md:hidden space-y-3">
+            <div className="flex gap-2 flex-wrap">
+              <Dialog open={filterDialogOpen} onOpenChange={setFilterDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex-1 min-w-[120px]">
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filters
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-[90vw] max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Filters</DialogTitle>
+                    <DialogDescription>
+                      Adjust your search filters
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Country</label>
+                      <Combobox
+                        options={COUNTRIES.map((c) => ({
+                          value: c.code,
+                          label: c.name,
+                        }))}
+                        value={country}
+                        onValueChange={setCountry}
+                        placeholder="Select country..."
+                        searchPlaceholder="Search countries..."
+                        emptyMessage="No countries found."
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Number Type</label>
+                      <Select value={numberTypeFilter} onValueChange={setNumberTypeFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="mobile">Mobile</SelectItem>
+                          <SelectItem value="local">Local</SelectItem>
+                          <SelectItem value="tollFree">Toll-Free</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Capabilities</label>
+                      <Select value={capabilityFilter} onValueChange={setCapabilityFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All capabilities" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Capabilities</SelectItem>
+                          <SelectItem value="sms">SMS Only</SelectItem>
+                          <SelectItem value="voice">Voice</SelectItem>
+                          <SelectItem value="mms">MMS</SelectItem>
+                        </SelectContent>
+                      </Select>
       </div>
           <div>
+                      <label className="text-sm font-medium mb-2 block">Currency</label>
+                      <Select value={currency} onValueChange={(value) => switchCurrency(value as "USD" | "NGN")}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="USD">USD ($)</SelectItem>
+                          <SelectItem value="NGN">NGN (₦)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button 
+                      onClick={() => {
+                        setFilterDialogOpen(false);
+                        setCurrentPage({ local: 1, mobile: 1, tollFree: 1 });
+                        setNumbers([]);
+                        searchAllNumberTypes(1, true);
+                      }} 
+                      disabled={loading} 
+                      className="w-full"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Searching...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="h-4 w-4 mr-2" />
+                          Apply Filters
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              
+              {/* Active Filter Badges */}
+              {(numberTypeFilter !== "all" || capabilityFilter !== "all") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setNumberTypeFilter("all");
+                    setCapabilityFilter("all");
+                  }}
+                  className="text-xs"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Clear
+                </Button>
+              )}
+            </div>
+            
+            {/* Search Input - Always Visible on Mobile */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search phone number or region..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          {/* Desktop Search */}
+          <div className="hidden md:block">
             <label className="text-sm font-medium mb-2 block">Search by Number or Region</label>
             <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -263,8 +491,77 @@ export default function NumbersPage() {
       </Card>
 
       {loading && numbers.length === 0 ? (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="space-y-6">
+          {/* Number Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {[...Array(6)].map((_, i) => {
+              const cardColors = [
+                { bg: "from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30", border: "border-blue-200 dark:border-blue-800" },
+                { bg: "from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30", border: "border-orange-200 dark:border-orange-800" },
+                { bg: "from-yellow-50 to-amber-50 dark:from-yellow-950/30 dark:to-amber-950/30", border: "border-yellow-200 dark:border-yellow-800" },
+              ];
+              const colors = cardColors[i % cardColors.length];
+              
+              return (
+                <Card key={i} className={`border-2 ${colors.border} bg-gradient-to-br ${colors.bg} hover:shadow-xl transition-all`}>
+                  {/* Mobile Compact Skeleton */}
+                  <div className="md:hidden">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <Skeleton className="h-8 w-8 rounded-lg bg-gradient-to-r from-primary/30 to-secondary/30 dark:from-primary/20 dark:to-secondary/20 flex-shrink-0" />
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <Skeleton className="h-4 w-28 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                            <Skeleton className="h-3 w-20 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0 text-right space-y-1">
+                          <Skeleton className="h-5 w-16 bg-gradient-to-r from-primary/30 to-secondary/30 dark:from-primary/20 dark:to-secondary/20" />
+                          <Skeleton className="h-3 w-12 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-3">
+                        <div className="flex flex-wrap gap-1.5 flex-1">
+                          <Skeleton className="h-5 w-12 rounded-full bg-gradient-to-r from-blue-200 to-blue-100 dark:from-blue-800 dark:to-blue-700" />
+                          <Skeleton className="h-5 w-10 rounded-full bg-gradient-to-r from-green-200 to-green-100 dark:from-green-800 dark:to-green-700" />
+                        </div>
+                        <Skeleton className="h-7 w-12 bg-gradient-to-r from-primary/30 to-secondary/30 dark:from-primary/20 dark:to-secondary/20 rounded-md" />
+                      </div>
+                    </CardContent>
+                  </div>
+
+                  {/* Desktop Full Skeleton */}
+                  <div className="hidden md:block">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-10 w-10 rounded-lg bg-gradient-to-r from-primary/30 to-secondary/30 dark:from-primary/20 dark:to-secondary/20" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-6 w-32 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                            <Skeleton className="h-4 w-24 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-lg bg-white/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700">
+                          <Skeleton className="h-3 w-20 mb-2 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                          <Skeleton className="h-8 w-32 bg-gradient-to-r from-primary/30 to-secondary/30 dark:from-primary/20 dark:to-secondary/20" />
+                          <Skeleton className="h-3 w-24 mt-2 bg-gradient-to-r from-gray-300 to-gray-200 dark:from-gray-700 dark:to-gray-600" />
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Skeleton className="h-6 w-16 rounded-full bg-gradient-to-r from-blue-200 to-blue-100 dark:from-blue-800 dark:to-blue-700" />
+                          <Skeleton className="h-6 w-12 rounded-full bg-gradient-to-r from-green-200 to-green-100 dark:from-green-800 dark:to-green-700" />
+                        </div>
+                        <Skeleton className="h-10 w-full bg-gradient-to-r from-primary/30 to-secondary/30 dark:from-primary/20 dark:to-secondary/20 rounded-md" />
+                      </div>
+                    </CardContent>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       ) : filteredNumbers.length === 0 ? (
         <Card>
@@ -272,64 +569,16 @@ export default function NumbersPage() {
             <Phone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <p className="text-muted-foreground mb-2">
               {numbers.length === 0
-                ? `No ${numberType === "local" ? "local" : numberType === "mobile" ? "mobile" : "toll-free"} numbers available for ${getCountryName(country)}`
+                ? `No numbers available for ${getCountryName(country)}`
                 : "No numbers match your filters"}
             </p>
-            {numbers.length === 0 && (
-              <div className="mt-4 space-y-2">
-                <p className="text-sm text-muted-foreground">Try a different number type:</p>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {numberType !== "mobile" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setNumberType("mobile");
-                        setCurrentPage(1);
-                        setNumbers([]);
-                        searchNumbers(1, true);
-                      }}
-                    >
-                      Try Mobile Numbers
-                    </Button>
-                  )}
-                  {numberType !== "tollFree" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setNumberType("tollFree");
-                        setCurrentPage(1);
-                        setNumbers([]);
-                        searchNumbers(1, true);
-                      }}
-                    >
-                      Try Toll-Free Numbers
-                    </Button>
-                  )}
-                  {numberType !== "local" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setNumberType("local");
-                        setCurrentPage(1);
-                        setNumbers([]);
-                        searchNumbers(1, true);
-                      }}
-                    >
-                      Try Local Numbers
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
             {numbers.length > 0 && (
               <Button
                 variant="outline"
                 onClick={() => {
                   setSearchQuery("");
                   setCapabilityFilter("all");
+                  setNumberTypeFilter("all");
                 }}
                 className="mt-4"
               >
@@ -343,11 +592,11 @@ export default function NumbersPage() {
           <div className="mb-4 flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
               Showing {filteredNumbers.length} of {numbers.length} numbers
-              {hasMore && (
-                <span className="ml-2 text-xs">(Page {currentPage}, more available)</span>
+              {(hasMore.local || hasMore.mobile || hasMore.tollFree) && (
+                <span className="ml-2 text-xs">(More available)</span>
               )}
             </div>
-            {hasMore && (
+            {(hasMore.local || hasMore.mobile || hasMore.tollFree) && (
               <Button
                 onClick={loadNextPage}
                 disabled={loadingMore}
@@ -368,74 +617,185 @@ export default function NumbersPage() {
               </Button>
             )}
           </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredNumbers.map((number) => (
-            <Card key={number.phoneNumber}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          {filteredNumbers.map((number) => {
+            // Determine color scheme based on number type
+            const getColorScheme = () => {
+              if (number.numberType === "mobile") {
+                return {
+                  cardBg: "from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30",
+                  cardBorder: "border-orange-200 dark:border-orange-800",
+                  iconBg: "from-orange-500 to-amber-500",
+                  typeBadge: "bg-gradient-to-r from-orange-500 to-amber-500 text-white",
+                  priceText: "text-orange-700 dark:text-orange-300",
+                  titleText: "text-orange-900 dark:text-orange-100",
+                };
+              } else if (number.numberType === "tollFree") {
+                return {
+                  cardBg: "from-yellow-50 to-amber-50 dark:from-yellow-950/30 dark:to-amber-950/30",
+                  cardBorder: "border-yellow-200 dark:border-yellow-800",
+                  iconBg: "from-yellow-500 to-amber-500",
+                  typeBadge: "bg-gradient-to-r from-yellow-500 to-amber-500 text-white",
+                  priceText: "text-yellow-700 dark:text-yellow-300",
+                  titleText: "text-yellow-900 dark:text-yellow-100",
+                };
+              } else {
+                // local
+                return {
+                  cardBg: "from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30",
+                  cardBorder: "border-blue-200 dark:border-blue-800",
+                  iconBg: "from-blue-500 to-cyan-500",
+                  typeBadge: "bg-gradient-to-r from-blue-500 to-cyan-500 text-white",
+                  priceText: "text-blue-700 dark:text-blue-300",
+                  titleText: "text-blue-900 dark:text-blue-100",
+                };
+              }
+            };
+
+            const colors = getColorScheme();
+
+            return (
+              <Card 
+                key={number.phoneNumber}
+                className={`border-2 ${colors.cardBorder} bg-gradient-to-br ${colors.cardBg} hover:shadow-xl transition-all duration-300 md:hover:scale-105`}
+              >
+                {/* Mobile Compact Layout */}
+                <div className="md:hidden">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className={`p-1.5 rounded-lg bg-gradient-to-br ${colors.iconBg} shadow-sm flex-shrink-0`}>
+                          <Phone className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className={`${colors.titleText} text-sm font-bold truncate`}>
+                            {number.phoneNumber}
+                          </CardTitle>
+                          <CardDescription className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                            {number.region}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <p className={`text-lg font-bold ${colors.priceText}`}>
+                          {format(convert(number.monthly_cost))}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{currency}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between gap-2 mt-3">
+                      <div className="flex flex-wrap gap-1.5 flex-1">
+                        {number.numberType && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${colors.typeBadge}`}>
+                            {number.numberType === "local" ? "Local" : number.numberType === "mobile" ? "Mobile" : "Toll-Free"}
+                          </span>
+                        )}
+                        {number.capabilities.SMS && (
+                          <span className="text-[10px] bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-2 py-0.5 rounded-full font-semibold">
+                            SMS
+                          </span>
+                        )}
+                        {number.capabilities.voice && (
+                          <span className="text-[10px] bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-0.5 rounded-full font-semibold">
+                            Voice
+                          </span>
+                        )}
+                        {number.capabilities.MMS && (
+                          <span className="text-[10px] bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-0.5 rounded-full font-semibold">
+                            MMS
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        className={`bg-gradient-to-r ${colors.iconBg} hover:opacity-90 text-white text-xs px-3 py-1.5 h-auto`}
+                        onClick={() => handlePurchase(number)}
+                      >
+                        Buy
+                      </Button>
+                    </div>
+                  </CardContent>
+                </div>
+
+                {/* Desktop Full Layout */}
+                <div className="hidden md:block">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Phone className="h-5 w-5" />
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg bg-gradient-to-br ${colors.iconBg} shadow-md`}>
+                          <Phone className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <CardTitle className={`${colors.titleText} text-lg font-bold`}>
                   {number.phoneNumber}
                 </CardTitle>
-                <CardDescription>{number.region}</CardDescription>
+                          <CardDescription className="text-gray-600 dark:text-gray-400 mt-1">
+                            {number.region}
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Monthly Fee</p>
-                    <p className="text-2xl font-bold">
+                      {/* Pricing Section */}
+                      <div className="p-4 rounded-lg bg-white/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700">
+                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide">
+                          Monthly Fee
+                        </p>
+                        <p className={`text-3xl font-bold ${colors.priceText} mb-1`}>
                       {format(convert(number.monthly_cost))} {currency}
                     </p>
-                    {currency === "NGN" && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        ≈ ${number.monthly_cost.toFixed(2)} USD
+                        {number.twilio_monthly_cost && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Base: ${number.twilio_monthly_cost.toFixed(2)} USD
                       </p>
                     )}
-                    <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                       + Pay-per-SMS for messages received
                     </p>
                   </div>
 
+                      {/* Badges */}
                   <div className="flex flex-wrap gap-2">
                     {number.numberType && (
-                      <span className={`text-xs px-2 py-1 rounded font-medium ${
-                        number.numberType === "local" 
-                          ? "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                          : number.numberType === "mobile"
-                          ? "bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200"
-                          : "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200"
-                      }`}>
+                          <span className={`text-xs px-3 py-1.5 rounded-full font-semibold shadow-sm ${colors.typeBadge}`}>
                         {number.numberType === "local" ? "Local" : number.numberType === "mobile" ? "Mobile" : "Toll-Free"}
                       </span>
                     )}
                     {number.capabilities.SMS && (
-                      <span className="text-xs bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">
+                          <span className="text-xs bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-3 py-1.5 rounded-full font-semibold shadow-sm">
                         SMS
                       </span>
                     )}
                     {number.capabilities.voice && (
-                      <span className="text-xs bg-green-100 dark:bg-green-900 px-2 py-1 rounded">
+                          <span className="text-xs bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1.5 rounded-full font-semibold shadow-sm">
                         Voice
                       </span>
                     )}
                     {number.capabilities.MMS && (
-                      <span className="text-xs bg-purple-100 dark:bg-purple-900 px-2 py-1 rounded">
+                          <span className="text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1.5 rounded-full font-semibold shadow-sm">
                         MMS
                       </span>
                     )}
                   </div>
 
+                      {/* Buy Button */}
                   <Button
-                    className="w-full"
+                        className={`w-full bg-gradient-to-r ${colors.iconBg} hover:opacity-90 text-white font-semibold shadow-md hover:shadow-lg transition-all`}
                     onClick={() => handlePurchase(number)}
                   >
                     Buy Now
                   </Button>
                 </div>
               </CardContent>
+                </div>
             </Card>
-            ))}
+            );
+          })}
           </div>
-          {hasMore && filteredNumbers.length > 0 && (
+          {(hasMore.local || hasMore.mobile || hasMore.tollFree) && filteredNumbers.length > 0 && (
             <div className="mt-6 flex justify-center">
               <Button
                 onClick={loadNextPage}
@@ -472,7 +832,7 @@ export default function NumbersPage() {
             : null
         }
         onSuccess={() => {
-          searchNumbers();
+          searchAllNumberTypes(1, true);
         }}
       />
     </div>

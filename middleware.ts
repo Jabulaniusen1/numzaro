@@ -54,6 +54,11 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // Skip middleware for webhook routes (they need to be publicly accessible)
+  if (request.nextUrl.pathname.startsWith("/api/webhooks")) {
+    return response;
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();

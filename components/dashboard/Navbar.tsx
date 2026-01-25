@@ -16,7 +16,7 @@ export function Navbar({ onSignOut }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="border-b bg-white dark:bg-gray-900 dark:border-gray-800 sticky top-0 z-50">
+    <nav className="border-b border-primary/20 bg-gradient-to-r from-white via-purple-50/50 to-blue-50/50 dark:from-gray-900 dark:via-purple-950/30 dark:to-blue-950/30 dark:border-gray-800 sticky top-0 z-50 backdrop-blur-sm">
       <div className="container mx-auto px-4 py-4">
         {/* Desktop Navigation */}
         <div className="hidden md:flex justify-between items-center">
@@ -43,6 +43,9 @@ export function Navbar({ onSignOut }: NavbarProps) {
             </Link>
             <Link href="/dashboard/numbers">
               <Button variant="ghost">Numbers</Button>
+            </Link>
+            <Link href="/dashboard/transactions">
+              <Button variant="ghost">Transactions</Button>
             </Link>
             <ThemeToggle />
             <NotificationsIcon />
@@ -124,6 +127,15 @@ export function Navbar({ onSignOut }: NavbarProps) {
               >
                 <Button variant="ghost" className="w-full justify-start">
                   Numbers
+                </Button>
+              </Link>
+              <Link
+                href="/dashboard/transactions"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full"
+              >
+                <Button variant="ghost" className="w-full justify-start">
+                  Transactions
                 </Button>
               </Link>
               <form className="w-full">

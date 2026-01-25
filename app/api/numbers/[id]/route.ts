@@ -232,8 +232,19 @@ export async function PATCH(
 
     if (action === "renew") {
       // Renew number - extend expiry by 30 days
+      // Can renew active or restricted numbers
+      if (number.status === "cancelled") {
+        return NextResponse.json(
+          { error: "Cannot renew a cancelled number" },
+          { status: 400 }
+        );
+      }
+
       const currentExpires = new Date(number.expires_at);
-      const newExpires = new Date(currentExpires.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const now = new Date();
+      // If expired, renew from now; otherwise extend from current expiry
+      const baseDate = currentExpires < now ? now : currentExpires;
+      const newExpires = new Date(baseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
       
       // Get current markup and calculate monthly cost
       const markupPercentage = await getPhoneNumbersMarkup();
@@ -274,12 +285,13 @@ export async function PATCH(
         );
       }
 
-      // Update expiry date
+      // Update expiry date and restore to active if restricted
       const { error: updateError } = await supabase
         .from("virtual_numbers")
         .update({ 
           expires_at: newExpires.toISOString(),
-          status: "active" // Ensure it's active
+          status: "active", // Restore to active if restricted
+          renewal_reminder_sent: false // Reset reminder flag
         })
         .eq("id", params.id);
 
