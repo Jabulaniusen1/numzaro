@@ -214,7 +214,7 @@ export default function DashboardPage() {
       {/* Quick Access Cards */}
       <div>
         <h2 className="text-2xl font-bold mb-4">Quick Access</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Link href="/dashboard/services">
             <Card className="hover:shadow-xl transition-all cursor-pointer h-full border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 hover:scale-105">
               <CardHeader>
@@ -224,11 +224,9 @@ export default function DashboardPage() {
                   </div>
                   <ArrowRight className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
-                <CardTitle className="mt-2 text-blue-900 dark:text-blue-100">All Services</CardTitle>
+                <CardTitle className="mt-2 text-blue-900 dark:text-blue-100">Boost your socials</CardTitle>
                 <CardDescription className="text-blue-700 dark:text-blue-300">
-                  {serviceStats.total > 0 
-                    ? `${serviceStats.total} services available`
-                    : "Browse all services"}
+                  Boost your social media presence with our services
                 </CardDescription>
               </CardHeader>
             </Card>

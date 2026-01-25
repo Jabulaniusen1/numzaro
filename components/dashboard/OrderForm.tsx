@@ -30,7 +30,7 @@ interface OrderFormProps {
 
 export function OrderForm({ service, onSuccess, onCancel }: OrderFormProps) {
   const [link, setLink] = useState("");
-  const [quantity, setQuantity] = useState<number>(service.min_quantity || 100);
+  const [quantity, setQuantity] = useState<string>(String(service.min_quantity || 100));
   const [comments, setComments] = useState("");
   const [loading, setLoading] = useState(false);
   const [balance, setBalance] = useState<number>(0);
@@ -61,10 +61,16 @@ export function OrderForm({ service, onSuccess, onCancel }: OrderFormProps) {
     }
   };
 
+  const getQuantityNumber = () => {
+    const num = parseInt(quantity, 10);
+    return isNaN(num) ? 0 : num;
+  };
+
   const calculateCharge = () => {
-    if (!quantity || quantity <= 0) return 0;
+    const qty = getQuantityNumber();
+    if (!qty || qty <= 0) return 0;
     // Rate is per 1000, so calculate: (quantity / 1000) * rate
-    return (quantity / 1000) * (service.rate || 0);
+    return (qty / 1000) * (service.rate || 0);
   };
 
   const charge = calculateCharge();
@@ -82,7 +88,8 @@ export function OrderForm({ service, onSuccess, onCancel }: OrderFormProps) {
       return;
     }
 
-    if (quantity < service.min_quantity || quantity > service.max_quantity) {
+    const qty = getQuantityNumber();
+    if (!quantity.trim() || qty < service.min_quantity || qty > service.max_quantity) {
       toast({
         title: "Invalid quantity",
         description: `Quantity must be between ${service.min_quantity.toLocaleString()} and ${service.max_quantity.toLocaleString()}`,
@@ -111,7 +118,7 @@ export function OrderForm({ service, onSuccess, onCancel }: OrderFormProps) {
         body: JSON.stringify({
           service_id: service.id,
           link: link.trim(),
-          quantity: Math.floor(quantity),
+          quantity: Math.floor(qty),
           ...(comments.trim() && { comments: comments.trim() }),
         }),
       });
@@ -132,7 +139,7 @@ export function OrderForm({ service, onSuccess, onCancel }: OrderFormProps) {
 
       // Reset form
       setLink("");
-      setQuantity(service.min_quantity || 100);
+      setQuantity(String(service.min_quantity || 100));
       setComments("");
 
       // Call success callback
@@ -183,7 +190,13 @@ export function OrderForm({ service, onSuccess, onCancel }: OrderFormProps) {
           min={service.min_quantity}
           max={service.max_quantity}
           value={quantity}
-          onChange={(e) => setQuantity(parseInt(e.target.value) || service.min_quantity)}
+          onChange={(e) => setQuantity(e.target.value)}
+          onBlur={(e) => {
+            const value = e.target.value.trim();
+            if (!value || isNaN(parseInt(value, 10))) {
+              setQuantity(String(service.min_quantity || 100));
+            }
+          }}
           required
           disabled={loading}
         />
@@ -214,7 +227,7 @@ export function OrderForm({ service, onSuccess, onCancel }: OrderFormProps) {
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600 dark:text-gray-400">Quantity:</span>
-          <span className="font-medium">{quantity.toLocaleString()}</span>
+          <span className="font-medium">{getQuantityNumber().toLocaleString()}</span>
         </div>
         <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
           <div className="flex justify-between">

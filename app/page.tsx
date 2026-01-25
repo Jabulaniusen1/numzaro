@@ -130,13 +130,27 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center justify-center bg-gradient-to-br from-primary/10 via-secondary/10 to-purple-500/10 dark:from-primary/20 dark:via-secondary/20 dark:to-purple-500/20 overflow-hidden">
+        {/* Background Video */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover z-0"
+        >
+          <source src="/grok-video-b75530d2-cbcb-43e4-aff5-d740aa64a994.mp4" type="video/mp4" />
+        </video>
+        
+        {/* Overlay for better text readability */}
+        <div className="absolute inset-0 bg-black/50 dark:bg-black/70 z-[1]"></div>
+        
         {/* Animated background elements */}
-        <div className="absolute inset-0 opacity-20 dark:opacity-10">
+        <div className="absolute inset-0 opacity-20 dark:opacity-10 z-[2]">
           <div className="absolute left-[10%] top-0 w-1 h-full bg-gradient-to-b from-blue-200 to-purple-200 dark:from-blue-800 dark:to-purple-800"></div>
           <div className="absolute right-[10%] top-0 w-1 h-full bg-gradient-to-b from-purple-200 to-pink-200 dark:from-purple-800 dark:to-pink-800"></div>
         </div>
 
-        <div className="container mx-auto px-4 py-8 sm:py-12 md:py-20 relative z-10">
+        <div className="container mx-auto px-4 py-8 sm:py-12 md:py-20 relative z-[3]">
           <div className="max-w-6xl mx-auto">
             {/* Main Content */}
             <div className="text-center space-y-4 sm:space-y-6 md:space-y-8 mb-8 sm:mb-12">
@@ -152,7 +166,7 @@ export default function HomePage() {
               </h1>
 
               {/* Subheadline */}
-              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-primary/80 dark:text-primary/70 max-w-3xl mx-auto leading-relaxed px-4 font-medium">
+              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-purple-200 dark:text-primary/70 max-w-3xl mx-auto leading-relaxed px-4 font-light">
                 Unlock global reach with powerful services across 100+ countries
               </p>
                 
@@ -170,7 +184,7 @@ export default function HomePage() {
                   <ServiceCTA destination="services" variant="outline">
                     <div className="flex items-center gap-2 justify-center">
                       <ShoppingBag className="w-5 h-5" />
-                      View All Services
+                      Boost your socials
                     </div>
                   </ServiceCTA>
                 </div>
@@ -178,21 +192,21 @@ export default function HomePage() {
             </div>
             {/* Statistics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 max-w-4xl mx-auto px-4">
-              <Card className="text-center p-3 sm:p-4 border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 hover:shadow-xl transition-all">
+              <Card className="text-center p-3 sm:p-4 border border-blue-200/50 dark:border-blue-500/30 bg-white/10 dark:bg-white/5 backdrop-blur-md hover:bg-white/20 dark:hover:bg-white/10 hover:shadow-xl transition-all">
                 <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-1">827K+</div>
-                <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300 font-medium">Active Users</p>
+                <p className="text-xs sm:text-sm text-blue-100 dark:text-blue-300 font-medium">Active Users</p>
               </Card>
-              <Card className="text-center p-3 sm:p-4 border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 hover:shadow-xl transition-all">
+              <Card className="text-center p-3 sm:p-4 border border-purple-200/50 dark:border-purple-500/30 bg-white/10 dark:bg-white/5 backdrop-blur-md hover:bg-white/20 dark:hover:bg-white/10 hover:shadow-xl transition-all">
                 <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">4M+</div>
-                <p className="text-xs sm:text-sm text-purple-700 dark:text-purple-300 font-medium">Orders Delivered</p>
+                <p className="text-xs sm:text-sm text-purple-100 dark:text-purple-300 font-medium">Orders Delivered</p>
               </Card>
-              <Card className="text-center p-3 sm:p-4 border-2 border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 hover:shadow-xl transition-all">
+              <Card className="text-center p-3 sm:p-4 border border-green-200/50 dark:border-green-500/30 bg-white/10 dark:bg-white/5 backdrop-blur-md hover:bg-white/20 dark:hover:bg-white/10 hover:shadow-xl transition-all">
                 <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-1">50K+</div>
-                <p className="text-xs sm:text-sm text-green-700 dark:text-green-300 font-medium">Phone Numbers</p>
+                <p className="text-xs sm:text-sm text-green-100 dark:text-green-300 font-medium">Phone Numbers</p>
               </Card>
-              <Card className="text-center p-3 sm:p-4 border-2 border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 hover:shadow-xl transition-all">
+              <Card className="text-center p-3 sm:p-4 border border-orange-200/50 dark:border-orange-500/30 bg-white/10 dark:bg-white/5 backdrop-blur-md hover:bg-white/20 dark:hover:bg-white/10 hover:shadow-xl transition-all">
                 <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent mb-1">15+</div>
-                <p className="text-xs sm:text-sm text-orange-700 dark:text-orange-300 font-medium">Platforms</p>
+                <p className="text-xs sm:text-sm text-orange-100 dark:text-orange-300 font-medium">Platforms</p>
               </Card>
             </div>
           </div>
