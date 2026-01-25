@@ -123,15 +123,139 @@ function ServiceCTA({ destination, children, variant = "default" }: { destinatio
 }
 
 export default function HomePage() {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContentRef = useRef<HTMLDivElement>(null);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const userScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastScrollLeftRef = useRef(0);
+  const isHoveringRef = useRef(false);
+  const isAutoScrollingRef = useRef(false);
+
+  // Auto-scroll functionality
+  useEffect(() => {
+    if (!scrollContainerRef.current || isUserScrolling || isHoveringRef.current) {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+        autoScrollIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const scrollContainer = scrollContainerRef.current;
+    const scrollContent = scrollContentRef.current;
+    if (!scrollContent) return;
+
+    const scrollSpeed = 0.5; // pixels per frame (slower for smoother scroll)
+    const targetFPS = 60;
+    const interval = 1000 / targetFPS;
+
+    autoScrollIntervalRef.current = setInterval(() => {
+      isAutoScrollingRef.current = true;
+      const maxScroll = scrollContent.scrollWidth / 2;
+      if (scrollContainer.scrollLeft >= maxScroll - 10) {
+        // Reset to beginning when reaching halfway (seamless loop)
+        scrollContainer.scrollLeft = 0;
+      } else {
+        scrollContainer.scrollLeft += scrollSpeed;
+      }
+      lastScrollLeftRef.current = scrollContainer.scrollLeft;
+      // Reset flag after a short delay to allow scroll event to process
+      setTimeout(() => {
+        isAutoScrollingRef.current = false;
+      }, 50);
+    }, interval);
+
+    return () => {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+        autoScrollIntervalRef.current = null;
+      }
+    };
+  }, [isUserScrolling]);
+
+  // Handle manual scroll detection
+  const handleScroll = () => {
+    if (!scrollContainerRef.current || isAutoScrollingRef.current) return;
+    
+    const currentScrollLeft = scrollContainerRef.current.scrollLeft;
+    const scrollDifference = Math.abs(currentScrollLeft - lastScrollLeftRef.current);
+    
+    // If scroll difference is significant and not from auto-scroll, user is manually scrolling
+    if (scrollDifference > 2) {
+      setIsUserScrolling(true);
+      
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+        autoScrollIntervalRef.current = null;
+      }
+
+      // Clear existing timeout
+      if (userScrollTimeoutRef.current) {
+        clearTimeout(userScrollTimeoutRef.current);
+      }
+
+      // Resume auto-scroll after 3 seconds of no user interaction
+      userScrollTimeoutRef.current = setTimeout(() => {
+        setIsUserScrolling(false);
+      }, 3000);
+    }
+    
+    lastScrollLeftRef.current = currentScrollLeft;
+  };
+
+  // Handle hover to pause auto-scroll
+  const handleMouseEnter = () => {
+    isHoveringRef.current = true;
+    if (autoScrollIntervalRef.current) {
+      clearInterval(autoScrollIntervalRef.current);
+      autoScrollIntervalRef.current = null;
+    }
+  };
+
+  const handleMouseLeave = () => {
+    isHoveringRef.current = false;
+    if (!isUserScrolling) {
+      // Restart auto-scroll if not manually scrolling
+      setIsUserScrolling(false);
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+      }
+      if (userScrollTimeoutRef.current) {
+        clearTimeout(userScrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-purple-950/20 dark:to-blue-950/20">
       {/* Navigation */}
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 overflow-hidden">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 opacity-20 dark:opacity-10">
+      <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center justify-center overflow-hidden">
+        {/* Video Background */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        >
+          <source src="/grok-video-b75530d2-cbcb-43e4-aff5-d740aa64a994.mp4" type="video/mp4" />
+        </video>
+        
+        {/* Dimming overlay for text readability */}
+        <div className="absolute inset-0 bg-black/60 dark:bg-black/70"></div>
+        
+        {/* Animated background elements (optional decorative elements) */}
+        <div className="absolute inset-0 opacity-10 dark:opacity-5 pointer-events-none">
           <div className="absolute left-[10%] top-0 w-1 h-full bg-gradient-to-b from-blue-200 to-purple-200 dark:from-blue-800 dark:to-purple-800"></div>
           <div className="absolute right-[10%] top-0 w-1 h-full bg-gradient-to-b from-purple-200 to-pink-200 dark:from-purple-800 dark:to-pink-800"></div>
         </div>
@@ -142,15 +266,17 @@ export default function HomePage() {
             <div className="text-center space-y-4 sm:space-y-6 md:space-y-8 mb-8 sm:mb-12">
 
               {/* Main Headline */}
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 dark:text-white leading-tight px-2">
-                Connect Globally with
-                <span className="block mt-1 sm:mt-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight px-2">
+                <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  Connect Globally with
+                </span>
+                <span className="block mt-1 sm:mt-2 bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 bg-clip-text text-transparent">
                   Powerful Services
                 </span>
               </h1>
 
               {/* Subheadline */}
-              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto leading-relaxed px-4">
+              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-purple-300 dark:text-primary/70 max-w-3xl mx-auto leading-relaxed px-4">
                 Unlock global reach with powerful services across 100+ countries
               </p>
                 
@@ -168,7 +294,7 @@ export default function HomePage() {
                   <ServiceCTA destination="services" variant="outline">
                     <div className="flex items-center gap-2 justify-center">
                       <ShoppingBag className="w-5 h-5" />
-                      View All Services
+                      Boost your socials
                     </div>
                   </ServiceCTA>
                 </div>
@@ -176,109 +302,114 @@ export default function HomePage() {
             </div>
             {/* Statistics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 max-w-4xl mx-auto px-4">
-              <div className="text-center p-3 sm:p-4 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
-                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-1">827K+</div>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Active Users</p>
-              </div>
-              <div className="text-center p-3 sm:p-4 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
-                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-1">4M+</div>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Orders Delivered</p>
-                  </div>
-              <div className="text-center p-3 sm:p-4 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
-                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-1">50K+</div>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Phone Numbers</p>
-              </div>
-              <div className="text-center p-3 sm:p-4 rounded-lg bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
-                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-1">15+</div>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Platforms</p>
-              </div>
+              <Card className="text-center p-3 sm:p-4 border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 hover:shadow-xl transition-all">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-1">827K+</div>
+                <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300 font-medium">Active Users</p>
+              </Card>
+              <Card className="text-center p-3 sm:p-4 border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 hover:shadow-xl transition-all">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">4M+</div>
+                <p className="text-xs sm:text-sm text-purple-700 dark:text-purple-300 font-medium">Orders Delivered</p>
+              </Card>
+              <Card className="text-center p-3 sm:p-4 border-2 border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 hover:shadow-xl transition-all">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-1">50K+</div>
+                <p className="text-xs sm:text-sm text-green-700 dark:text-green-300 font-medium">Phone Numbers</p>
+              </Card>
+              <Card className="text-center p-3 sm:p-4 border-2 border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 hover:shadow-xl transition-all">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent mb-1">15+</div>
+                <p className="text-xs sm:text-sm text-orange-700 dark:text-orange-300 font-medium">Platforms</p>
+              </Card>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="container mx-auto px-4 py-12 sm:py-16 md:py-20 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950">
+      <section className="container mx-auto px-4 py-12 sm:py-16 md:py-20">
         <div className="text-center mb-8 sm:mb-12 md:mb-16">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 px-4">
-            Why Choose Numzaro?
-          </h2>
-          <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto px-4">
+          <div className="relative inline-block">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-secondary/10 to-purple-500/10 dark:from-primary/20 dark:via-secondary/20 dark:to-purple-500/20 rounded-2xl blur-xl"></div>
+            <div className="relative">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-3 sm:mb-4 px-4">
+                Why Choose Numzaro?
+              </h2>
+            </div>
+          </div>
+          <p className="text-base sm:text-lg md:text-xl text-primary/80 dark:text-primary/70 max-w-2xl mx-auto px-4 font-medium">
             Everything you need for phone number management, all in one powerful platform
           </p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8 max-w-7xl mx-auto">
-          <Card className="border-2 hover:border-[#1877F2] transition-all duration-300 hover:shadow-xl dark:border-gray-800 dark:hover:border-[#1877F2]">
+          <Card className="border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 hover:shadow-xl transition-all duration-300 hover:scale-105">
             <CardHeader className="pb-3 sm:pb-4">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-3 sm:mb-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mb-3 sm:mb-4 shadow-md">
                 <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <CardTitle className="text-lg sm:text-xl md:text-2xl dark:text-white">Fast Delivery</CardTitle>
-              <CardDescription className="text-sm sm:text-base dark:text-gray-300">
+              <CardTitle className="text-lg sm:text-xl md:text-2xl text-blue-900 dark:text-blue-100">Fast Delivery</CardTitle>
+              <CardDescription className="text-sm sm:text-base text-blue-700 dark:text-blue-300">
                 Phone number services delivered quickly
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
+              <p className="text-sm sm:text-base text-blue-800 dark:text-blue-200 leading-relaxed">
                 Get virtual phone numbers activated within minutes. Automated setup for instant access to SMS and call services.
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-2 hover:border-[#1877F2] transition-all duration-300 hover:shadow-xl dark:border-gray-800 dark:hover:border-[#1877F2]">
+          <Card className="border-2 border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 hover:shadow-xl transition-all duration-300 hover:scale-105">
             <CardHeader className="pb-3 sm:pb-4">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mb-3 sm:mb-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center mb-3 sm:mb-4 shadow-md">
                 <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
               </div>
-              <CardTitle className="text-lg sm:text-xl md:text-2xl dark:text-white">Phone Numbers</CardTitle>
-              <CardDescription className="text-sm sm:text-base dark:text-gray-300">
+              <CardTitle className="text-lg sm:text-xl md:text-2xl text-green-900 dark:text-green-100">Phone Numbers</CardTitle>
+              <CardDescription className="text-sm sm:text-base text-green-700 dark:text-green-300">
                 Virtual numbers for SMS & calls
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
+              <p className="text-sm sm:text-base text-green-800 dark:text-green-200 leading-relaxed">
                 Get virtual phone numbers from multiple countries. Perfect for SMS verification, business communications, and OTP services.
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-2 hover:border-[#1877F2] transition-all duration-300 hover:shadow-xl dark:border-gray-800 dark:hover:border-[#1877F2]">
+          <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 hover:shadow-xl transition-all duration-300 hover:scale-105">
             <CardHeader className="pb-3 sm:pb-4">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-3 sm:mb-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-3 sm:mb-4 shadow-md">
                 <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <CardTitle className="text-lg sm:text-xl md:text-2xl dark:text-white">Reliable Service</CardTitle>
-              <CardDescription className="text-sm sm:text-base dark:text-gray-300">
+              <CardTitle className="text-lg sm:text-xl md:text-2xl text-purple-900 dark:text-purple-100">Reliable Service</CardTitle>
+              <CardDescription className="text-sm sm:text-base text-purple-700 dark:text-purple-300">
                 Reliable phone number services
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
+              <p className="text-sm sm:text-base text-purple-800 dark:text-purple-200 leading-relaxed">
                 We provide real, working phone numbers from verified carriers to ensure reliable SMS and call services.
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-2 hover:border-[#1877F2] transition-all duration-300 hover:shadow-xl dark:border-gray-800 dark:hover:border-[#1877F2]">
+          <Card className="border-2 border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 hover:shadow-xl transition-all duration-300 hover:scale-105">
             <CardHeader className="pb-3 sm:pb-4">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center mb-3 sm:mb-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center mb-3 sm:mb-4 shadow-md">
                 <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               </div>
-              <CardTitle className="text-lg sm:text-xl md:text-2xl dark:text-white">Secure & Safe</CardTitle>
-              <CardDescription className="text-sm sm:text-base dark:text-gray-300">
+              <CardTitle className="text-lg sm:text-xl md:text-2xl text-orange-900 dark:text-orange-100">Secure & Safe</CardTitle>
+              <CardDescription className="text-sm sm:text-base text-orange-700 dark:text-orange-300">
                 Enterprise-grade security
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
+              <p className="text-sm sm:text-base text-orange-800 dark:text-orange-200 leading-relaxed">
                 All transactions are secure and compliant. Industry-standard encryption keeps your data and accounts safe.
               </p>
             </CardContent>
@@ -288,13 +419,18 @@ export default function HomePage() {
 
 
       {/* Reviews Section */}
-      <section className="py-12 md:py-20 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950 overflow-hidden">
+      <section className="py-12 md:py-20 overflow-hidden">
         <div className="container mx-auto px-4 mb-8 md:mb-16">
           <div className="text-center">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-3 md:mb-4 px-4">
-              What Our Customers Say
-            </h2>
-            <p className="text-base md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto px-4">
+            <div className="relative inline-block">
+              <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 dark:from-pink-500/20 dark:via-purple-500/20 dark:to-indigo-500/20 rounded-2xl blur-xl"></div>
+              <div className="relative">
+                <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-3 md:mb-4 px-4">
+                  What Our Customers Say
+                </h2>
+              </div>
+            </div>
+            <p className="text-base md:text-xl text-primary/80 dark:text-primary/70 max-w-2xl mx-auto px-4 font-medium">
               Join thousands of satisfied customers who trust Numzaro for phone number services
             </p>
           </div>
@@ -308,8 +444,24 @@ export default function HomePage() {
           {/* Right Fade Gradient - Responsive width */}
           <div className="absolute right-0 top-0 bottom-0 w-16 md:w-32 bg-gradient-to-l from-white via-gray-50/80 to-transparent dark:from-gray-900 dark:via-gray-950/80 dark:to-transparent z-10 pointer-events-none"></div>
           
-          {/* Scrolling Container */}
-          <div className="flex gap-4 md:gap-6 animate-scroll-left">
+          {/* Scrolling Container - Manual scroll with auto-scroll */}
+          <div 
+            ref={scrollContainerRef}
+            className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide pb-4 scroll-smooth"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(155, 155, 155, 0.5) transparent',
+            }}
+            onScroll={handleScroll}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onMouseDown={() => setIsUserScrolling(true)}
+            onTouchStart={() => setIsUserScrolling(true)}
+          >
+            <div 
+              ref={scrollContentRef}
+              className="flex gap-4 md:gap-6 min-w-max"
+            >
             {/* First set of reviews */}
             {reviews.map((review, index) => (
               <div key={`first-${index}`} className="flex-shrink-0 w-[280px] sm:w-[320px] md:w-[380px]">
@@ -367,6 +519,7 @@ export default function HomePage() {
                 </Card>
               </div>
             ))}
+            </div>
           </div>
         </div>
       </section>
