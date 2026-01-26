@@ -87,10 +87,16 @@ export function NumberPurchaseModal({
       }
       router.push("/dashboard/numbers/my-numbers");
     } catch (error: any) {
+      const errorMessage = error.message || "An error occurred";
+      
+      // Check if it's a bundle requirement error
+      const isBundleError = errorMessage.includes("Bundle") || errorMessage.includes("bundle");
+      
       toast({
-        title: "Purchase Failed",
-        description: error.message || "An error occurred",
+        title: isBundleError ? "Bundle Required" : "Purchase Failed",
+        description: errorMessage,
         variant: "destructive",
+        duration: 8000, // Show longer for bundle errors
       });
     } finally {
       setLoading(false);

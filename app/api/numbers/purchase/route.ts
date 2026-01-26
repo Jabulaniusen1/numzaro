@@ -79,12 +79,14 @@ export async function POST(request: NextRequest) {
       let errorMessage = twilioError.message || "Failed to purchase number";
       
       // Handle bundle requirement errors
-      if (errorMessage.includes("Bundle required") || errorMessage.includes("bundle")) {
-        errorMessage = `This number type requires a Bundle (regulatory compliance). ` +
-          `For ${countryName} (${countryCode}), please try: ` +
-          `1) Select "Local" number type instead of "Mobile", or ` +
-          `2) Use a different country that doesn't require bundles. ` +
-          `Note: Bundles require address verification and business registration in Twilio.`;
+      if (errorMessage.toLowerCase().includes("bundle") || 
+          errorMessage.toLowerCase().includes("regulatory") ||
+          errorMessage.toLowerCase().includes("compliance")) {
+        errorMessage = `This mobile number requires a Twilio Bundle for regulatory compliance in ${countryName}. ` +
+          `\n\nTo fix this:\n` +
+          `1. Try selecting a "Local" number type instead (filter by "Local" in the filters)\n` +
+          `2. Or choose a different country that doesn't require bundles\n\n` +
+          `Note: Bundles require address verification and business registration in Twilio, which is not available through this platform.`;
       }
       
       return NextResponse.json(

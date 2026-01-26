@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +14,8 @@ import {
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import { NumberPurchaseModal } from "@/components/dashboard/NumberPurchaseModal";
-import { Phone, Search, Loader2, ChevronRight, Filter, X, List } from "lucide-react";
+import { Phone, Search, Loader2, ChevronRight, Filter, X, List, ChevronDown, Check } from "lucide-react";
 import Link from "next/link";
-import { Combobox } from "@/components/ui/combobox";
 import { COUNTRIES, getCountryName } from "@/lib/data/countries";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -33,6 +32,120 @@ interface AvailableNumber {
   monthly_cost: number;
   twilio_monthly_cost: number;
   numberType?: "local" | "mobile" | "tollFree";
+}
+
+interface SearchableCountrySelectProps {
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+function SearchableCountrySelect({ options, value, onChange, placeholder = "Select country...", disabled = false }: SearchableCountrySelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const filteredOptions = useMemo(() => {
+    if (!searchQuery) return options;
+    const query = searchQuery.toLowerCase();
+    return options.filter((option) =>
+      option.label.toLowerCase().includes(query) ||
+      option.value.toLowerCase().includes(query)
+    );
+  }, [options, searchQuery]);
+
+  const selectedOption = options.find((opt) => opt.value === value);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setSearchQuery("");
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div ref={dropdownRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className="flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+      >
+        <span className={selectedOption ? "text-foreground" : "text-muted-foreground"}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <ChevronDown className={`h-4 w-4 opacity-50 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95">
+          <div className="p-2 border-b">
+            <Input
+              type="text"
+              placeholder="Search countries..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setIsOpen(false);
+                  setSearchQuery("");
+                }
+              }}
+            />
+          </div>
+          <div className="max-h-[300px] overflow-y-auto p-1">
+            {filteredOptions.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                No countries found
+              </div>
+            ) : (
+              filteredOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onChange(option.value);
+                    setIsOpen(false);
+                    setSearchQuery("");
+                  }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  className={`relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground ${
+                    value === option.value ? "bg-accent text-accent-foreground" : ""
+                  }`}
+                >
+                  <Check
+                    className={`mr-2 h-4 w-4 ${
+                      value === option.value ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
+                  {option.label}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function NumbersPage() {
@@ -64,11 +177,12 @@ export default function NumbersPage() {
     // Filter numbers based on search, capabilities, and number type
     let filtered = [...numbers];
 
-    // Filter by number type
+    // Filter by number type (mobile numbers are excluded as they require bundles)
     if (numberTypeFilter !== "all") {
       filtered = filtered.filter((n) => {
         const type = n.numberType || "local";
-        if (numberTypeFilter === "mobile") return type === "mobile";
+        // Mobile numbers are not available (require bundles)
+        if (numberTypeFilter === "mobile") return false;
         if (numberTypeFilter === "local") return type === "local";
         if (numberTypeFilter === "tollFree") return type === "tollFree";
         return true;
@@ -107,10 +221,11 @@ export default function NumbersPage() {
     }
     
     try {
-      // Fetch all three number types in parallel
-      const [localResponse, mobileResponse, tollFreeResponse] = await Promise.allSettled([
+      // Fetch number types in parallel - Skip mobile numbers as they often require bundles
+      // Mobile numbers require Twilio Bundles for regulatory compliance in many countries
+      // which need address verification and business registration, so we exclude them
+      const [localResponse, tollFreeResponse] = await Promise.allSettled([
         fetch(`/api/numbers/search?country=${country}&type=local&capabilities=SMS&page=${page}&pageSize=50`),
-        fetch(`/api/numbers/search?country=${country}&type=mobile&capabilities=SMS&page=${page}&pageSize=50`),
         fetch(`/api/numbers/search?country=${country}&type=tollFree&capabilities=SMS&page=${page}&pageSize=50`),
       ]);
 
@@ -126,14 +241,8 @@ export default function NumbersPage() {
         }
       }
 
-      // Process mobile numbers
-      if (mobileResponse.status === "fulfilled" && mobileResponse.value.ok) {
-        const data = await mobileResponse.value.json();
-        if (data.numbers) {
-          allNumbers.push(...data.numbers);
-          newHasMore.mobile = data.pagination?.hasMore || false;
-        }
-      }
+      // Skip mobile numbers - they often require Twilio Bundles for regulatory compliance
+      // which need address verification and business registration
 
       // Process toll-free numbers
       if (tollFreeResponse.status === "fulfilled" && tollFreeResponse.value.ok) {
@@ -147,13 +256,11 @@ export default function NumbersPage() {
       // Check for errors
       const errors: string[] = [];
       if (localResponse.status === "rejected") errors.push("Local numbers: " + localResponse.reason);
-      if (mobileResponse.status === "rejected") errors.push("Mobile numbers: " + mobileResponse.reason);
       if (tollFreeResponse.status === "rejected") errors.push("Toll-free numbers: " + tollFreeResponse.reason);
 
       // Try to get error messages from failed responses
       const errorPromises = [
         localResponse.status === "fulfilled" && !localResponse.value.ok ? localResponse.value.json() : null,
-        mobileResponse.status === "fulfilled" && !mobileResponse.value.ok ? mobileResponse.value.json() : null,
         tollFreeResponse.status === "fulfilled" && !tollFreeResponse.value.ok ? tollFreeResponse.value.json() : null,
       ].filter(Boolean);
 
@@ -166,13 +273,13 @@ export default function NumbersPage() {
         });
       }
 
-      // Sort numbers: Mobile first, then Local, then Toll-Free, then by price
+      // Sort numbers: Local first, then Toll-Free, then by price
       const sortedNumbers = allNumbers.sort((a, b) => {
-        // First sort by type priority: mobile > local > tollFree
-        const typeOrder = { mobile: 0, local: 1, tollFree: 2 };
+        // First sort by type priority: local > tollFree
+        const typeOrder = { local: 0, tollFree: 1 };
         const aType = a.numberType || "local";
         const bType = b.numberType || "local";
-        const typeDiff = (typeOrder[aType as keyof typeof typeOrder] || 1) - (typeOrder[bType as keyof typeof typeOrder] || 1);
+        const typeDiff = (typeOrder[aType as keyof typeof typeOrder] ?? 1) - (typeOrder[bType as keyof typeof typeOrder] ?? 1);
         if (typeDiff !== 0) return typeDiff;
         // Then sort by price (ascending)
         return (a.monthly_cost || 0) - (b.monthly_cost || 0);
@@ -189,10 +296,10 @@ export default function NumbersPage() {
           const combined = [...prev, ...newNumbers];
           // Re-sort combined list
           return combined.sort((a, b) => {
-            const typeOrder = { mobile: 0, local: 1, tollFree: 2 };
+            const typeOrder = { local: 0, tollFree: 1 };
             const aType = a.numberType || "local";
             const bType = b.numberType || "local";
-            const typeDiff = (typeOrder[aType as keyof typeof typeOrder] || 1) - (typeOrder[bType as keyof typeof typeOrder] || 1);
+            const typeDiff = (typeOrder[aType as keyof typeof typeOrder] ?? 1) - (typeOrder[bType as keyof typeof typeOrder] ?? 1);
             if (typeDiff !== 0) return typeDiff;
             return (a.monthly_cost || 0) - (b.monthly_cost || 0);
           });
@@ -231,8 +338,8 @@ export default function NumbersPage() {
   };
 
   const loadNextPage = () => {
-    if (!loadingMore && (hasMore.local || hasMore.mobile || hasMore.tollFree)) {
-      const nextPage = Math.max(currentPage.local, currentPage.mobile, currentPage.tollFree) + 1;
+    if (!loadingMore && (hasMore.local || hasMore.tollFree)) {
+      const nextPage = Math.max(currentPage.local, currentPage.tollFree) + 1;
       searchAllNumberTypes(nextPage, false);
     }
   };
@@ -298,16 +405,14 @@ export default function NumbersPage() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Country</label>
-                  <Combobox
+                  <SearchableCountrySelect
                     options={COUNTRIES.map((c) => ({
                       value: c.code,
                       label: c.name,
                     }))}
                     value={country}
-                    onValueChange={setCountry}
+                    onChange={setCountry}
                     placeholder="Select country..."
-                    searchPlaceholder="Search countries..."
-                    emptyMessage="No countries found."
                   />
                 </div>
                 <div>
@@ -318,11 +423,13 @@ export default function NumbersPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="mobile">Mobile</SelectItem>
                       <SelectItem value="local">Local</SelectItem>
                       <SelectItem value="tollFree">Toll-Free</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Mobile numbers require bundles and are not available
+                  </p>
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-2 block">Capabilities</label>
@@ -496,11 +603,11 @@ export default function NumbersPage() {
           <div className="mb-4 flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
               Showing {filteredNumbers.length} of {numbers.length} numbers
-              {(hasMore.local || hasMore.mobile || hasMore.tollFree) && (
+              {(hasMore.local || hasMore.tollFree) && (
                 <span className="ml-2 text-xs">(More available)</span>
               )}
             </div>
-            {(hasMore.local || hasMore.mobile || hasMore.tollFree) && (
+            {(hasMore.local || hasMore.tollFree) && (
               <Button
                 onClick={loadNextPage}
                 disabled={loadingMore}
@@ -699,7 +806,7 @@ export default function NumbersPage() {
             );
           })}
           </div>
-          {(hasMore.local || hasMore.mobile || hasMore.tollFree) && filteredNumbers.length > 0 && (
+          {(hasMore.local || hasMore.tollFree) && filteredNumbers.length > 0 && (
             <div className="mt-6 flex justify-center">
               <Button
                 onClick={loadNextPage}
