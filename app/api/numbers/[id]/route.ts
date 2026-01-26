@@ -103,13 +103,17 @@ export async function DELETE(
     }
 
     // Calculate prorated refund (days remaining in current billing period)
-    const now = new Date();
-    const expiresAt = new Date(number.expires_at);
-    const daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-    const daysInMonth = 30; // Assuming monthly billing
-    const proratedRefund = daysRemaining > 0 && daysRemaining < daysInMonth
-      ? (daysRemaining / daysInMonth) * parseFloat(number.monthly_cost.toString())
-      : 0;
+    // One-time OTP numbers don't get refunds as they're already paid for one-time use
+    let proratedRefund = 0;
+    if (number.number_type !== "one_time_otp" && number.expires_at && number.monthly_cost) {
+      const now = new Date();
+      const expiresAt = new Date(number.expires_at);
+      const daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      const daysInMonth = 30; // Assuming monthly billing
+      proratedRefund = daysRemaining > 0 && daysRemaining < daysInMonth
+        ? (daysRemaining / daysInMonth) * parseFloat(number.monthly_cost.toString())
+        : 0;
+    }
 
     // Update status in database
     const { error: updateError } = await supabase
@@ -233,9 +237,24 @@ export async function PATCH(
     if (action === "renew") {
       // Renew number - extend expiry by 30 days
       // Can renew active or restricted numbers
+      // One-time OTP numbers cannot be renewed
+      if (number.number_type === "one_time_otp") {
+        return NextResponse.json(
+          { error: "One-time OTP numbers cannot be renewed" },
+          { status: 400 }
+        );
+      }
+
       if (number.status === "cancelled") {
         return NextResponse.json(
           { error: "Cannot renew a cancelled number" },
+          { status: 400 }
+        );
+      }
+
+      if (!number.expires_at) {
+        return NextResponse.json(
+          { error: "Number does not have an expiry date" },
           { status: 400 }
         );
       }

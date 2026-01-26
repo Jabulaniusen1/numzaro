@@ -20,6 +20,7 @@ interface NumberCardProps {
     pending_otp_count?: number;
     created_at: string;
     expires_at: string;
+    number_type?: string;
   };
 }
 
@@ -43,20 +44,36 @@ export function NumberCard({ number }: NumberCardProps) {
             </CardTitle>
             <CardDescription>{number.country_name}</CardDescription>
           </div>
-          <Badge className={statusColors[number.status] || ""}>
-            {number.status}
-          </Badge>
+          <div className="flex flex-col gap-1 items-end">
+            <Badge className={statusColors[number.status] || ""}>
+              {number.status}
+            </Badge>
+            {number.number_type && (
+              <Badge
+                variant="outline"
+                className={
+                  number.number_type === "one_time_otp"
+                    ? "text-xs border-amber-500 text-amber-700 dark:text-amber-400"
+                    : "text-xs"
+                }
+              >
+                {number.number_type === "one_time_otp" ? "One-Time" : "Subscription"}
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">Monthly Cost</p>
-              <p className="font-semibold">
-                {formatCurrency(number.monthly_cost)}
-              </p>
-            </div>
+            {number.number_type !== "one_time_otp" && (
+              <div>
+                <p className="text-muted-foreground">Monthly Cost</p>
+                <p className="font-semibold">
+                  {formatCurrency(number.monthly_cost)}
+                </p>
+              </div>
+            )}
             <div>
               <p className="text-muted-foreground">Messages</p>
               <p className="font-semibold">{number.message_count || 0}</p>
@@ -67,12 +84,14 @@ export function NumberCard({ number }: NumberCardProps) {
                 <p className="font-semibold">{number.pending_otp_count}</p>
               </div>
             )}
-            <div>
-              <p className="text-muted-foreground">Expires</p>
-              <p className="font-semibold text-xs">
-                {format(new Date(number.expires_at), "MMM d, yyyy")}
-              </p>
-            </div>
+            {number.number_type !== "one_time_otp" && number.expires_at && (
+              <div>
+                <p className="text-muted-foreground">Expires</p>
+                <p className="font-semibold text-xs">
+                  {format(new Date(number.expires_at), "MMM d, yyyy")}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2">

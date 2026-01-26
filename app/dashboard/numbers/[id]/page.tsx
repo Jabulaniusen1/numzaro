@@ -18,12 +18,13 @@ interface VirtualNumber {
   country_code: string;
   country_name: string;
   status: string;
-  monthly_cost: number;
+  monthly_cost: number | null;
   message_count?: number;
   otp_count?: number;
   created_at: string;
-  expires_at: string;
+  expires_at: string | null;
   capabilities: string[];
+  number_type?: string;
 }
 
 export default function NumberDetailPage() {
@@ -130,12 +131,14 @@ export default function NumberDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <CardDescription>Monthly Fee</CardDescription>
-            <CardTitle>${number.monthly_cost.toFixed(2)} USD</CardTitle>
-          </CardHeader>
-        </Card>
+        {number.number_type !== "one_time_otp" && number.monthly_cost !== null && (
+          <Card>
+            <CardHeader>
+              <CardDescription>Monthly Fee</CardDescription>
+              <CardTitle>${number.monthly_cost.toFixed(2)} USD</CardTitle>
+            </CardHeader>
+          </Card>
+        )}
         <Card>
           <CardHeader>
             <CardDescription>Total Messages</CardDescription>
@@ -158,8 +161,9 @@ export default function NumberDetailPage() {
               numberId={number.id}
               phoneNumber={number.phone_number}
               status={number.status}
-              monthlyCost={number.monthly_cost}
-              expiresAt={number.expires_at}
+              monthlyCost={number.monthly_cost || 0}
+              expiresAt={number.expires_at || undefined}
+              numberType={number.number_type}
               onRenewed={fetchNumber}
               onReleased={() => router.push("/dashboard/numbers")}
             />
@@ -187,12 +191,14 @@ export default function NumberDetailPage() {
                 {format(new Date(number.created_at), "MMM d, yyyy")}
               </p>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Expires</p>
-              <p className="font-medium">
-                {format(new Date(number.expires_at), "MMM d, yyyy")}
-              </p>
-            </div>
+            {number.number_type !== "one_time_otp" && number.expires_at && (
+              <div>
+                <p className="text-sm text-muted-foreground">Expires</p>
+                <p className="font-medium">
+                  {format(new Date(number.expires_at), "MMM d, yyyy")}
+                </p>
+              </div>
+            )}
           </div>
           <div>
             <p className="text-sm text-muted-foreground mb-2">Capabilities</p>

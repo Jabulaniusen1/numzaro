@@ -160,6 +160,80 @@ export async function getNumberCostEstimate(
   };
 }
 
+/**
+ * Get one-time OTP pricing settings from admin settings
+ * Returns pricing type and value
+ */
+export async function getOneTimeOTPPricingSettings(): Promise<{
+  type: "percentage" | "fixed";
+  percentage: number;
+  fixed: number;
+}> {
+  try {
+    if (typeof window !== "undefined") {
+      // Client-side: return defaults
+      return {
+        type: "percentage",
+        percentage: 20.0,
+        fixed: 1.0,
+      };
+    }
+
+    // Server-side: fetch from database
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+
+    const [typeResult, percentageResult, fixedResult] = await Promise.all([
+      supabase
+        .from("admin_settings")
+        .select("value")
+        .eq("key", "one_time_otp_pricing_type")
+        .single(),
+      supabase
+        .from("admin_settings")
+        .select("value")
+        .eq("key", "one_time_otp_pricing_percentage")
+        .single(),
+      supabase
+        .from("admin_settings")
+        .select("value")
+        .eq("key", "one_time_otp_pricing_fixed")
+        .single(),
+    ]);
+
+    return {
+      type: (typeResult.data?.value || "percentage") as "percentage" | "fixed",
+      percentage: percentageResult.data
+        ? parseFloat(percentageResult.data.value)
+        : 20.0,
+      fixed: fixedResult.data ? parseFloat(fixedResult.data.value) : 1.0,
+    };
+  } catch (error) {
+    console.error("Error fetching one-time OTP pricing settings:", error);
+    return {
+      type: "percentage",
+      percentage: 20.0,
+      fixed: 1.0,
+    };
+  }
+}
+
+/**
+ * Calculate one-time OTP number pricing based on monthly cost and admin settings
+ */
+export async function getOneTimeOTPPricing(
+  monthlyCost: number
+): Promise<number> {
+  const settings = await getOneTimeOTPPricingSettings();
+
+  if (settings.type === "fixed") {
+    return settings.fixed;
+  } else {
+    // Percentage of monthly cost
+    return monthlyCost * (settings.percentage / 100);
+  }
+}
+
 
 
 

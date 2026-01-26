@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Phone, DollarSign, TrendingUp } from "lucide-react";
+import { ArrowLeft, Loader2, Phone, DollarSign, TrendingUp, Settings } from "lucide-react";
 
 interface Stats {
   totalRevenue: number;
@@ -29,10 +31,67 @@ export default function AdminNumbersPage() {
   const { format } = useCurrency();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pricingType, setPricingType] = useState<"percentage" | "fixed">("percentage");
+  const [percentage, setPercentage] = useState<string>("20");
+  const [fixed, setFixed] = useState<string>("1.00");
+  const [loadingPricing, setLoadingPricing] = useState(false);
+  const [savingPricing, setSavingPricing] = useState(false);
 
   useEffect(() => {
     fetchStats();
+    fetchPricingSettings();
   }, []);
+
+  const fetchPricingSettings = async () => {
+    setLoadingPricing(true);
+    try {
+      const response = await fetch("/api/admin/numbers/one-time-pricing");
+      if (response.ok) {
+        const data = await response.json();
+        setPricingType(data.pricingType || "percentage");
+        setPercentage(data.percentage?.toString() || "20");
+        setFixed(data.fixed?.toString() || "1.00");
+      }
+    } catch (error) {
+      console.error("Error fetching pricing settings:", error);
+    } finally {
+      setLoadingPricing(false);
+    }
+  };
+
+  const savePricingSettings = async () => {
+    setSavingPricing(true);
+    try {
+      const response = await fetch("/api/admin/numbers/one-time-pricing", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pricingType,
+          percentage: parseFloat(percentage),
+          fixed: parseFloat(fixed),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save settings");
+      }
+
+      toast({
+        title: "Success",
+        description: "One-time OTP pricing settings updated successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save settings",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPricing(false);
+    }
+  };
 
   const fetchStats = async () => {
     setLoading(true);
@@ -176,6 +235,112 @@ export default function AdminNumbersPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* One-Time OTP Pricing Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            One-Time OTP Pricing Configuration
+          </CardTitle>
+          <CardDescription>
+            Configure pricing for one-time OTP numbers. These numbers are automatically released after receiving the first OTP.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loadingPricing ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              <div>
+                <Label className="mb-2 block">Pricing Type</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPricingType("percentage")}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      pricingType === "percentage"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <p className="font-medium">Percentage</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Percentage of monthly cost
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPricingType("fixed")}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      pricingType === "fixed"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <p className="font-medium">Fixed Amount</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Fixed price in USD
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {pricingType === "percentage" ? (
+                <div>
+                  <Label htmlFor="percentage">Percentage of Monthly Cost (%)</Label>
+                  <Input
+                    id="percentage"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={percentage}
+                    onChange={(e) => setPercentage(e.target.value)}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Example: 20% means one-time price = 20% of monthly subscription cost
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="fixed">Fixed Price (USD)</Label>
+                  <Input
+                    id="fixed"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={fixed}
+                    onChange={(e) => setFixed(e.target.value)}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Fixed price in USD for all one-time OTP numbers
+                  </p>
+                </div>
+              )}
+
+              <Button
+                onClick={savePricingSettings}
+                disabled={savingPricing}
+                className="w-full"
+              >
+                {savingPricing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Settings"
+                )}
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

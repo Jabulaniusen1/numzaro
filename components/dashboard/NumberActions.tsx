@@ -22,7 +22,8 @@ interface NumberActionsProps {
   phoneNumber: string;
   status: string;
   monthlyCost: number;
-  expiresAt: string;
+  expiresAt?: string;
+  numberType?: string;
   onRenewed?: () => void;
   onReleased?: () => void;
 }
@@ -33,6 +34,7 @@ export function NumberActions({
   status,
   monthlyCost,
   expiresAt,
+  numberType,
   onRenewed,
   onReleased,
 }: NumberActionsProps) {
@@ -113,11 +115,12 @@ export function NumberActions({
     }
   };
 
-  const isExpired = new Date(expiresAt) < new Date();
+  const isExpired = expiresAt ? new Date(expiresAt) < new Date() : false;
+  const isOneTime = numberType === "one_time_otp";
 
   return (
     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-      {status === "active" && (
+      {status === "active" && !isOneTime && (
         <>
           <Button
             onClick={handleRenew}
@@ -179,7 +182,7 @@ export function NumberActions({
         </>
       )}
 
-      {isExpired && status !== "cancelled" && (
+      {isExpired && status !== "cancelled" && !isOneTime && (
         <Button
           onClick={handleRenew}
           disabled={renewing || releasing}

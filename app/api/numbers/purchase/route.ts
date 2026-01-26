@@ -18,11 +18,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { phoneNumber, countryCode } = body;
+    const { phoneNumber, countryCode, numberType = "subscription" } = body;
 
     if (!phoneNumber || !countryCode) {
       return NextResponse.json(
         { error: "phoneNumber and countryCode are required" },
+        { status: 400 }
+      );
+    }
+
+    if (numberType !== "subscription" && numberType !== "one_time_otp") {
+      return NextResponse.json(
+        { error: "Invalid numberType. Must be 'subscription' or 'one_time_otp'" },
         { status: 400 }
       );
     }
@@ -32,6 +39,15 @@ export async function POST(request: NextRequest) {
     const twilioMonthlyCost = 1.0; // Base Twilio cost
     const monthlyCost = await getDefaultMonthlyCost(countryCode, markupPercentage);
     const countryName = getCountryName(countryCode);
+
+    // Calculate actual cost based on number type
+    let actualCost: number;
+    if (numberType === "one_time_otp") {
+      const { getOneTimeOTPPricing } = await import("@/lib/twilio/costs");
+      actualCost = await getOneTimeOTPPricing(monthlyCost);
+    } else {
+      actualCost = monthlyCost;
+    }
 
     // Get webhook URL - construct from NEXT_PUBLIC_APP_URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
@@ -48,11 +64,11 @@ export async function POST(request: NextRequest) {
 
     const currentBalance = parseFloat(userProfile?.wallet_balance || "0.00");
 
-    if (currentBalance < monthlyCost) {
+    if (currentBalance < actualCost) {
       return NextResponse.json(
         {
           error: "Insufficient wallet balance",
-          required: monthlyCost,
+          required: actualCost,
           available: currentBalance,
         },
         { status: 400 }
@@ -98,8 +114,8 @@ export async function POST(request: NextRequest) {
     // Step 3: Deduct from wallet
     const walletResult = await purchaseWithWallet(
       user.id,
-      monthlyCost,
-      `Virtual number purchase: ${purchasedNumber.phoneNumber}`
+      actualCost,
+      `Virtual number purchase: ${purchasedNumber.phoneNumber} (${numberType})`
     );
 
     if (!walletResult.success) {
@@ -120,20 +136,37 @@ export async function POST(request: NextRequest) {
     // Step 4: Create database records
     try {
       // Create virtual_number record
+      // For one-time OTP numbers, don't set monthly_cost or expires_at
+      const expiresAt =
+        numberType === "one_time_otp"
+          ? null // No expiry for one-time numbers
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days for subscription
+
+      const insertData: any = {
+        user_id: user.id,
+        phone_number: purchasedNumber.phoneNumber,
+        country_code: countryCode,
+        country_name: countryName,
+        twilio_sid: purchasedNumber.sid,
+        status: "active",
+        capabilities: purchasedNumber.capabilities.SMS ? ["sms"] : [],
+        twilio_monthly_cost: twilioMonthlyCost,
+        number_type: numberType,
+      };
+
+      // Only set monthly_cost and expires_at for subscription numbers
+      if (numberType === "subscription") {
+        insertData.monthly_cost = monthlyCost;
+        insertData.expires_at = expiresAt;
+      } else {
+        // For one-time numbers, set to null
+        insertData.monthly_cost = null;
+        insertData.expires_at = null;
+      }
+
       const { data: virtualNumber, error: numberError } = await supabase
         .from("virtual_numbers")
-        .insert({
-          user_id: user.id,
-          phone_number: purchasedNumber.phoneNumber,
-          country_code: countryCode,
-          country_name: countryName,
-          twilio_sid: purchasedNumber.sid,
-          status: "active",
-          capabilities: purchasedNumber.capabilities.SMS ? ["sms"] : [],
-          monthly_cost: monthlyCost,
-          twilio_monthly_cost: twilioMonthlyCost,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -150,7 +183,7 @@ export async function POST(request: NextRequest) {
 
         await refundToWallet(
           user.id,
-          monthlyCost,
+          actualCost,
           `Refund for failed number purchase: ${purchasedNumber.phoneNumber}`
         );
 
@@ -166,7 +199,7 @@ export async function POST(request: NextRequest) {
         .insert({
           user_id: user.id,
           virtual_number_id: virtualNumber.id,
-          amount: monthlyCost,
+          amount: actualCost,
           currency: "USD",
           status: "completed",
           wallet_transaction_id: walletResult.walletTransactionId,
@@ -186,10 +219,11 @@ export async function POST(request: NextRequest) {
           charge_type: "number_purchase",
           twilio_sid: purchasedNumber.sid,
           actual_cost: twilioMonthlyCost,
-          user_charged: monthlyCost,
+          user_charged: actualCost,
           metadata: {
             phone_number: purchasedNumber.phoneNumber,
             country_code: countryCode,
+            number_type: numberType,
           },
         });
 
@@ -204,12 +238,13 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         type: "transaction",
         title: "Virtual Number Purchased",
-        message: `Successfully purchased ${purchasedNumber.phoneNumber}`,
+        message: `Successfully purchased ${purchasedNumber.phoneNumber} (${numberType === "one_time_otp" ? "One-Time OTP" : "Subscription"})`,
         data: {
           type: "number_purchased",
           number: purchasedNumber.phoneNumber,
           number_id: virtualNumber.id,
-          amount: monthlyCost,
+          amount: actualCost,
+          number_type: numberType,
         },
       });
 
@@ -222,6 +257,7 @@ export async function POST(request: NextRequest) {
           country_name: virtualNumber.country_name,
           status: virtualNumber.status,
           monthly_cost: virtualNumber.monthly_cost,
+          number_type: virtualNumber.number_type,
         },
       });
     } catch (dbError: any) {
@@ -235,11 +271,11 @@ export async function POST(request: NextRequest) {
         console.error("Error releasing number:", releaseError);
       }
 
-      await refundToWallet(
-        user.id,
-        monthlyCost,
-        `Refund for failed number purchase: ${purchasedNumber.phoneNumber}`
-      );
+        await refundToWallet(
+          user.id,
+          actualCost,
+          `Refund for failed number purchase: ${purchasedNumber.phoneNumber}`
+        );
 
       return NextResponse.json(
         { error: "Failed to create database record" },

@@ -22,11 +22,78 @@ export async function GET(request: NextRequest) {
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
 
     // Get all active and restricted numbers (to handle grace period)
+    // Exclude one-time OTP numbers as they are not renewed
     const { data: numbers, error: numbersError } = await supabase
       .from("virtual_numbers")
       .select("*")
       .in("status", ["active", "restricted"])
+      .eq("number_type", "subscription") // Only process subscription numbers
       .order("expires_at", { ascending: true });
+
+    // Also get one-time OTP numbers that are older than 7 days and haven't received an OTP
+    // This is a safety mechanism to auto-release numbers that haven't been used
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const { data: oneTimeNumbers, error: oneTimeError } = await supabase
+      .from("virtual_numbers")
+      .select("*")
+      .eq("number_type", "one_time_otp")
+      .eq("status", "active")
+      .lt("created_at", sevenDaysAgo.toISOString());
+
+    // Process one-time numbers that need cleanup
+    if (oneTimeNumbers && oneTimeNumbers.length > 0) {
+      for (const oneTimeNumber of oneTimeNumbers) {
+        // Check if number has received any OTP
+        const { count: otpCount } = await supabase
+          .from("otp_codes")
+          .select("*", { count: "exact", head: true })
+          .eq("number_id", oneTimeNumber.id);
+
+        // If no OTP received, auto-release
+        if (otpCount === 0) {
+          try {
+            const { releaseNumber } = await import("@/lib/twilio/numbers");
+            await releaseNumber(oneTimeNumber.twilio_sid);
+
+            await supabase
+              .from("virtual_numbers")
+              .update({ status: "cancelled" })
+              .eq("id", oneTimeNumber.id);
+
+            // Fetch user for notification
+            const { data: user } = await supabase
+              .from("users")
+              .select("id, email")
+              .eq("id", oneTimeNumber.user_id)
+              .single();
+
+            if (user) {
+              await supabase.from("notifications").insert({
+                user_id: oneTimeNumber.user_id,
+                type: "transaction",
+                title: "One-Time Number Auto-Released",
+                message: `Your number ${oneTimeNumber.phone_number} has been automatically released after 7 days without receiving an OTP.`,
+                data: {
+                  type: "number_auto_released",
+                  number: oneTimeNumber.phone_number,
+                  number_id: oneTimeNumber.id,
+                  reason: "no_otp_received_7_days",
+                },
+              });
+            }
+
+            console.log(`[Renewal] Auto-released one-time number ${oneTimeNumber.phone_number} (no OTP received)`);
+          } catch (releaseError: any) {
+            console.error(`[Renewal] Error auto-releasing one-time number ${oneTimeNumber.phone_number}:`, releaseError);
+            // Still update status
+            await supabase
+              .from("virtual_numbers")
+              .update({ status: "cancelled" })
+              .eq("id", oneTimeNumber.id);
+          }
+        }
+      }
+    }
 
     if (numbersError) {
       console.error("Error fetching numbers:", numbersError);

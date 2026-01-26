@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     // Try exact match first
     const { data: exactMatch, error: exactError } = await supabase
       .from("virtual_numbers")
-      .select("id, user_id, phone_number")
+      .select("id, user_id, phone_number, number_type, twilio_sid, status")
       .eq("phone_number", webhookData.To)
       .maybeSingle();
     
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       const toWithoutPlus = webhookData.To.startsWith("+") ? webhookData.To.slice(1) : webhookData.To;
       const { data: noPlusMatch, error: noPlusError } = await supabase
         .from("virtual_numbers")
-        .select("id, user_id, phone_number")
+        .select("id, user_id, phone_number, number_type, twilio_sid, status")
         .eq("phone_number", toWithoutPlus)
         .maybeSingle();
       
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
         const toWithPlus = webhookData.To.startsWith("+") ? webhookData.To : `+${webhookData.To}`;
         const { data: withPlusMatch, error: withPlusError } = await supabase
           .from("virtual_numbers")
-          .select("id, user_id, phone_number")
+          .select("id, user_id, phone_number, number_type, twilio_sid, status")
           .eq("phone_number", toWithPlus)
           .maybeSingle();
         
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
       const normalizedTo = webhookData.To.replace(/\s+/g, "").trim();
       const { data: normalizedMatch } = await supabase
         .from("virtual_numbers")
-        .select("id, user_id, phone_number")
+        .select("id, user_id, phone_number, number_type, twilio_sid, status")
         .ilike("phone_number", `%${normalizedTo.replace(/^\+/, "")}%`)
         .maybeSingle();
       
@@ -434,6 +434,66 @@ export async function POST(request: NextRequest) {
             otp_id: otpCode.id,
           },
         });
+
+        // Auto-release one-time OTP numbers after first OTP is received
+        if (virtualNumber.number_type === "one_time_otp" && virtualNumber.status === "active") {
+          try {
+            console.log("[SMS Webhook] Auto-releasing one-time OTP number:", {
+              numberId: virtualNumber.id,
+              phoneNumber: virtualNumber.phone_number,
+              twilioSid: virtualNumber.twilio_sid,
+            });
+
+            // Release number from Twilio
+            const { releaseNumber } = await import("@/lib/twilio/numbers");
+            await releaseNumber(virtualNumber.twilio_sid);
+
+            // Update number status to cancelled
+            await supabase
+              .from("virtual_numbers")
+              .update({ status: "cancelled" })
+              .eq("id", virtualNumber.id);
+
+            // Create notification about number release
+            await supabase.from("notifications").insert({
+              user_id: virtualNumber.user_id,
+              type: "transaction",
+              title: "One-Time Number Released",
+              message: `Your number ${virtualNumber.phone_number} has been released after receiving the OTP.`,
+              data: {
+                type: "number_released",
+                number: virtualNumber.phone_number,
+                number_id: virtualNumber.id,
+                reason: "one_time_otp_completed",
+                otp_code: otpResult.code,
+              },
+            });
+
+            console.log("[SMS Webhook] Successfully released one-time OTP number:", virtualNumber.phone_number);
+          } catch (releaseError: any) {
+            console.error("[SMS Webhook] Error releasing one-time OTP number:", releaseError);
+            
+            // Still update status even if Twilio release fails
+            await supabase
+              .from("virtual_numbers")
+              .update({ status: "cancelled" })
+              .eq("id", virtualNumber.id);
+
+            // Notify user about the issue
+            await supabase.from("notifications").insert({
+              user_id: virtualNumber.user_id,
+              type: "transaction",
+              title: "Number Release Issue",
+              message: `Your one-time number ${virtualNumber.phone_number} has been marked as cancelled. There was an issue releasing it from Twilio.`,
+              data: {
+                type: "number_release_error",
+                number: virtualNumber.phone_number,
+                number_id: virtualNumber.id,
+                error: releaseError.message,
+              },
+            });
+          }
+        }
       }
     } else {
       // Create notification for regular message

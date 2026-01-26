@@ -35,12 +35,34 @@ export function NumberPurchaseModal({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [numberType, setNumberType] = useState<"subscription" | "one_time_otp">("subscription");
+  const [oneTimePrice, setOneTimePrice] = useState<number | null>(null);
+  const [loadingPrice, setLoadingPrice] = useState(false);
 
   useEffect(() => {
     if (open && number) {
       fetchWalletBalance();
+      fetchOneTimePrice();
     }
-  }, [open, number, currency]);
+  }, [open, number, currency, numberType]);
+
+  const fetchOneTimePrice = async () => {
+    if (!number) return;
+    setLoadingPrice(true);
+    try {
+      const response = await fetch(
+        `/api/numbers/one-time-price?monthlyCost=${number.monthly_cost}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setOneTimePrice(data.price);
+      }
+    } catch (error) {
+      console.error("Error fetching one-time price:", error);
+    } finally {
+      setLoadingPrice(false);
+    }
+  };
 
   const fetchWalletBalance = async () => {
     try {
@@ -67,6 +89,7 @@ export function NumberPurchaseModal({
         body: JSON.stringify({
           phoneNumber: number.phoneNumber,
           countryCode: number.countryCode,
+          numberType: numberType,
         }),
       });
 
@@ -110,9 +133,14 @@ export function NumberPurchaseModal({
     ? (currency === "USD" ? walletBalance / rate : walletBalance)
     : null;
   
-  // Convert monthly cost (USD) to selected currency for comparison
-  const monthlyCostInSelectedCurrency = convert(number.monthly_cost);
-  const hasEnoughBalance = balanceInSelectedCurrency !== null && balanceInSelectedCurrency >= monthlyCostInSelectedCurrency;
+  // Calculate actual cost based on number type
+  const actualCost = numberType === "one_time_otp" 
+    ? (oneTimePrice || 0)
+    : number.monthly_cost;
+  
+  // Convert cost (USD) to selected currency for comparison
+  const costInSelectedCurrency = convert(actualCost);
+  const hasEnoughBalance = balanceInSelectedCurrency !== null && balanceInSelectedCurrency >= costInSelectedCurrency;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -131,18 +159,67 @@ export function NumberPurchaseModal({
           </div>
 
           <div>
-            <p className="text-sm text-muted-foreground">Monthly Fee</p>
-            <p className="text-2xl font-bold">
-              {format(convert(number.monthly_cost))} {currency}
+            <p className="text-sm text-muted-foreground mb-3">Number Type</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setNumberType("subscription")}
+                className={`p-3 rounded-lg border-2 text-left transition-all ${
+                  numberType === "subscription"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                <p className="font-medium">Subscription</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Monthly recurring
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNumberType("one_time_otp")}
+                className={`p-3 rounded-lg border-2 text-left transition-all ${
+                  numberType === "one_time_otp"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                <p className="font-medium">One-Time OTP</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Auto-released after OTP
+                </p>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm text-muted-foreground">
+              {numberType === "one_time_otp" ? "One-Time Price" : "Monthly Fee"}
             </p>
-            {currency === "NGN" && (
-              <p className="text-xs text-muted-foreground mt-1">
-                ≈ ${number.monthly_cost.toFixed(2)} USD
-              </p>
+            {numberType === "one_time_otp" && loadingPrice ? (
+              <p className="text-2xl font-bold">Loading...</p>
+            ) : (
+              <>
+                <p className="text-2xl font-bold">
+                  {format(costInSelectedCurrency)} {currency}
+                </p>
+                {currency === "NGN" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ≈ ${actualCost.toFixed(2)} USD
+                  </p>
+                )}
+                {numberType === "subscription" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Additional charges apply per SMS received
+                  </p>
+                )}
+                {numberType === "one_time_otp" && (
+                  <p className="text-xs text-muted-foreground mt-1 text-amber-600 dark:text-amber-400">
+                    Number will be released automatically after first OTP is received
+                  </p>
+                )}
+              </>
             )}
-            <p className="text-xs text-muted-foreground mt-1">
-              Additional charges apply per SMS received
-            </p>
           </div>
 
           <div>
@@ -156,7 +233,7 @@ export function NumberPurchaseModal({
 
           {balanceInSelectedCurrency !== null && !hasEnoughBalance && (
             <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-              Insufficient balance. You need {format(monthlyCostInSelectedCurrency)} but have{" "}
+              Insufficient balance. You need {format(costInSelectedCurrency)} but have{" "}
               {format(balanceInSelectedCurrency)}
             </div>
           )}
@@ -172,7 +249,7 @@ export function NumberPurchaseModal({
           </Button>
           <Button
             onClick={handlePurchase}
-            disabled={loading || !hasEnoughBalance}
+            disabled={loading || loadingPrice || !hasEnoughBalance || (numberType === "one_time_otp" && oneTimePrice === null)}
           >
             {loading ? "Processing..." : "Purchase"}
           </Button>
