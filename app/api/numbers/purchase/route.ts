@@ -34,6 +34,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Israel numbers cannot be purchased as one-time OTP
+    if (numberType === "one_time_otp" && countryCode.toUpperCase() === "IL") {
+      return NextResponse.json(
+        { error: "One-time OTP numbers are not available for Israel. Please select subscription instead." },
+        { status: 400 }
+      );
+    }
+
     // Calculate pricing with current markup
     const markupPercentage = await getPhoneNumbersMarkup();
     const twilioMonthlyCost = 1.0; // Base Twilio cost
@@ -93,20 +101,33 @@ export async function POST(request: NextRequest) {
       
       // Provide helpful error messages for common issues
       let errorMessage = twilioError.message || "Failed to purchase number";
+      const errorCode = twilioError.code;
       
-      // Handle bundle requirement errors
-      if (errorMessage.toLowerCase().includes("bundle") || 
-          errorMessage.toLowerCase().includes("regulatory") ||
-          errorMessage.toLowerCase().includes("compliance")) {
-        errorMessage = `This mobile number requires a Twilio Bundle for regulatory compliance in ${countryName}. ` +
-          `\n\nTo fix this:\n` +
-          `1. Try selecting a "Local" number type instead (filter by "Local" in the filters)\n` +
-          `2. Or choose a different country that doesn't require bundles\n\n` +
-          `Note: Bundles require address verification and business registration in Twilio, which is not available through this platform.`;
+      // Handle bundle requirement errors - check for specific Twilio error codes
+      // Twilio error codes for bundles: 21215, 21216, or messages containing bundle/regulatory/compliance
+      const isBundleError = 
+        errorCode === 21215 || // Phone number requires a bundle
+        errorCode === 21216 || // Phone number requires address verification
+        errorCode === 21211 || // Invalid phone number (sometimes used for bundle requirements)
+        errorMessage.toLowerCase().includes("bundle") || 
+        errorMessage.toLowerCase().includes("regulatory") ||
+        errorMessage.toLowerCase().includes("compliance") ||
+        errorMessage.toLowerCase().includes("address verification") ||
+        errorMessage.toLowerCase().includes("business registration");
+      
+      if (isBundleError) {
+        const displayCountry = countryName && countryName !== countryCode ? countryName : countryCode;
+        errorMessage = `This number requires a Twilio Bundle for regulatory compliance in ${displayCountry}, which is not available through this platform. ` +
+          `\n\nPlease try:\n` +
+          `1. Selecting a "Local" number type instead (filter by "Local" in the filters)\n` +
+          `2. Choosing a different country that doesn't require bundles\n` +
+          `3. Selecting a different number from the search results\n\n` +
+          `Note: We filter out numbers that require bundles from search results, but some may still appear due to Twilio API limitations. ` +
+          `If you see this error, please try a different number.`;
       }
       
       return NextResponse.json(
-        { error: errorMessage },
+        { error: errorMessage, errorCode: errorCode, isBundleError },
         { status: 500 }
       );
     }

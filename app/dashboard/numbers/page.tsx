@@ -177,12 +177,11 @@ export default function NumbersPage() {
     // Filter numbers based on search, capabilities, and number type
     let filtered = [...numbers];
 
-    // Filter by number type (mobile numbers are excluded as they require bundles)
+    // Filter by number type
     if (numberTypeFilter !== "all") {
       filtered = filtered.filter((n) => {
         const type = n.numberType || "local";
-        // Mobile numbers are not available (require bundles)
-        if (numberTypeFilter === "mobile") return false;
+        if (numberTypeFilter === "mobile") return type === "mobile";
         if (numberTypeFilter === "local") return type === "local";
         if (numberTypeFilter === "tollFree") return type === "tollFree";
         return true;
@@ -221,11 +220,10 @@ export default function NumbersPage() {
     }
     
     try {
-      // Fetch number types in parallel - Skip mobile numbers as they often require bundles
-      // Mobile numbers require Twilio Bundles for regulatory compliance in many countries
-      // which need address verification and business registration, so we exclude them
-      const [localResponse, tollFreeResponse] = await Promise.allSettled([
+      // Fetch number types in parallel - Include mobile numbers but handle bundle requirements gracefully
+      const [localResponse, mobileResponse, tollFreeResponse] = await Promise.allSettled([
         fetch(`/api/numbers/search?country=${country}&type=local&capabilities=SMS&page=${page}&pageSize=50`),
+        fetch(`/api/numbers/search?country=${country}&type=mobile&capabilities=SMS&page=${page}&pageSize=50`),
         fetch(`/api/numbers/search?country=${country}&type=tollFree&capabilities=SMS&page=${page}&pageSize=50`),
       ]);
 
@@ -241,8 +239,39 @@ export default function NumbersPage() {
         }
       }
 
-      // Skip mobile numbers - they often require Twilio Bundles for regulatory compliance
-      // which need address verification and business registration
+      // Process mobile numbers - only include if they don't require bundles
+      // The API endpoint filters out countries known to require bundles
+      if (mobileResponse.status === "fulfilled" && mobileResponse.value.ok) {
+        const data = await mobileResponse.value.json();
+        if (data.numbers && data.numbers.length > 0) {
+          allNumbers.push(...data.numbers);
+          newHasMore.mobile = data.pagination?.hasMore || false;
+        } else if (data.message) {
+          // API returned a message (likely bundle-related) - log it
+          console.log(`[Numbers] ${data.message}`);
+        }
+      } else if (mobileResponse.status === "fulfilled" && !mobileResponse.value.ok) {
+        // Check if error is bundle-related - if so, silently skip mobile numbers
+        try {
+          const errorData = await mobileResponse.value.json();
+          if (errorData.error && (
+            errorData.error.toLowerCase().includes("bundle") ||
+            errorData.error.toLowerCase().includes("regulatory") ||
+            errorData.error.toLowerCase().includes("compliance")
+          )) {
+            // Mobile numbers require bundles in this country - skip silently
+            console.log(`[Numbers] Mobile numbers require bundles for ${country}, skipping`);
+          } else if (errorData.message) {
+            // API provided a message about bundle requirements
+            console.log(`[Numbers] ${errorData.message}`);
+          } else {
+            // Other error - log but continue
+            console.warn("[Numbers] Mobile number search error:", errorData.error);
+          }
+        } catch {
+          // Couldn't parse error - continue silently
+        }
+      }
 
       // Process toll-free numbers
       if (tollFreeResponse.status === "fulfilled" && tollFreeResponse.value.ok) {
@@ -253,12 +282,13 @@ export default function NumbersPage() {
         }
       }
 
-      // Check for errors
+      // Check for errors (excluding mobile bundle errors which are handled above)
       const errors: string[] = [];
       if (localResponse.status === "rejected") errors.push("Local numbers: " + localResponse.reason);
       if (tollFreeResponse.status === "rejected") errors.push("Toll-free numbers: " + tollFreeResponse.reason);
+      // Don't add mobile errors if they're bundle-related (handled above)
 
-      // Try to get error messages from failed responses
+      // Try to get error messages from failed responses (excluding mobile bundle errors)
       const errorPromises = [
         localResponse.status === "fulfilled" && !localResponse.value.ok ? localResponse.value.json() : null,
         tollFreeResponse.status === "fulfilled" && !tollFreeResponse.value.ok ? tollFreeResponse.value.json() : null,
@@ -273,13 +303,13 @@ export default function NumbersPage() {
         });
       }
 
-      // Sort numbers: Local first, then Toll-Free, then by price
+      // Sort numbers: Local first, then Mobile, then Toll-Free, then by price
       const sortedNumbers = allNumbers.sort((a, b) => {
-        // First sort by type priority: local > tollFree
-        const typeOrder = { local: 0, tollFree: 1 };
+        // First sort by type priority: local > mobile > tollFree
+        const typeOrder = { local: 0, mobile: 1, tollFree: 2 };
         const aType = a.numberType || "local";
         const bType = b.numberType || "local";
-        const typeDiff = (typeOrder[aType as keyof typeof typeOrder] ?? 1) - (typeOrder[bType as keyof typeof typeOrder] ?? 1);
+        const typeDiff = (typeOrder[aType as keyof typeof typeOrder] ?? 2) - (typeOrder[bType as keyof typeof typeOrder] ?? 2);
         if (typeDiff !== 0) return typeDiff;
         // Then sort by price (ascending)
         return (a.monthly_cost || 0) - (b.monthly_cost || 0);
@@ -296,10 +326,10 @@ export default function NumbersPage() {
           const combined = [...prev, ...newNumbers];
           // Re-sort combined list
           return combined.sort((a, b) => {
-            const typeOrder = { local: 0, tollFree: 1 };
+            const typeOrder = { local: 0, mobile: 1, tollFree: 2 };
             const aType = a.numberType || "local";
             const bType = b.numberType || "local";
-            const typeDiff = (typeOrder[aType as keyof typeof typeOrder] ?? 1) - (typeOrder[bType as keyof typeof typeOrder] ?? 1);
+            const typeDiff = (typeOrder[aType as keyof typeof typeOrder] ?? 2) - (typeOrder[bType as keyof typeof typeOrder] ?? 2);
             if (typeDiff !== 0) return typeDiff;
             return (a.monthly_cost || 0) - (b.monthly_cost || 0);
           });
@@ -338,8 +368,8 @@ export default function NumbersPage() {
   };
 
   const loadNextPage = () => {
-    if (!loadingMore && (hasMore.local || hasMore.tollFree)) {
-      const nextPage = Math.max(currentPage.local, currentPage.tollFree) + 1;
+    if (!loadingMore && (hasMore.local || hasMore.mobile || hasMore.tollFree)) {
+      const nextPage = Math.max(currentPage.local, currentPage.mobile, currentPage.tollFree) + 1;
       searchAllNumberTypes(nextPage, false);
     }
   };
@@ -424,11 +454,12 @@ export default function NumbersPage() {
                     <SelectContent>
                       <SelectItem value="all">All Types</SelectItem>
                       <SelectItem value="local">Local</SelectItem>
+                      <SelectItem value="mobile">Mobile</SelectItem>
                       <SelectItem value="tollFree">Toll-Free</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Mobile numbers require bundles and are not available
+                    Only mobile numbers that don't require bundles are shown
                   </p>
                 </div>
                 <div>
@@ -603,11 +634,11 @@ export default function NumbersPage() {
           <div className="mb-4 flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
               Showing {filteredNumbers.length} of {numbers.length} numbers
-              {(hasMore.local || hasMore.tollFree) && (
+              {(hasMore.local || hasMore.mobile || hasMore.tollFree) && (
                 <span className="ml-2 text-xs">(More available)</span>
               )}
             </div>
-            {(hasMore.local || hasMore.tollFree) && (
+            {(hasMore.local || hasMore.mobile || hasMore.tollFree) && (
               <Button
                 onClick={loadNextPage}
                 disabled={loadingMore}
@@ -806,7 +837,7 @@ export default function NumbersPage() {
             );
           })}
           </div>
-          {(hasMore.local || hasMore.tollFree) && filteredNumbers.length > 0 && (
+          {(hasMore.local || hasMore.mobile || hasMore.tollFree) && filteredNumbers.length > 0 && (
             <div className="mt-6 flex justify-center">
               <Button
                 onClick={loadNextPage}

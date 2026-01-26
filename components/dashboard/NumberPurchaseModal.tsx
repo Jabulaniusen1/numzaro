@@ -38,13 +38,21 @@ export function NumberPurchaseModal({
   const [numberType, setNumberType] = useState<"subscription" | "one_time_otp">("subscription");
   const [oneTimePrice, setOneTimePrice] = useState<number | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
+  
+  // Check if country is Israel (IL) - one-time OTP not allowed
+  const isIsrael = number?.countryCode?.toUpperCase() === "IL";
 
   useEffect(() => {
     if (open && number) {
       fetchWalletBalance();
-      fetchOneTimePrice();
+      // Reset to subscription if Israel and one-time was selected
+      if (isIsrael && numberType === "one_time_otp") {
+        setNumberType("subscription");
+      } else if (!isIsrael) {
+        fetchOneTimePrice();
+      }
     }
-  }, [open, number, currency, numberType]);
+  }, [open, number, currency, numberType, isIsrael]);
 
   const fetchOneTimePrice = async () => {
     if (!number) return;
@@ -177,19 +185,27 @@ export function NumberPurchaseModal({
               </button>
               <button
                 type="button"
-                onClick={() => setNumberType("one_time_otp")}
+                onClick={() => !isIsrael && setNumberType("one_time_otp")}
+                disabled={isIsrael}
                 className={`p-3 rounded-lg border-2 text-left transition-all ${
-                  numberType === "one_time_otp"
+                  numberType === "one_time_otp" && !isIsrael
                     ? "border-primary bg-primary/5"
+                    : isIsrael
+                    ? "border-border opacity-50 cursor-not-allowed"
                     : "border-border hover:border-primary/50"
                 }`}
               >
                 <p className="font-medium">One-Time OTP</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Auto-released after OTP
+                  {isIsrael ? "Not available for Israel" : "Auto-released after OTP"}
                 </p>
               </button>
             </div>
+            {isIsrael && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                One-time OTP numbers are not available for Israel. Only subscription numbers can be purchased.
+              </p>
+            )}
           </div>
 
           <div>

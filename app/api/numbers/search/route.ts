@@ -23,6 +23,37 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get("pageSize") || "50", 10);
     const numberType = (searchParams.get("type") || "local") as "local" | "mobile" | "tollFree";
 
+    // Countries where mobile numbers commonly require bundles
+    // These are countries where mobile numbers typically need regulatory compliance/bundles
+    // We exclude mobile numbers from these countries to prevent bundle requirement errors
+    const mobileBundleRequiredCountries = [
+      "IL", // Israel - known to require bundles for mobile
+      "GB", // UK - mobile numbers often require bundles
+      "DE", // Germany - mobile numbers often require bundles
+      "FR", // France - mobile numbers often require bundles
+      "IT", // Italy - mobile numbers often require bundles
+      "ES", // Spain - mobile numbers often require bundles
+      "NL", // Netherlands - mobile numbers often require bundles
+      "BE", // Belgium - mobile numbers often require bundles
+      "AT", // Austria - mobile numbers often require bundles
+      "CH", // Switzerland - mobile numbers often require bundles
+    ];
+
+    // For mobile numbers, be more conservative - skip countries known to require bundles
+    if (numberType === "mobile" && mobileBundleRequiredCountries.includes(countryCode.toUpperCase())) {
+      return NextResponse.json({
+        numbers: [],
+        country_code: countryCode,
+        number_type: numberType,
+        pagination: {
+          page,
+          pageSize,
+          hasMore: false,
+        },
+        message: `Mobile numbers in ${countryCode} typically require Twilio Bundles for regulatory compliance, which are not available through this platform. Please try Local or Toll-Free numbers instead.`,
+      });
+    }
+
     try {
       console.log(`Searching Twilio for ${numberType} numbers in ${countryCode} with capabilities:`, capabilities, `page: ${page}`);
       const result = await searchAvailableNumbers(countryCode, capabilities, page, pageSize, numberType);
