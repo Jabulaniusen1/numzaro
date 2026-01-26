@@ -10,7 +10,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface ComboboxOption {
   value: string;
@@ -54,7 +53,7 @@ export function Combobox({
   }, [options, searchQuery]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -67,7 +66,7 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 z-[60]" align="start">
         <div className="p-2 border-b">
           <Input
             placeholder={searchPlaceholder}
@@ -77,7 +76,7 @@ export function Combobox({
             autoFocus
           />
         </div>
-        <ScrollArea className="h-[300px]">
+        <div className="max-h-[300px] overflow-y-auto">
           {filteredOptions.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               {emptyMessage}
@@ -92,10 +91,16 @@ export function Combobox({
                     "relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
                     value === option.value && "bg-accent text-accent-foreground"
                   )}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     onValueChange?.(option.value);
                     setOpen(false);
                     setSearchQuery("");
+                  }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                   }}
                 >
                   <Check
@@ -109,7 +114,7 @@ export function Combobox({
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );

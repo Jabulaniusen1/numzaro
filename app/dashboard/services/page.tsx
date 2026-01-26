@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,112 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
-import { Combobox } from "@/components/ui/combobox";
-import { Loader2, Info, Clock, DollarSign } from "lucide-react";
+import { Loader2, Info, Clock, DollarSign, ChevronDown, X } from "lucide-react";
+
+interface SearchableSelectProps {
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  id?: string;
+}
+
+function SearchableSelect({ options, value, onChange, placeholder = "Select...", disabled = false, id }: SearchableSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const filteredOptions = useMemo(() => {
+    if (!searchQuery) return options;
+    const query = searchQuery.toLowerCase();
+    return options.filter((option) =>
+      option.label.toLowerCase().includes(query) ||
+      option.value.toLowerCase().includes(query)
+    );
+  }, [options, searchQuery]);
+
+  const selectedOption = options.find((opt) => opt.value === value);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setSearchQuery("");
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div ref={dropdownRef} className="relative w-full">
+      <button
+        type="button"
+        id={id}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className="flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+      >
+        <span className={selectedOption ? "text-foreground" : "text-muted-foreground"}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <ChevronDown className={`h-4 w-4 opacity-50 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95">
+          <div className="p-2 border-b">
+            <Input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setIsOpen(false);
+                  setSearchQuery("");
+                }
+              }}
+            />
+          </div>
+          <div className="max-h-[300px] overflow-auto p-1">
+            {filteredOptions.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                No results found
+              </div>
+            ) : (
+              filteredOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(option.value);
+                    setIsOpen(false);
+                    setSearchQuery("");
+                  }}
+                  className={`relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground ${
+                    value === option.value ? "bg-accent text-accent-foreground" : ""
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Service {
   id: number;
@@ -294,47 +398,47 @@ export default function ServicesPage() {
             {/* Category Selection */}
             <div className="space-y-2">
               <Label htmlFor="category" className="text-base font-semibold">Category</Label>
-              <Combobox
+              <SearchableSelect
+                id="category"
                 options={categories.map((category) => ({
                   value: category,
                   label: category,
                 }))}
                 value={selectedCategory}
-                onValueChange={setSelectedCategory}
+                onChange={setSelectedCategory}
                 placeholder="Select a category"
-                searchPlaceholder="Search categories..."
-                emptyMessage="No categories found"
                 disabled={loading}
               />
           </div>
 
             {/* Service Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="service" className="text-base font-semibold">Service</Label>
-              <Combobox
-                options={filteredServices.map((service) => ({
-                  value: service.id.toString(),
-                  label: service.name,
-                }))}
-                value={selectedServiceId}
-                onValueChange={setSelectedServiceId}
-                placeholder={!selectedCategory ? "Select a category first" : filteredServices.length === 0 ? "No services available" : "Select a service"}
-                searchPlaceholder="Search services..."
-                emptyMessage="No services found"
-                disabled={!selectedCategory || filteredServices.length === 0 || loading}
-              />
-          </div>
+            {selectedCategory && (
+              <div className="space-y-2">
+                <Label htmlFor="service" className="text-base font-semibold">Service</Label>
+                <SearchableSelect
+                  id="service"
+                  options={filteredServices.map((service) => ({
+                    value: service.id.toString(),
+                    label: service.name,
+                  }))}
+                  value={selectedServiceId}
+                  onChange={setSelectedServiceId}
+                  placeholder={filteredServices.length === 0 ? "No services available" : "Select a service"}
+                  disabled={!selectedCategory || filteredServices.length === 0 || loading}
+                />
+              </div>
+            )}
 
             {/* Service Details */}
-            <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20">
-              <CardHeader>
-                {selectedService ? (
+            {selectedService && (
+              <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20">
+                <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle className="text-purple-900 dark:text-purple-100">{selectedService.name}</CardTitle>
                       <CardDescription className="text-purple-700 dark:text-purple-300 mt-1">
                         {selectedService.category} • {selectedService.type}
-                      </CardDescription>
+                  </CardDescription>
                     </div>
                     <div className="flex gap-2">
                       {selectedService.refill_allowed && (
@@ -345,16 +449,7 @@ export default function ServicesPage() {
                       )}
                     </div>
                   </div>
-                ) : (
-                  <div>
-                    <CardTitle className="text-purple-900 dark:text-purple-100">Service Details</CardTitle>
-                    <CardDescription className="text-purple-700 dark:text-purple-300 mt-1">
-                      Select a service to view details
-                    </CardDescription>
-                  </div>
-                )}
-              </CardHeader>
-              {selectedService && (
+                </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
@@ -366,117 +461,116 @@ export default function ServicesPage() {
                       <p className="font-semibold text-purple-900 dark:text-purple-100">
                         {selectedService.min_quantity.toLocaleString()} - {selectedService.max_quantity.toLocaleString()}
                       </p>
-                    </div>
-              </div>
-        </CardContent>
-              )}
-            </Card>
+            </div>
+            </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Link Field */}
-            <div className="space-y-2">
-              <Label htmlFor="link" className="text-base font-semibold">Link</Label>
-              <Input
-                id="link"
-                type="url"
-                placeholder="https://..."
-                value={link}
-                onChange={(e) => setLink(e.target.value)}
-                required
-                disabled={submitting || !selectedService}
-              />
-            </div>
+            {selectedService && (
+              <div className="space-y-2">
+                <Label htmlFor="link" className="text-base font-semibold">Link</Label>
+                <Input
+                  id="link"
+                  type="url"
+                  placeholder="https://..."
+                  value={link}
+                  onChange={(e) => setLink(e.target.value)}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+            )}
 
             {/* Quantity Field */}
-            <div className="space-y-2">
-              <Label htmlFor="quantity" className="text-base font-semibold">
-                Quantity {selectedService ? `(${selectedService.min_quantity.toLocaleString()} - ${selectedService.max_quantity.toLocaleString()})` : ""}
-              </Label>
-              <Input
-                id="quantity"
-                type="number"
-                min={selectedService?.min_quantity}
-                max={selectedService?.max_quantity}
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                onBlur={(e) => {
-                  if (selectedService) {
+            {selectedService && (
+              <div className="space-y-2">
+                <Label htmlFor="quantity" className="text-base font-semibold">
+                  Quantity ({selectedService.min_quantity.toLocaleString()} - {selectedService.max_quantity.toLocaleString()})
+                </Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min={selectedService.min_quantity}
+                  max={selectedService.max_quantity}
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  onBlur={(e) => {
                     const value = e.target.value.trim();
                     if (!value || isNaN(parseInt(value, 10))) {
                       setQuantity(String(selectedService.min_quantity || 100));
                     }
-                  }
-                }}
-                placeholder={selectedService ? `Enter quantity between ${selectedService.min_quantity.toLocaleString()} - ${selectedService.max_quantity.toLocaleString()}` : "Select a service first"}
-                required
-                disabled={submitting || !selectedService}
-              />
-            </div>
+                  }}
+                  required
+                  disabled={submitting}
+                />
+          </div>
+      )}
 
             {/* Order Summary */}
-            <Card className="border-2 border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
-              <CardContent className="pt-6 space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <Clock className="h-4 w-4" />
-                    <span>Average Time:</span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">
-                      {selectedService && quantity ? getAverageTime() : "N/A"}
-                    </span>
+            {selectedService && quantity && (
+              <Card className="border-2 border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+                <CardContent className="pt-6 space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <Clock className="h-4 w-4" />
+                      <span>Average Time:</span>
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">{getAverageTime()}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <DollarSign className="h-4 w-4" />
+                      <span>Total Charge:</span>
+                      <span className="font-bold text-lg text-gray-900 dark:text-gray-100">{format(charge)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <span>Your Balance:</span>
+                      <span className={charge > balance ? "text-red-600 dark:text-red-400 font-semibold" : ""}>
+                        {format(balance)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <DollarSign className="h-4 w-4" />
-                    <span>Total Charge:</span>
-                    <span className="font-bold text-lg text-gray-900 dark:text-gray-100">
-                      {charge > 0 ? format(charge) : "N/A"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
-                    <span>Your Balance:</span>
-                    <span className={charge > balance ? "text-red-600 dark:text-red-400 font-semibold" : ""}>
-                      {format(balance)}
-                    </span>
-                  </div>
-          </div>
               </CardContent>
             </Card>
+            )}
 
-            {/* Comments Field */}
-            <div className="space-y-2">
-              <Label htmlFor="comments" className="text-base font-semibold">
-                Custom Comments {selectedService && isCommentService() && <span className="text-red-500">*</span>}
-              </Label>
-              <Textarea
-                id="comments"
-                placeholder={selectedService && isCommentService() ? "Enter comments, one per line..." : "This service does not require comments"}
-                value={comments}
-                onChange={(e) => setComments(e.target.value)}
-                rows={6}
-                disabled={submitting || (!selectedService || !isCommentService())}
-                className="resize-none"
-              />
-              {selectedService && isCommentService() && (
+            {/* Comments Field (if required) */}
+            {selectedService && isCommentService() && (
+              <div className="space-y-2">
+                <Label htmlFor="comments" className="text-base font-semibold">Custom Comments</Label>
+                <Textarea
+                  id="comments"
+                  placeholder="Enter comments, one per line..."
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                  rows={6}
+                  disabled={submitting}
+                  className="resize-none"
+                />
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Enter each comment on a new line
                 </p>
-              )}
-                        </div>
+              </div>
+            )}
 
             {/* Submit Button */}
+            {selectedService && (
                         <Button
-              type="submit" 
-              disabled={submitting || !selectedService || charge > balance || !link.trim() || !quantity}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-              size="lg"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating Order...
-                </>
-              ) : (
-                "Submit Order"
-              )}
+                type="submit" 
+                disabled={submitting || charge > balance || !link.trim() || !quantity}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                size="lg"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating Order...
+                  </>
+                ) : (
+                  "Submit Order"
+                )}
                         </Button>
+            )}
           </form>
         </CardContent>
       </Card>

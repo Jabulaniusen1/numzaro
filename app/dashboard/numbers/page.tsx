@@ -19,14 +19,6 @@ import Link from "next/link";
 import { Combobox } from "@/components/ui/combobox";
 import { COUNTRIES, getCountryName } from "@/lib/data/countries";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 interface AvailableNumber {
   friendlyName: string;
@@ -108,7 +100,8 @@ export default function NumbersPage() {
 
   const searchAllNumberTypes = async (page: number = 1, reset: boolean = false) => {
     if (reset) {
-    setLoading(true);
+      setLoading(true);
+      setFilterDialogOpen(false); // Close filters when search starts
     } else {
       setLoadingMore(true);
     }
@@ -251,10 +244,10 @@ export default function NumbersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between ">
         <div>
-          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Virtual Number Marketplace</h1>
-          <p className="text-muted-foreground">
+          <h1 className="lg:text-3xl text-2xl font-bold mb-2 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Virtual Numbers</h1>
+          <p className="text-muted-foreground lg:text-base text-sm">
             Browse and purchase virtual numbers from different countries
           </p>
         </div>
@@ -268,202 +261,10 @@ export default function NumbersPage() {
 
       <Card className="mb-6">
         <CardContent className="pt-6 space-y-4">
-          {/* Desktop Filters */}
-          <div className="hidden md:block">
-            <div className="grid grid-cols-5 gap-4">
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-2 block">Country</label>
-              <Combobox
-                options={COUNTRIES.map((c) => ({
-                  value: c.code,
-                  label: c.name,
-                }))}
-                value={country}
-                onValueChange={setCountry}
-                placeholder="Select country..."
-                searchPlaceholder="Search countries..."
-                emptyMessage="No countries found."
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-2 block">Number Type</label>
-                <Select value={numberTypeFilter} onValueChange={setNumberTypeFilter}>
-                <SelectTrigger>
-                    <SelectValue placeholder="All types" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="mobile">Mobile</SelectItem>
-                  <SelectItem value="local">Local</SelectItem>
-                  <SelectItem value="tollFree">Toll-Free</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-2 block">Capabilities</label>
-              <Select value={capabilityFilter} onValueChange={setCapabilityFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All capabilities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Capabilities</SelectItem>
-                  <SelectItem value="sms">SMS Only</SelectItem>
-                  <SelectItem value="voice">Voice</SelectItem>
-                  <SelectItem value="mms">MMS</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-2 block">Currency</label>
-              <Select value={currency} onValueChange={(value) => switchCurrency(value as "USD" | "NGN")}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD ($)</SelectItem>
-                  <SelectItem value="NGN">NGN (₦)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button onClick={() => {
-                  setCurrentPage({ local: 1, mobile: 1, tollFree: 1 });
-                setNumbers([]);
-                  searchAllNumberTypes(1, true);
-              }} disabled={loading} className="w-full">
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Searching...
-                  </>
-                ) : (
-                  <>
-                    <Search className="h-4 w-4 mr-2" />
-                    Search
-                  </>
-                )}
-              </Button>
-            </div>
-            </div>
-          </div>
-
-          {/* Mobile Filters - Compact Buttons */}
-          <div className="md:hidden space-y-3">
-            <div className="flex gap-2 flex-wrap">
-              <Dialog open={filterDialogOpen} onOpenChange={setFilterDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex-1 min-w-[120px]">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filters
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-[90vw] max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Filters</DialogTitle>
-                    <DialogDescription>
-                      Adjust your search filters
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Country</label>
-                      <Combobox
-                        options={COUNTRIES.map((c) => ({
-                          value: c.code,
-                          label: c.name,
-                        }))}
-                        value={country}
-                        onValueChange={setCountry}
-                        placeholder="Select country..."
-                        searchPlaceholder="Search countries..."
-                        emptyMessage="No countries found."
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Number Type</label>
-                      <Select value={numberTypeFilter} onValueChange={setNumberTypeFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="All types" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Types</SelectItem>
-                          <SelectItem value="mobile">Mobile</SelectItem>
-                          <SelectItem value="local">Local</SelectItem>
-                          <SelectItem value="tollFree">Toll-Free</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Capabilities</label>
-                      <Select value={capabilityFilter} onValueChange={setCapabilityFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="All capabilities" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Capabilities</SelectItem>
-                          <SelectItem value="sms">SMS Only</SelectItem>
-                          <SelectItem value="voice">Voice</SelectItem>
-                          <SelectItem value="mms">MMS</SelectItem>
-                        </SelectContent>
-                      </Select>
-      </div>
-          <div>
-                      <label className="text-sm font-medium mb-2 block">Currency</label>
-                      <Select value={currency} onValueChange={(value) => switchCurrency(value as "USD" | "NGN")}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="USD">USD ($)</SelectItem>
-                          <SelectItem value="NGN">NGN (₦)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button 
-                      onClick={() => {
-                        setFilterDialogOpen(false);
-                        setCurrentPage({ local: 1, mobile: 1, tollFree: 1 });
-                        setNumbers([]);
-                        searchAllNumberTypes(1, true);
-                      }} 
-                      disabled={loading} 
-                      className="w-full"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Searching...
-                        </>
-                      ) : (
-                        <>
-                          <Search className="h-4 w-4 mr-2" />
-                          Apply Filters
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-              
-              {/* Active Filter Badges */}
-              {(numberTypeFilter !== "all" || capabilityFilter !== "all") && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setNumberTypeFilter("all");
-                    setCapabilityFilter("all");
-                  }}
-                  className="text-xs"
-                >
-                  <X className="h-3 w-3 mr-1" />
-                  Clear
-                </Button>
-              )}
-            </div>
-            
-            {/* Search Input - Always Visible on Mobile */}
-            <div className="relative">
+          {/* Search and Filter Bar */}
+          <div className="flex gap-2 items-center">
+            {/* Search Input */}
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search phone number or region..."
@@ -472,21 +273,124 @@ export default function NumbersPage() {
                 className="pl-10"
               />
             </div>
+            
+            {/* Filter Toggle Button */}
+            <Button
+              variant="outline"
+              onClick={() => setFilterDialogOpen(!filterDialogOpen)}
+              className="shrink-0"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+              {(numberTypeFilter !== "all" || capabilityFilter !== "all" || country !== "US") && (
+                <span className="ml-2 h-2 w-2 rounded-full bg-primary"></span>
+              )}
+            </Button>
           </div>
 
-          {/* Desktop Search */}
-          <div className="hidden md:block">
-            <label className="text-sm font-medium mb-2 block">Search by Number or Region</label>
-            <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-                placeholder="Search phone number or region..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
+          {/* Slide-down Filters Panel */}
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              filterDialogOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+            }`}
+          >
+            <div className="pt-4 border-t space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Country</label>
+                  <Combobox
+                    options={COUNTRIES.map((c) => ({
+                      value: c.code,
+                      label: c.name,
+                    }))}
+                    value={country}
+                    onValueChange={setCountry}
+                    placeholder="Select country..."
+                    searchPlaceholder="Search countries..."
+                    emptyMessage="No countries found."
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Number Type</label>
+                  <Select value={numberTypeFilter} onValueChange={setNumberTypeFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="mobile">Mobile</SelectItem>
+                      <SelectItem value="local">Local</SelectItem>
+                      <SelectItem value="tollFree">Toll-Free</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Capabilities</label>
+                  <Select value={capabilityFilter} onValueChange={setCapabilityFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All capabilities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Capabilities</SelectItem>
+                      <SelectItem value="sms">SMS Only</SelectItem>
+                      <SelectItem value="voice">Voice</SelectItem>
+                      <SelectItem value="mms">MMS</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Currency</label>
+                  <Select value={currency} onValueChange={(value) => switchCurrency(value as "USD" | "NGN")}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD ($)</SelectItem>
+                      <SelectItem value="NGN">NGN (₦)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {/* Filter Actions */}
+              <div className="flex gap-2 justify-end">
+                {(numberTypeFilter !== "all" || capabilityFilter !== "all" || country !== "US") && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setNumberTypeFilter("all");
+                      setCapabilityFilter("all");
+                      setCountry("US");
+                    }}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Clear Filters
+                  </Button>
+                )}
+                <Button
+                  onClick={() => {
+                    setFilterDialogOpen(false); // Close filters immediately
+                    setCurrentPage({ local: 1, mobile: 1, tollFree: 1 });
+                    setNumbers([]);
+                    searchAllNumberTypes(1, true);
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="h-4 w-4 mr-2" />
+                      Apply Filters
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
