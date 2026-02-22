@@ -21,24 +21,16 @@ export async function GET(request: NextRequest) {
     // Get total revenue from number purchases
     const { data: purchases, error: purchasesError } = await supabase
       .from("number_purchases")
-      .select("amount, created_at");
+      .select("amount, actual_cost, profit, created_at");
 
     if (purchasesError) {
       console.error("Error fetching purchases:", purchasesError);
     }
 
-    // Get total Twilio costs
-    const { data: charges, error: chargesError } = await supabase
-      .from("twilio_charges")
-      .select("actual_cost, user_charged, profit, created_at");
-
-    if (chargesError) {
-      console.error("Error fetching charges:", chargesError);
-    }
-
     const totalRevenue = purchases?.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
-    const totalCosts = charges?.reduce((sum, c) => sum + parseFloat(c.actual_cost.toString()), 0) || 0;
-    const totalProfit = charges?.reduce((sum, c) => sum + parseFloat(c.profit.toString()), 0) || 0;
+    // Get total costs and profit from number purchases (using actual_cost and profit fields)
+    const totalCosts = purchases?.reduce((sum, p) => sum + parseFloat(p.actual_cost?.toString() || "0"), 0) || 0;
+    const totalProfit = purchases?.reduce((sum, p) => sum + parseFloat(p.profit?.toString() || "0"), 0) || 0;
 
     // Get stats by country
     const { data: numbersByCountry } = await supabase
@@ -64,15 +56,12 @@ export async function GET(request: NextRequest) {
       0
     );
 
-    const thisMonthCharges = charges?.filter(
-      (c) => new Date(c.created_at) >= startOfMonth
-    ) || [];
-    const thisMonthCosts = thisMonthCharges.reduce(
-      (sum, c) => sum + parseFloat(c.actual_cost.toString()),
+    const thisMonthCosts = thisMonthPurchases.reduce(
+      (sum, p) => sum + parseFloat(p.actual_cost?.toString() || "0"),
       0
     );
-    const thisMonthProfit = thisMonthCharges.reduce(
-      (sum, c) => sum + parseFloat(c.profit.toString()),
+    const thisMonthProfit = thisMonthPurchases.reduce(
+      (sum, p) => sum + parseFloat(p.profit?.toString() || "0"),
       0
     );
 
@@ -110,6 +99,7 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
 
 
 

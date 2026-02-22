@@ -38,7 +38,7 @@ export function NumberPurchaseModal({
   const [numberType, setNumberType] = useState<"subscription" | "one_time_otp">("subscription");
   const [oneTimePrice, setOneTimePrice] = useState<number | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
-  
+
   // Check if country is Israel (IL) - one-time OTP not allowed
   const isIsrael = number?.countryCode?.toUpperCase() === "IL";
 
@@ -119,10 +119,10 @@ export function NumberPurchaseModal({
       router.push("/dashboard/numbers/my-numbers");
     } catch (error: any) {
       const errorMessage = error.message || "An error occurred";
-      
+
       // Check if it's a bundle requirement error
       const isBundleError = errorMessage.includes("Bundle") || errorMessage.includes("bundle");
-      
+
       toast({
         title: isBundleError ? "Bundle Required" : "Purchase Failed",
         description: errorMessage,
@@ -137,15 +137,15 @@ export function NumberPurchaseModal({
   if (!number) return null;
 
   // Balance from API is always in NGN, convert to selected currency
-  const balanceInSelectedCurrency = walletBalance !== null 
+  const balanceInSelectedCurrency = walletBalance !== null
     ? (currency === "USD" ? walletBalance / rate : walletBalance)
     : null;
-  
+
   // Calculate actual cost based on number type
-  const actualCost = numberType === "one_time_otp" 
+  const actualCost = numberType === "one_time_otp"
     ? (oneTimePrice || 0)
     : number.monthly_cost;
-  
+
   // Convert cost (USD) to selected currency for comparison
   const costInSelectedCurrency = convert(actualCost);
   const hasEnoughBalance = balanceInSelectedCurrency !== null && balanceInSelectedCurrency >= costInSelectedCurrency;
@@ -172,11 +172,10 @@ export function NumberPurchaseModal({
               <button
                 type="button"
                 onClick={() => setNumberType("subscription")}
-                className={`p-3 rounded-lg border-2 text-left transition-all ${
-                  numberType === "subscription"
+                className={`p-3 rounded-lg border-2 text-left transition-all ${numberType === "subscription"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/50"
-                }`}
+                  }`}
               >
                 <p className="font-medium">Subscription</p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -187,13 +186,12 @@ export function NumberPurchaseModal({
                 type="button"
                 onClick={() => !isIsrael && setNumberType("one_time_otp")}
                 disabled={isIsrael}
-                className={`p-3 rounded-lg border-2 text-left transition-all ${
-                  numberType === "one_time_otp" && !isIsrael
+                className={`p-3 rounded-lg border-2 text-left transition-all ${numberType === "one_time_otp" && !isIsrael
                     ? "border-primary bg-primary/5"
                     : isIsrael
-                    ? "border-border opacity-50 cursor-not-allowed"
-                    : "border-border hover:border-primary/50"
-                }`}
+                      ? "border-border opacity-50 cursor-not-allowed"
+                      : "border-border hover:border-primary/50"
+                  }`}
               >
                 <p className="font-medium">One-Time OTP</p>
                 <p className="text-xs text-muted-foreground mt-1">

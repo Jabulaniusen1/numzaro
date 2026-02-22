@@ -161,6 +161,79 @@ export async function getNumberCostEstimate(
 }
 
 /**
+ * Get Twilio Address SID from admin settings
+ * This is used for numbers that require address verification (bundles)
+ */
+export async function getTwilioAddressSid(): Promise<string | null> {
+  try {
+    if (typeof window !== "undefined") {
+      // Client-side: return null
+      return null;
+    }
+
+    // Server-side: fetch from database
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+
+    const { data: addressSetting } = await supabase
+      .from("admin_settings")
+      .select("value")
+      .eq("key", "twilio_address_sid")
+      .single();
+
+    return addressSetting?.value || null;
+  } catch (error) {
+    console.error("Error fetching Twilio Address SID:", error);
+    return null;
+  }
+}
+
+/**
+ * Get country-specific Bundle or Address SID from admin settings
+ * Returns bundle SID if available for the country, otherwise falls back to global address SID
+ */
+export async function getCountryBundleOrAddressSid(countryCode: string): Promise<{
+  bundleSid: string | null;
+  addressSid: string | null;
+}> {
+  try {
+    if (typeof window !== "undefined") {
+      return { bundleSid: null, addressSid: null };
+    }
+
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+
+    // First, try to get country-specific bundle/address SID
+    const countryKey = `twilio_bundle_sid_${countryCode.toUpperCase()}`;
+    const { data: countryBundleSetting } = await supabase
+      .from("admin_settings")
+      .select("value")
+      .eq("key", countryKey)
+      .single();
+
+    if (countryBundleSetting?.value) {
+      const sid = countryBundleSetting.value.trim();
+      // Check if it's a bundle SID (starts with BU) or address SID (starts with AD)
+      if (sid.startsWith("BU")) {
+        return { bundleSid: sid, addressSid: null };
+      } else if (sid.startsWith("AD")) {
+        return { bundleSid: null, addressSid: sid };
+      }
+    }
+
+    // Fall back to global address SID
+    const addressSid = await getTwilioAddressSid();
+    return { bundleSid: null, addressSid };
+  } catch (error) {
+    console.error("Error fetching country bundle/address SID:", error);
+    // Fall back to global address SID
+    const addressSid = await getTwilioAddressSid();
+    return { bundleSid: null, addressSid };
+  }
+}
+
+/**
  * Get one-time OTP pricing settings from admin settings
  * Returns pricing type and value
  */

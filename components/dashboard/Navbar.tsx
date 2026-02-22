@@ -36,7 +36,7 @@ export function Navbar({ onSignOut }: NavbarProps) {
               <Button variant="ghost">Dashboard</Button>
             </Link>
             <Link href="/dashboard/numbers">
-              <Button variant="ghost">VirtualNumbers</Button>
+              <Button variant="ghost">Virtual Numbers</Button>
             </Link>
             <Link href="/dashboard/services">
               <Button variant="ghost">Boost your socials</Button>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBalance } from "@/lib/api/socialboost";
+import { fiveSimClient } from "@/lib/5sim/client";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
@@ -19,47 +19,42 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get exobooster API balance (admin's account)
-    const balanceData = await getBalance();
-    const balanceAmount = parseFloat(balanceData.balance || "0");
-    const currency = balanceData.currency || "NGN"; // Default to NGN if not specified
+    // Get 5Sim API balance
+    const fiveSimBalance = await fiveSimClient.getBalance();
 
-    // Convert NGN to USD if needed
-    let balanceUSD = balanceAmount;
-    if (currency === "NGN" || currency === "NGN") {
-      try {
-        // Fetch exchange rate from NGN to USD
+    // Convert RUB to NGN for display
+    let balanceNGN = fiveSimBalance;
+    try {
+      // Fetch exchange rate from RUB to NGN
+      const API_KEY = process.env.EXCHANGE_RATE_API_KEY;
+      if (API_KEY) {
         const exchangeRateResponse = await fetch(
-          `https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_RATE_API_KEY}/pair/NGN/USD`
+          `https://v6.exchangerate-api.com/v6/${API_KEY}/pair/RUB/NGN`
         );
         if (exchangeRateResponse.ok) {
           const rateData = await exchangeRateResponse.json();
           if (rateData.result === "success" && rateData.conversion_rate) {
-            // Convert from NGN to USD
-            // conversion_rate tells us how many USD per 1 NGN
-            // So we multiply: NGN amount * (USD per NGN) = USD amount
-            balanceUSD = balanceAmount * rateData.conversion_rate;
+            balanceNGN = fiveSimBalance * rateData.conversion_rate;
           }
         }
-      } catch (error) {
-        console.error("Error converting currency:", error);
-        // If conversion fails, return the original balance with currency info
       }
+    } catch (error) {
+      console.error("Error converting RUB to NGN:", error);
+      // Use fallback rate
+      balanceNGN = fiveSimBalance * 60;
     }
 
-    return NextResponse.json({ 
-      balance: balanceUSD.toFixed(2),
-      originalBalance: balanceAmount.toFixed(2),
-      originalCurrency: currency,
-      currency: "USD"
+    return NextResponse.json({
+      balance: balanceNGN.toString(),
+      currency: "NGN",
+      fiveSimBalance: fiveSimBalance,
+      fiveSimCurrency: "RUB",
     });
   } catch (error) {
     console.error("Error fetching admin balance:", error);
     return NextResponse.json(
-      { error: "Failed to fetch balance", balance: "0.00" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
 }
-
-

@@ -216,7 +216,7 @@ export function BalanceCard() {
 
   const fetchBalance = async () => {
     try {
-      const response = await fetch("/api/balance");
+      const response = await fetch("/api/user/balance");
       if (response.ok) {
         const data = await response.json();
         setBalance(parseFloat(data.balance || "0"));

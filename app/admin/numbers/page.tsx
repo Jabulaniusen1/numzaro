@@ -9,6 +9,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Phone, DollarSign, TrendingUp, Settings } from "lucide-react";
+import { COUNTRIES } from "@/lib/data/countries";
 
 interface Stats {
   totalRevenue: number;

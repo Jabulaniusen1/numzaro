@@ -1,9 +1,19 @@
+"use client";
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Navbar } from "@/components/Navbar"
+import { useCurrency } from "@/lib/hooks/use-currency"
 
 export default function PricingPage() {
+  const { format, convert } = useCurrency();
+  
+  const prices = {
+    followers: 0.90,
+    likes: 1.20,
+    comments: 8.00
+  };
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -26,7 +36,7 @@ export default function PricingPage() {
             </CardHeader>
             <CardContent>
               <div className="mb-4">
-                <span className="text-3xl font-bold text-[#1877F2]">$0.90</span>
+                <span className="text-3xl font-bold text-[#1877F2]">{format(convert(prices.followers))}</span>
                 <span className="text-gray-600"> per 1000</span>
               </div>
               <ul className="space-y-2 mb-6 text-sm">
@@ -48,7 +58,7 @@ export default function PricingPage() {
             </CardHeader>
             <CardContent>
               <div className="mb-4">
-                <span className="text-3xl font-bold text-[#1877F2]">$1.20</span>
+                <span className="text-3xl font-bold text-[#1877F2]">{format(convert(prices.likes))}</span>
                 <span className="text-gray-600"> per 1000</span>
               </div>
               <ul className="space-y-2 mb-6 text-sm">
@@ -70,7 +80,7 @@ export default function PricingPage() {
             </CardHeader>
             <CardContent>
               <div className="mb-4">
-                <span className="text-3xl font-bold text-[#1877F2]">$8.00</span>
+                <span className="text-3xl font-bold text-[#1877F2]">{format(convert(prices.comments))}</span>
                 <span className="text-gray-600"> per 100</span>
               </div>
               <ul className="space-y-2 mb-6 text-sm">

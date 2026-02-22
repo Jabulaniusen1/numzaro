@@ -25,7 +25,7 @@ interface NumberCardProps {
 }
 
 export function NumberCard({ number }: NumberCardProps) {
-  const { format: formatCurrency, loading: currencyLoading } = useCurrency();
+  const { format: formatCurrency, convert, loading: currencyLoading } = useCurrency();
 
   const statusColors: Record<string, string> = {
     active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
@@ -70,7 +70,7 @@ export function NumberCard({ number }: NumberCardProps) {
               <div>
                 <p className="text-muted-foreground">Monthly Cost</p>
                 <p className="font-semibold">
-                  {formatCurrency(number.monthly_cost)}
+                  {formatCurrency(convert(number.monthly_cost))}
                 </p>
               </div>
             )}

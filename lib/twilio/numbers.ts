@@ -14,6 +14,8 @@ export interface AvailableNumber {
   monthlyRate: string;
   basePrice?: number; // Actual Twilio base price in USD
   currentPrice?: number; // Current price (may differ from basePrice)
+  numberType?: NumberType; // Type of number: local, mobile, or tollFree
+  isVoIP?: boolean; // Whether the number is VoIP (mobile numbers are typically non-VoIP)
 }
 
 export interface PurchasedNumber {
@@ -178,6 +180,11 @@ export async function searchAvailableNumbers(
       // Fallback to our lookup if Twilio doesn't provide price
       const twilioCost = basePrice || getTwilioMonthlyCost(countryCode, numberType);
       
+      // Determine if number is VoIP
+      // Mobile numbers are typically non-VoIP (real cellular numbers)
+      // Local and Toll-Free numbers from Twilio are VoIP
+      const isVoIP = numberType !== "mobile";
+      
       return {
         friendlyName: number.friendlyName || number.phoneNumber,
         phoneNumber: number.phoneNumber || "",
@@ -192,6 +199,7 @@ export async function searchAvailableNumbers(
         basePrice: basePrice || twilioCost,
         currentPrice: currentPrice || twilioCost,
         numberType, // Include number type in response
+        isVoIP, // Include VoIP status
       };
     });
 
@@ -222,12 +230,27 @@ export async function searchAvailableNumbers(
  */
 export async function purchaseNumber(
   phoneNumberSid: string,
-  webhookUrl?: string
+  webhookUrl?: string,
+  addressSid?: string,
+  bundleSid?: string
 ): Promise<PurchasedNumber> {
   try {
-    const incomingPhoneNumber = await twilioClient.incomingPhoneNumbers.create({
+    const purchaseParams: any = {
       phoneNumber: phoneNumberSid,
-    });
+    };
+
+    // Add bundle SID if provided (some countries use bundle SID instead of address SID)
+    if (bundleSid) {
+      purchaseParams.bundleSid = bundleSid;
+    }
+    
+    // Add address SID if provided (required for numbers that need address verification)
+    // Note: If both are provided, bundleSid takes precedence
+    if (addressSid && !bundleSid) {
+      purchaseParams.addressSid = addressSid;
+    }
+
+    const incomingPhoneNumber = await twilioClient.incomingPhoneNumbers.create(purchaseParams);
 
     // Configure webhook if provided
     if (webhookUrl) {

@@ -420,7 +420,7 @@ export default function AdminPage() {
                 <span className="text-gray-600">%</span>
               </div>
               <p className="text-sm text-gray-500">
-                Current markup: {phoneMarkup}% | Example: $1.00 Twilio cost = ${(1 * (1 + phoneMarkup / 100)).toFixed(2)} customer price
+                Current markup: {phoneMarkup}% | Example: $1.00 base cost = ${(1 * (1 + phoneMarkup / 100)).toFixed(2)} customer price
               </p>
               <p className="text-xs text-gray-400">
                 Default: 400% (5x cost). This markup applies to monthly number rental fees.
