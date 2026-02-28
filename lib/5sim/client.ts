@@ -1,11 +1,11 @@
 export type { FiveSimProfile, FiveSimOrder, FiveSimProduct, FiveSimPrice, FiveSimCountry, FiveSimMessage, FiveSimVendor, FiveSimVendorPrice, FiveSimPayment, FiveSimWithdrawRequest, FiveSimOrdersResponse, FiveSimVendorOrdersResponse, FiveSimError, FiveSimPagination } from './types';
 export { FIVESIM_OPERATORS } from './types';
 
-import { 
-  FiveSimProfile, 
-  FiveSimOrder, 
-  FiveSimProduct, 
-  FiveSimPrice, 
+import {
+  FiveSimProfile,
+  FiveSimOrder,
+  FiveSimProduct,
+  FiveSimPrice,
   FiveSimCountry,
   FiveSimMessage,
   FiveSimVendor,
@@ -35,7 +35,7 @@ export class FiveSimClient {
   }
 
   private async request<T>(
-    endpoint: string, 
+    endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
     if (!this.apiKey) {
@@ -56,13 +56,38 @@ export class FiveSimClient {
         headers,
       });
 
+      const text = await response.text();
+
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`5sim.net API Error: ${response.status} ${errorText}`);
+        throw new Error(`5sim.net API Error: ${response.status} ${text}`);
       }
 
-      const data = await response.json();
-      return data;
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        // Handle known error strings that might be returned with 200 OK or non-JSON headers
+        const errorMap: Record<string, string> = {
+          "no free phones": "No free phones available for this service/country at the moment.",
+          "not enough user balance": "Insufficient balance in your 5Sim account. Please top up your 5Sim balance.",
+          "order not found": "The order was not found or has already expired.",
+          "bad operator": "The selected operator is not supported or not available.",
+          "bad product": "The selected service/product is not supported.",
+          "bad country": "The selected country is not supported.",
+          "no reverse": "This number does not support re-use or reverse.",
+        };
+
+        if (errorMap[text]) {
+          throw new Error(errorMap[text]);
+        }
+
+        // If it's a small string that's not JSON, it's likely an error message
+        if (text.length < 100 && !text.includes('{') && !text.includes('[')) {
+          throw new Error(`5Sim Error: ${text}`);
+        }
+
+        // If it's just a string and we can't parse it as JSON, return it as any if possible
+        return text as any;
+      }
     } catch (error) {
       console.error("5sim.net Request Error:", error);
       throw error;
@@ -143,8 +168,8 @@ export class FiveSimClient {
 
   // Order Management
   async buyActivation(
-    country: string, 
-    operator: string, 
+    country: string,
+    operator: string,
     product: string,
     options?: {
       forwarding?: string;
@@ -167,8 +192,8 @@ export class FiveSimClient {
   }
 
   async buyHosting(
-    country: string, 
-    operator: string, 
+    country: string,
+    operator: string,
     product: string,
     options?: {
       forwarding?: string;

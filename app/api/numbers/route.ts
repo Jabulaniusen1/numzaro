@@ -47,7 +47,15 @@ export async function GET(request: NextRequest) {
           .select("*", { count: "exact", head: true })
           .eq("number_id", number.id);
 
-        // Get pending OTP count
+        // Get pending OTP count and latest OTP
+        const { data: latestOtp } = await supabase
+          .from("otp_codes")
+          .select("code, status")
+          .eq("number_id", number.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
         const { count: otpCount } = await supabase
           .from("otp_codes")
           .select("*", { count: "exact", head: true })
@@ -58,6 +66,8 @@ export async function GET(request: NextRequest) {
           ...number,
           message_count: messageCount || 0,
           pending_otp_count: otpCount || 0,
+          otp_code: latestOtp?.code,
+          otp_status: latestOtp?.status,
         };
       })
     );

@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   FaFacebook,
   FaInstagram,
@@ -33,6 +32,7 @@ import {
   FaEthereum,
   FaTiktok,
 } from 'react-icons/fa';
+import { FcGoogle } from 'react-icons/fc';
 import {
   SiAlibabadotcom,
   SiAliexpress,
@@ -83,7 +83,7 @@ interface ServiceLogoProps {
 export function ServiceLogo({ serviceName, serviceCode, size = 20, className = "" }: ServiceLogoProps) {
   const getIconAndColor = (name: string, code: string) => {
     // Map of service names to their react-icons components and brand colors
-    const iconMap: Record<string, { 
+    const iconMap: Record<string, {
       icon: React.ComponentType<{ size?: number; className?: string }> | null;
       color: string;
     }> = {
@@ -110,7 +110,7 @@ export function ServiceLogo({ serviceName, serviceCode, size = 20, className = "
       "Viber": { icon: SiViber, color: "#665CAC" },
       "Line": { icon: SiLine, color: "#00C300" },
       "KakaoTalk": { icon: SiKakaotalk, color: "#FFCD00" },
-      
+
       // E-commerce
       "Amazon": { icon: FaAmazon, color: "#FF9900" },
       "eBay": { icon: FaEbay, color: "#E53238" },
@@ -122,7 +122,7 @@ export function ServiceLogo({ serviceName, serviceCode, size = 20, className = "
       "Walmart": { icon: SiWalmart, color: "#0071CE" },
       "Target": { icon: SiTarget, color: "#CC0000" },
       "IKEA": { icon: SiIkea, color: "#0051BA" },
-      
+
       // Finance & Banking
       "PayPal": { icon: FaPaypal, color: "#003087" },
       "Venmo": { icon: SiVenmo, color: "#3D95CE" },
@@ -142,11 +142,11 @@ export function ServiceLogo({ serviceName, serviceCode, size = 20, className = "
       "Binance": { icon: SiBinance, color: "#F3BA2F" },
       "Bitcoin": { icon: FaBitcoin, color: "#F7931A" },
       "Ethereum": { icon: FaEthereum, color: "#627EEA" },
-      
+
       // Tech & Software
-      "Google": { icon: FaGoogle, color: "#4285F4" },
-      "Google/YouTube/Gmail": { icon: FaGoogle, color: "#4285F4" },
-      "Gmail": { icon: FaGoogle, color: "#4285F4" },
+      "Google": { icon: FcGoogle, color: "#4285F4" },
+      "Google/YouTube/Gmail": { icon: FcGoogle, color: "#4285F4" },
+      "Gmail": { icon: FcGoogle, color: "#4285F4" },
       "YouTube": { icon: FaYoutube, color: "#FF0000" },
       "Microsoft": { icon: FaMicrosoft, color: "#00A4EF" },
       "Apple": { icon: FaApple, color: "#000000" },
@@ -156,7 +156,7 @@ export function ServiceLogo({ serviceName, serviceCode, size = 20, className = "
       "Microsoft Teams": { icon: SiTeamspeak, color: "#5B5FC7" },
       "Dropbox": { icon: FaDropbox, color: "#0061FF" },
       "GitHub": { icon: FaGithub, color: "#181717" },
-      
+
       // Gaming
       "Steam": { icon: FaSteam, color: "#1B2838" },
       "Epic Games": { icon: SiEpicgames, color: "#313131" },
@@ -165,7 +165,7 @@ export function ServiceLogo({ serviceName, serviceCode, size = 20, className = "
       "Nintendo": { icon: SiNintendo, color: "#E60012" },
       "Roblox": { icon: SiRoblox, color: "#0082FF" },
       "Minecraft": { icon: null, color: "#62BDA0" },
-      
+
       // Streaming & Entertainment
       "Netflix": { icon: SiNetflix, color: "#E50914" },
       "Disney+": { icon: null, color: "#113CCF" },
@@ -177,7 +177,7 @@ export function ServiceLogo({ serviceName, serviceCode, size = 20, className = "
       "Pandora": { icon: SiPandora, color: "#0054B0" },
       "Tidal": { icon: SiTidal, color: "#000000" },
       "Audible": { icon: SiAudible, color: "#F79E44" },
-      
+
       // Travel
       "Uber": { icon: FaUber, color: "#000000" },
       "Lyft": { icon: SiLyft, color: "#FF00BF" },
@@ -187,7 +187,7 @@ export function ServiceLogo({ serviceName, serviceCode, size = 20, className = "
       "Kayak": { icon: null, color: "#003580" },
       "Skyscanner": { icon: null, color: "#0770E3" },
       "TripAdvisor": { icon: SiTripadvisor, color: "#00AF87" },
-      
+
       // Shopping & Retail
       "Nike": { icon: null, color: "#111111" },
       "Adidas": { icon: SiAdidas, color: "#000000" },
@@ -195,7 +195,7 @@ export function ServiceLogo({ serviceName, serviceCode, size = 20, className = "
       "Sephora": { icon: null, color: "#000000" },
       "CVS": { icon: null, color: "#CC0000" },
       "Walgreens": { icon: null, color: "#0B3B6F" },
-      
+
       // Other Popular Services
       "Grindr": { icon: null, color: "#0088FF" },
     };
@@ -207,8 +207,8 @@ export function ServiceLogo({ serviceName, serviceCode, size = 20, className = "
 
     // Try partial match
     for (const [key, entry] of Object.entries(iconMap)) {
-      if (serviceName.toLowerCase().includes(key.toLowerCase()) || 
-          key.toLowerCase().includes(serviceName.toLowerCase())) {
+      if (serviceName.toLowerCase().includes(key.toLowerCase()) ||
+        key.toLowerCase().includes(serviceName.toLowerCase())) {
         return entry;
       }
     }
@@ -242,7 +242,7 @@ export function ServiceLogo({ serviceName, serviceCode, size = 20, className = "
 
   // Fallback to emoji
   return (
-    <span 
+    <span
       className={`${className}`}
       style={{ fontSize: `${size}px`, lineHeight: 1, color }}
     >

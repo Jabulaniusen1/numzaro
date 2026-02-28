@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       userBalance = parseFloat(userData?.wallet_balance || "0");
-      
+
       if (userBalance < userCharged) {
         return NextResponse.json(
           {
@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
         "423": "Belarus",
         // Add more as needed
       };
-      
+
       // Use the country key directly as the name (capitalize first letter)
       const countryName = countryCode.charAt(0).toUpperCase() + countryCode.slice(1);
 
@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
       if (numberError) {
         console.error("Error creating virtual_number:", numberError);
         return NextResponse.json(
-          { error: "Failed to create database record" },
+          { error: `Database error: ${numberError.message}`, details: numberError },
           { status: 500 }
         );
       }
@@ -314,8 +314,8 @@ export async function POST(request: NextRequest) {
       // Deduct charged amount from user's wallet
       const { error: walletError } = await supabase
         .from("users")
-        .update({ 
-          wallet_balance: userBalance - userCharged 
+        .update({
+          wallet_balance: userBalance - userCharged
         })
         .eq("id", user.id);
 

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Phone, MessageSquare, Shield, Calendar } from "lucide-react";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import { format } from "date-fns";
+import { getFlag } from "@/lib/utils";
 
 interface NumberCardProps {
   number: {
@@ -42,7 +43,10 @@ export function NumberCard({ number }: NumberCardProps) {
               <Phone className="h-5 w-5" />
               {number.phone_number}
             </CardTitle>
-            <CardDescription>{number.country_name}</CardDescription>
+            <CardDescription className="flex items-center gap-1.5">
+              <span className="text-xl leading-none">{getFlag(number.country_code)}</span>
+              {number.country_name}
+            </CardDescription>
           </div>
           <div className="flex flex-col gap-1 items-end">
             <Badge className={statusColors[number.status] || ""}>

@@ -8,6 +8,7 @@ import { useCurrency } from "@/lib/hooks/use-currency";
 import { Search, ChevronDown, List, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { ServiceLogo } from "@/components/ui/service-logo";
+import { cn, getFlag } from "@/lib/utils";
 
 // 5Sim API: /guest/countries returns { [countryKey]: { text_en, iso: {iso}, prefix: {prefix}, ... } }
 interface Country {
@@ -59,17 +60,6 @@ const SERVICES: Service[] = [
   { name: "Yandex", product: "yandex" },
   { name: "Other", product: "other" },
 ];
-
-function getFlag(iso: string | { iso?: string } | any): string {
-  // Handle cases where iso might be an object like { iso: "RU" }
-  const isoStr = typeof iso === "object" ? (iso?.iso || "") : (iso || "");
-  if (!isoStr || isoStr.length < 2) return "🏳️";
-  const code = isoStr.toUpperCase().slice(0, 2);
-  return code
-    .split("")
-    .map((c: string) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
-    .join("");
-}
 
 export default function NumbersPage() {
   const { toast } = useToast();
@@ -284,7 +274,7 @@ export default function NumbersPage() {
             Find Numbers
           </h1>
           <p className="text-xs md:text-sm text-muted-foreground dark:text-gray-400 mt-0.5">
-            SMS verification via 5Sim
+            SMS verification
           </p>
         </div>
         <Link href="/dashboard/numbers/my-numbers">
@@ -299,23 +289,25 @@ export default function NumbersPage() {
       <div className="md:hidden flex mx-4 mb-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         <button
           onClick={() => setMobileStep(1)}
-          className={`flex-1 py-2.5 text-xs font-semibold transition-all ${
-            mobileStep === 1
-              ? "bg-[#7C5CFC] text-white"
-              : "text-gray-500 dark:text-gray-400"
-          }`}
+          className={`flex-1 py-2.5 text-xs font-semibold transition-all flex items-center justify-center gap-2 ${mobileStep === 1
+            ? "bg-[#7C5CFC] text-white"
+            : "text-gray-500 dark:text-gray-400"
+            }`}
         >
-          1. Service{selectedService ? ` — ${selectedService.name}` : ""}
+          1. Service{selectedService && (
+            <span className="flex items-center gap-1 ml-1">
+              — <ServiceLogo serviceName={selectedService.name} serviceCode={selectedService.product} size={14} /> {selectedService.name}
+            </span>
+          )}
         </button>
         <button
           onClick={() => { if (selectedService) setMobileStep(2); }}
-          className={`flex-1 py-2.5 text-xs font-semibold transition-all ${
-            mobileStep === 2
-              ? "bg-[#7C5CFC] text-white"
-              : selectedService
+          className={`flex-1 py-2.5 text-xs font-semibold transition-all ${mobileStep === 2
+            ? "bg-[#7C5CFC] text-white"
+            : selectedService
               ? "text-gray-500 dark:text-gray-400"
               : "text-gray-300 dark:text-gray-600 cursor-not-allowed"
-          }`}
+            }`}
         >
           2. Country{selectedCountry ? ` — ${selectedCountry.name}` : ""}
         </button>
@@ -348,11 +340,10 @@ export default function NumbersPage() {
                   <button
                     key={service.product}
                     onClick={() => handleServiceSelect(service)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
-                      isSelected
-                        ? "bg-[#7C5CFC] text-white"
-                        : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-                    }`}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${isSelected
+                      ? "bg-[#7C5CFC] text-white"
+                      : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                      }`}
                   >
                     <ServiceLogo serviceName={service.name} serviceCode={service.product} size={20} />
                     <span className="font-medium text-sm">{service.name}</span>
@@ -369,8 +360,9 @@ export default function NumbersPage() {
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 {selectedService ? (
-                  <span>
+                  <span className="flex items-center gap-2">
                     <span className="hidden md:inline">2. </span>
+                    <ServiceLogo serviceName={selectedService.name} serviceCode={selectedService.product} size={16} />
                     <span className="text-[#7C5CFC] normal-case">{selectedService.name}</span>
                     <span className="normal-case font-normal text-gray-400"> — pick a country</span>
                   </span>
@@ -427,11 +419,10 @@ export default function NumbersPage() {
                     <div
                       key={country.key}
                       onClick={() => setSelectedCountry(isSelected ? null : country)}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all border ${
-                        isSelected
-                          ? "border-[#7C5CFC] bg-violet-50 dark:bg-violet-900/20"
-                          : "border-transparent bg-gray-50 dark:bg-gray-700/60 hover:border-gray-200 dark:hover:border-gray-600"
-                      }`}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all border ${isSelected
+                        ? "border-[#7C5CFC] bg-violet-50 dark:bg-violet-900/20"
+                        : "border-transparent bg-gray-50 dark:bg-gray-700/60 hover:border-gray-200 dark:hover:border-gray-600"
+                        }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="text-xl flex-shrink-0">{getFlag(country.iso)}</span>
