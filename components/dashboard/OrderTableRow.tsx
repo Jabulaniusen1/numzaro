@@ -89,7 +89,7 @@ export function OrderTableRow({ order, onAction }: OrderTableRowProps) {
                     </div>
                     <div className="flex items-center gap-1.5 text-[#4AA8FF]">
                         <Mail className="h-4 w-4" />
-                        <span className="text-sm font-bold">0</span>
+                        <span className="text-sm font-bold">{(order as any).message_count || 0}</span>
                     </div>
                 </div>
             </td>

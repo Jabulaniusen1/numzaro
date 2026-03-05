@@ -1,16 +1,15 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
-import { Loader2, Info, Clock, DollarSign, ChevronDown, X } from "lucide-react";
+import { Loader2, Clock, ChevronDown, Search, ShoppingBag } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface SearchableSelectProps {
   options: { value: string; label: string }[];
@@ -28,30 +27,21 @@ function SearchableSelect({ options, value, onChange, placeholder = "Select...",
 
   const filteredOptions = useMemo(() => {
     if (!searchQuery) return options;
-    const query = searchQuery.toLowerCase();
-    return options.filter((option) =>
-      option.label.toLowerCase().includes(query) ||
-      option.value.toLowerCase().includes(query)
-    );
+    const q = searchQuery.toLowerCase();
+    return options.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q));
   }, [options, searchQuery]);
 
-  const selectedOption = options.find((opt) => opt.value === value);
+  const selectedOption = options.find((o) => o.value === value);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsOpen(false);
         setSearchQuery("");
       }
     };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    if (isOpen) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, [isOpen]);
 
   return (
@@ -61,50 +51,50 @@ function SearchableSelect({ options, value, onChange, placeholder = "Select...",
         id={id}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className="flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+        className={cn(
+          "flex h-11 w-full items-center justify-between rounded-full border px-4 text-sm transition-colors",
+          "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-gray-100",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          isOpen && "border-[#7C5CFC] ring-2 ring-[#7C5CFC]/20"
+        )}
       >
-        <span className={selectedOption ? "text-foreground" : "text-muted-foreground"}>
+        <span className={selectedOption ? "text-gray-800 dark:text-gray-100 font-medium" : "text-gray-400"}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <ChevronDown className={`h-4 w-4 opacity-50 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown className={cn("h-4 w-4 text-gray-400 transition-transform", isOpen && "rotate-180")} />
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95">
-          <div className="p-2 border-b">
-            <Input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setIsOpen(false);
-                  setSearchQuery("");
-                }
-              }}
-            />
+        <div className="absolute z-50 mt-2 w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl overflow-hidden">
+          <div className="p-2 border-b border-gray-100 dark:border-gray-700">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-8 pl-8 pr-3 text-xs rounded-full border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:border-[#7C5CFC]"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Escape") { setIsOpen(false); setSearchQuery(""); } }}
+              />
+            </div>
           </div>
-          <div className="max-h-[300px] overflow-auto p-1">
+          <div className="max-h-64 overflow-auto p-1.5">
             {filteredOptions.length === 0 ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                No results found
-              </div>
+              <p className="py-4 text-center text-xs text-gray-400">No results found</p>
             ) : (
               filteredOptions.map((option) => (
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => {
-                    onChange(option.value);
-                    setIsOpen(false);
-                    setSearchQuery("");
-                  }}
-                  className={`relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground ${
-                    value === option.value ? "bg-accent text-accent-foreground" : ""
-                  }`}
+                  onClick={() => { onChange(option.value); setIsOpen(false); setSearchQuery(""); }}
+                  className={cn(
+                    "flex w-full items-center rounded-xl px-3 py-2 text-sm text-left transition-colors",
+                    value === option.value
+                      ? "bg-violet-50 dark:bg-violet-900/30 text-[#7C5CFC] font-semibold"
+                      : "hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
+                  )}
                 >
                   {option.label}
                 </button>
@@ -134,43 +124,29 @@ export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedServiceId, setSelectedServiceId] = useState("");
   const [link, setLink] = useState("");
-  const [quantity, setQuantity] = useState<string>("");
+  const [quantity, setQuantity] = useState("");
   const [comments, setComments] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [balance, setBalance] = useState<number>(0);
+  const [balance, setBalance] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const { toast } = useToast();
   const { format } = useCurrency();
 
-  useEffect(() => {
-    fetchServices();
-    fetchBalance();
-  }, []);
+  useEffect(() => { fetchServices(); fetchBalance(); }, []);
 
   const fetchServices = async () => {
     try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch("/api/services");
-      if (!response.ok) {
-        throw new Error("Failed to fetch services");
-      }
-
-      const data = await response.json();
+      setLoading(true); setError(null);
+      const res = await fetch("/api/services");
+      if (!res.ok) throw new Error("Failed to fetch services");
+      const data = await res.json();
       setServices(data.services || []);
       setCategories(data.filters?.categories || []);
     } catch (err: any) {
-      console.error("Error fetching services:", err);
       setError(err.message || "Failed to load services");
-      toast({
-        title: "Error",
-        description: err.message || "Failed to load services. Please try again.",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
@@ -178,402 +154,264 @@ export default function ServicesPage() {
 
   const fetchBalance = async () => {
     try {
-      const response = await fetch("/api/balance");
-      if (response.ok) {
-        const data = await response.json();
-        setBalance(parseFloat(data.balance || "0"));
-      }
-    } catch (error) {
-      console.error("Error fetching balance:", error);
-    }
+      const res = await fetch("/api/balance");
+      if (res.ok) { const data = await res.json(); setBalance(parseFloat(data.balance || "0")); }
+    } catch {}
   };
 
-  // Filter services by selected category
   const filteredServices = useMemo(() => {
     if (!selectedCategory) return [];
-    return services.filter((service) => 
-      service.category?.toLowerCase() === selectedCategory.toLowerCase()
-    );
+    return services.filter((s) => s.category?.toLowerCase() === selectedCategory.toLowerCase());
   }, [services, selectedCategory]);
 
-  // Get selected service details
   const selectedService = useMemo(() => {
     if (!selectedServiceId) return null;
     return services.find((s) => s.id.toString() === selectedServiceId) || null;
   }, [services, selectedServiceId]);
 
-  // Check if service requires comments
   const isCommentService = () => {
     if (!selectedService) return false;
-    const name = (selectedService.name || "").toLowerCase();
-    const type = (selectedService.type || "").toLowerCase();
-    const category = (selectedService.category || "").toLowerCase();
-    return name.includes("comment") || type.includes("comment") || category.includes("comment");
+    const n = (selectedService.name || "").toLowerCase();
+    const t = (selectedService.type || "").toLowerCase();
+    return n.includes("comment") || t.includes("comment");
   };
 
-  // Calculate charge
-  const calculateCharge = () => {
+  const charge = useMemo(() => {
     if (!selectedService || !quantity) return 0;
     const qty = parseInt(quantity, 10);
     if (isNaN(qty) || qty <= 0) return 0;
     return (qty / 1000) * (selectedService.rate || 0);
-  };
+  }, [selectedService, quantity]);
 
-  const charge = calculateCharge();
-
-  // Reset service selection when category changes
   useEffect(() => {
-    setSelectedServiceId("");
-    setQuantity("");
-    setLink("");
-    setComments("");
+    setSelectedServiceId(""); setQuantity(""); setLink(""); setComments("");
   }, [selectedCategory]);
 
-  // Set default quantity when service is selected
   useEffect(() => {
-    if (selectedService && !quantity) {
-      setQuantity(String(selectedService.min_quantity || 100));
-    }
+    if (selectedService && !quantity) setQuantity(String(selectedService.min_quantity || 100));
   }, [selectedService]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!selectedService) {
-      toast({
-        title: "Service required",
-        description: "Please select a service",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!link.trim()) {
-      toast({
-        title: "Link required",
-        description: "Please enter a valid link",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (!selectedService) return toast({ title: "Select a service", variant: "destructive" });
+    if (!link.trim()) return toast({ title: "Link required", description: "Enter a valid link", variant: "destructive" });
     const qty = parseInt(quantity, 10);
-    if (!quantity.trim() || isNaN(qty) || qty < selectedService.min_quantity || qty > selectedService.max_quantity) {
-      toast({
-        title: "Invalid quantity",
-        description: `Quantity must be between ${selectedService.min_quantity.toLocaleString()} and ${selectedService.max_quantity.toLocaleString()}`,
-        variant: "destructive",
-      });
-      return;
+    if (!quantity || isNaN(qty) || qty < selectedService.min_quantity || qty > selectedService.max_quantity) {
+      return toast({ title: "Invalid quantity", description: `Between ${selectedService.min_quantity.toLocaleString()} and ${selectedService.max_quantity.toLocaleString()}`, variant: "destructive" });
     }
-
-    if (charge > balance) {
-      toast({
-        title: "Insufficient balance",
-        description: `You need ${format(charge)} but only have ${format(balance)}. Please fund your wallet.`,
-        variant: "destructive",
-      });
-      return;
-    }
+    if (charge > balance) return toast({ title: "Insufficient balance", description: `Need ${format(charge)}, have ${format(balance)}`, variant: "destructive" });
 
     setSubmitting(true);
-
     try {
-      const response = await fetch("/api/orders/create", {
+      const res = await fetch("/api/orders/create", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          service_id: selectedService.id,
-          link: link.trim(),
-          quantity: Math.floor(qty),
-          ...(comments.trim() && { comments: comments.trim() }),
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ service_id: selectedService.id, link: link.trim(), quantity: Math.floor(qty), ...(comments.trim() && { comments: comments.trim() }) }),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create order");
-      }
-
-      toast({
-        title: "Order created successfully!",
-        description: `Your order for ${selectedService.name} has been placed.`,
-      });
-
-      // Trigger balance update event
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create order");
+      toast({ title: "Order placed!", description: `${selectedService.name} order is being processed.` });
       window.dispatchEvent(new CustomEvent("balanceUpdated"));
       fetchBalance();
-
-      // Reset form
-      setLink("");
-      setQuantity("");
-      setComments("");
-      setSelectedServiceId("");
-      setSelectedCategory("");
-    } catch (error: any) {
-      console.error("Error creating order:", error);
-      toast({
-        title: "Order failed",
-        description: error.message || "Failed to create order. Please try again.",
-        variant: "destructive",
-      });
+      setLink(""); setQuantity(""); setComments(""); setSelectedServiceId(""); setSelectedCategory("");
+    } catch (err: any) {
+      toast({ title: "Order failed", description: err.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Estimate average time (placeholder - you can enhance this based on service type)
-  const getAverageTime = () => {
-    if (!selectedService) return "N/A";
-    // Simple estimation based on service type
-    const type = (selectedService.type || "").toLowerCase();
-    if (type.includes("followers") || type.includes("subscribers")) {
-      return "24-48 hours";
-    } else if (type.includes("likes") || type.includes("views")) {
-      return "1-6 hours";
-    } else if (type.includes("comments")) {
-      return "12-24 hours";
-    }
-    return "12-48 hours";
+  const getEstimatedTime = () => {
+    if (!selectedService) return null;
+    const t = (selectedService.type || "").toLowerCase();
+    if (t.includes("followers") || t.includes("subscribers")) return "24–48 hours";
+    if (t.includes("likes") || t.includes("views")) return "1–6 hours";
+    if (t.includes("comments")) return "12–24 hours";
+    return "12–48 hours";
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-indigo-500/10 dark:from-blue-500/20 dark:via-cyan-500/20 dark:to-indigo-500/20 rounded-2xl blur-xl"></div>
-          <div className="relative">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">Services</h1>
-            <p className="text-blue-700 dark:text-blue-300 mt-2 font-medium">Boost your social media presence</p>
-          </div>
-        </div>
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-indigo-500/10 dark:from-blue-500/20 dark:via-cyan-500/20 dark:to-indigo-500/20 rounded-2xl blur-xl"></div>
-        <div className="relative">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">Services</h1>
-          <p className="text-blue-700 dark:text-blue-300 mt-2 font-medium">Boost your social media presence</p>
+    <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
+      <div className="px-4 pt-4 pb-6 md:px-6 md:pt-6 max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
+            Boost Socials
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            Grow your social media presence
+          </p>
         </div>
-      </div>
 
-      {error && (
-        <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950">
-          <CardContent className="pt-6">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
-            <Button
-              variant="outline"
-              onClick={fetchServices}
-              className="mt-4"
-            >
-                Retry
-              </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card className="border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50/50 to-cyan-50/50 dark:from-blue-950/20 dark:to-cyan-950/20">
-        <CardHeader>
-          <CardTitle className="text-blue-900 dark:text-blue-100">Create New Order</CardTitle>
-          <CardDescription className="text-blue-700 dark:text-blue-300">
-            Select a category and service to get started
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Category Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="category" className="text-base font-semibold">Category</Label>
-              <SearchableSelect
-                id="category"
-                options={categories.map((category) => ({
-                  value: category,
-                  label: category,
-                }))}
-                value={selectedCategory}
-                onChange={setSelectedCategory}
-                placeholder="Select a category"
-                disabled={loading}
-              />
+        {error && (
+          <div className="mb-4 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300 flex items-center justify-between">
+            {error}
+            <button onClick={fetchServices} className="text-xs font-semibold underline">Retry</button>
           </div>
+        )}
 
-            {/* Service Selection */}
-            {selectedCategory && (
-              <div className="space-y-2">
-                <Label htmlFor="service" className="text-base font-semibold">Service</Label>
+        {/* Form Card */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 space-y-5">
+          <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            Create New Order
+          </h2>
+
+          {loading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-11 w-full rounded-full" />
+              <Skeleton className="h-11 w-full rounded-full" />
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Category */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</Label>
                 <SearchableSelect
-                  id="service"
-                  options={filteredServices.map((service) => ({
-                    value: service.id.toString(),
-                    label: service.name,
-                  }))}
-                  value={selectedServiceId}
-                  onChange={setSelectedServiceId}
-                  placeholder={filteredServices.length === 0 ? "No services available" : "Select a service"}
-                  disabled={!selectedCategory || filteredServices.length === 0 || loading}
+                  id="category"
+                  options={categories.map((c) => ({ value: c, label: c }))}
+                  value={selectedCategory}
+                  onChange={setSelectedCategory}
+                  placeholder="Select a category"
                 />
               </div>
-            )}
 
-            {/* Service Details */}
-            {selectedService && (
-              <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20">
-                <CardHeader>
+              {/* Service */}
+              {selectedCategory && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Service</Label>
+                  <SearchableSelect
+                    id="service"
+                    options={filteredServices.map((s) => ({ value: s.id.toString(), label: s.name }))}
+                    value={selectedServiceId}
+                    onChange={setSelectedServiceId}
+                    placeholder={filteredServices.length === 0 ? "No services available" : "Select a service"}
+                    disabled={filteredServices.length === 0}
+                  />
+                </div>
+              )}
+
+              {/* Service Info */}
+              {selectedService && (
+                <div className="rounded-xl border border-violet-100 dark:border-violet-800/40 bg-violet-50 dark:bg-violet-900/20 p-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-purple-900 dark:text-purple-100">{selectedService.name}</CardTitle>
-                      <CardDescription className="text-purple-700 dark:text-purple-300 mt-1">
-                        {selectedService.category} • {selectedService.type}
-                  </CardDescription>
+                      <p className="font-bold text-sm text-gray-800 dark:text-gray-100">{selectedService.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{selectedService.category} · {selectedService.type}</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5">
                       {selectedService.refill_allowed && (
-                        <Badge className="bg-green-500 text-white">Refill</Badge>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">Refill</span>
                       )}
                       {selectedService.cancel_allowed && (
-                        <Badge className="bg-blue-500 text-white">Cancel</Badge>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">Cancel</span>
                       )}
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex gap-6 text-sm">
                     <div>
-                      <span className="text-gray-600 dark:text-gray-400">Price per 1000:</span>
-                      <p className="font-semibold text-lg text-purple-900 dark:text-purple-100">{format(selectedService.rate)}</p>
+                      <p className="text-xs text-gray-400">Per 1,000</p>
+                      <p className="font-black text-[#7C5CFC]">{format(selectedService.rate)}</p>
                     </div>
                     <div>
-                      <span className="text-gray-600 dark:text-gray-400">Quantity Range:</span>
-                      <p className="font-semibold text-purple-900 dark:text-purple-100">
-                        {selectedService.min_quantity.toLocaleString()} - {selectedService.max_quantity.toLocaleString()}
+                      <p className="text-xs text-gray-400">Quantity range</p>
+                      <p className="font-semibold text-gray-700 dark:text-gray-200">
+                        {selectedService.min_quantity.toLocaleString()} – {selectedService.max_quantity.toLocaleString()}
                       </p>
-            </div>
-            </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Link Field */}
-            {selectedService && (
-              <div className="space-y-2">
-                <Label htmlFor="link" className="text-base font-semibold">Link</Label>
-                <Input
-                  id="link"
-                  type="url"
-                  placeholder="https://..."
-                  value={link}
-                  onChange={(e) => setLink(e.target.value)}
-                  required
-                  disabled={submitting}
-                />
-              </div>
-            )}
-
-            {/* Quantity Field */}
-            {selectedService && (
-              <div className="space-y-2">
-                <Label htmlFor="quantity" className="text-base font-semibold">
-                  Quantity ({selectedService.min_quantity.toLocaleString()} - {selectedService.max_quantity.toLocaleString()})
-                </Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min={selectedService.min_quantity}
-                  max={selectedService.max_quantity}
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  onBlur={(e) => {
-                    const value = e.target.value.trim();
-                    if (!value || isNaN(parseInt(value, 10))) {
-                      setQuantity(String(selectedService.min_quantity || 100));
-                    }
-                  }}
-                  required
-                  disabled={submitting}
-                />
-          </div>
-      )}
-
-            {/* Order Summary */}
-            {selectedService && quantity && (
-              <Card className="border-2 border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
-                <CardContent className="pt-6 space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                      <Clock className="h-4 w-4" />
-                      <span>Average Time:</span>
-                      <span className="font-semibold text-gray-900 dark:text-gray-100">{getAverageTime()}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                      <DollarSign className="h-4 w-4" />
-                      <span>Total Charge:</span>
-                      <span className="font-bold text-lg text-gray-900 dark:text-gray-100">{format(charge)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
-                      <span>Your Balance:</span>
-                      <span className={charge > balance ? "text-red-600 dark:text-red-400 font-semibold" : ""}>
-                        {format(balance)}
-                      </span>
                     </div>
                   </div>
-              </CardContent>
-            </Card>
-            )}
+                </div>
+              )}
 
-            {/* Comments Field (if required) */}
-            {selectedService && isCommentService() && (
-              <div className="space-y-2">
-                <Label htmlFor="comments" className="text-base font-semibold">Custom Comments</Label>
-                <Textarea
-                  id="comments"
-                  placeholder="Enter comments, one per line..."
-                  value={comments}
-                  onChange={(e) => setComments(e.target.value)}
-                  rows={6}
-                  disabled={submitting}
-                  className="resize-none"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Enter each comment on a new line
-                </p>
-              </div>
-            )}
+              {/* Link */}
+              {selectedService && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Link</Label>
+                  <Input
+                    type="url"
+                    placeholder="https://..."
+                    value={link}
+                    onChange={(e) => setLink(e.target.value)}
+                    required
+                    disabled={submitting}
+                    className="rounded-full border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
+                  />
+                </div>
+              )}
 
-            {/* Submit Button */}
-            {selectedService && (
-                        <Button
-                type="submit" 
-                disabled={submitting || charge > balance || !link.trim() || !quantity}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                size="lg"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating Order...
-                  </>
-                ) : (
-                  "Submit Order"
-                )}
-                        </Button>
-            )}
-          </form>
-        </CardContent>
-      </Card>
+              {/* Quantity */}
+              {selectedService && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Quantity ({selectedService.min_quantity.toLocaleString()} – {selectedService.max_quantity.toLocaleString()})
+                  </Label>
+                  <Input
+                    type="number"
+                    min={selectedService.min_quantity}
+                    max={selectedService.max_quantity}
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    onBlur={(e) => { if (!e.target.value || isNaN(parseInt(e.target.value))) setQuantity(String(selectedService.min_quantity)); }}
+                    required
+                    disabled={submitting}
+                    className="rounded-full border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
+                  />
+                </div>
+              )}
+
+              {/* Comments */}
+              {selectedService && isCommentService() && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Custom Comments</Label>
+                  <Textarea
+                    placeholder="One comment per line..."
+                    value={comments}
+                    onChange={(e) => setComments(e.target.value)}
+                    rows={5}
+                    disabled={submitting}
+                    className="rounded-2xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 resize-none focus-visible:ring-[#7C5CFC]"
+                  />
+                </div>
+              )}
+
+              {/* Order Summary */}
+              {selectedService && quantity && (
+                <div className="rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-4 space-y-2.5">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Order Summary</p>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-1.5 text-gray-500">
+                      <Clock className="h-3.5 w-3.5" /> Estimated time
+                    </span>
+                    <span className="font-semibold text-gray-700 dark:text-gray-200">{getEstimatedTime()}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Total charge</span>
+                    <span className="text-xl font-black text-[#7C5CFC]">{format(charge)}</span>
+                  </div>
+                  <div className="border-t border-gray-100 dark:border-gray-700 pt-2 flex items-center justify-between text-xs text-gray-400">
+                    <span>Your balance</span>
+                    <span className={cn("font-semibold", charge > balance && "text-red-500")}>{format(balance)}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Submit */}
+              {selectedService && (
+                <Button
+                  type="submit"
+                  disabled={submitting || charge > balance || !link.trim() || !quantity}
+                  className="w-full bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white h-12 text-sm font-bold rounded-2xl shadow-md shadow-violet-200 dark:shadow-none"
+                >
+                  {submitting ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Placing Order...</>
+                  ) : (
+                    <><ShoppingBag className="mr-2 h-4 w-4" />Place Order — {format(charge)}</>
+                  )}
+                </Button>
+              )}
+            </form>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

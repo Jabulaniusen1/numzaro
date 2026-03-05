@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "verify:5sim": "npx ts-node scripts/verify-5sim.ts"
+    "lint": "next lint"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -28,6 +27,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.3.1",
     "inngest": "^3.49.3",
     "lucide-react": "^0.344.0",
     "next": "^14.2.0",

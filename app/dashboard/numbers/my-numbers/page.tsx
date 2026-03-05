@@ -1,69 +1,55 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import Link from "next/link";
-import { Search, RefreshCw, Calendar as CalendarIcon, Info, ChevronDown, Copy, Plus, Hourglass, Trash2, Ban, Clock } from "lucide-react";
+import { Search, RefreshCw, Info, Copy, Plus, Hourglass, Clock, Phone } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatusFilterBar } from "@/components/dashboard/StatusFilterBar";
 import { OrderTableRow } from "@/components/dashboard/OrderTableRow";
 import { cn, getFlag } from "@/lib/utils";
-import { format, differenceInSeconds, parseISO } from "date-fns";
+import { format as dateFormat, differenceInSeconds, parseISO } from "date-fns";
+import { ServiceIcon, getServicePrettyName } from "@/components/dashboard/ServiceIcon";
 
 function Countdown({ expiresAt }: { expiresAt: string | null }) {
-  const [timeLeft, setTimeLeft] = useState<string>("");
+  const [timeLeft, setTimeLeft] = useState("");
 
   useEffect(() => {
     if (!expiresAt) return;
-
     const interval = setInterval(() => {
-      const expiration = parseISO(expiresAt);
-      const diff = differenceInSeconds(expiration, new Date());
-
-      if (diff <= 0) {
-        setTimeLeft("00:00");
-        clearInterval(interval);
-      } else {
-        const minutes = Math.floor(diff / 60);
-        const seconds = diff % 60;
-        setTimeLeft(`${minutes}:${seconds.toString().padStart(2, "0")}`);
-      }
+      const diff = differenceInSeconds(parseISO(expiresAt), new Date());
+      if (diff <= 0) { setTimeLeft("Expired"); clearInterval(interval); return; }
+      const d = Math.floor(diff / 86400);
+      const h = Math.floor((diff % 86400) / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      setTimeLeft(d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}:${s.toString().padStart(2, "0")}`);
     }, 1000);
-
     return () => clearInterval(interval);
   }, [expiresAt]);
 
   if (!expiresAt) return null;
-
   return (
-    <div className="flex items-center gap-1.5 text-[#FF8A00] font-bold">
+    <div className="flex items-center gap-1.5 text-[#7C5CFC] font-bold text-sm">
       <Clock className="h-4 w-4" />
-      <span>{timeLeft} min</span>
+      <span>{timeLeft}</span>
     </div>
   );
 }
 
-const CopyButton = ({ value, className, icon: Icon = Copy, label }: { value: string; className?: string; icon?: any, label?: string }) => {
+const CopyButton = ({ value, label }: { value: string; label?: string }) => {
   const { toast } = useToast();
   return (
     <button
-      onClick={(e) => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(value);
-        toast({ title: "Copied!", description: `${label || "Value"} copied to clipboard` });
-      }}
-      className={cn("flex items-center justify-center transition-all hover:opacity-80", className)}
+      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(value); toast({ title: "Copied!", description: `${label || "Value"} copied` }); }}
+      className="flex items-center justify-center hover:opacity-70 transition-opacity"
     >
-      <Icon className="h-4 w-4" />
+      <Copy className="h-4 w-4" />
     </button>
   );
 };
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ServiceIcon, getServicePrettyName } from "@/components/dashboard/ServiceIcon";
 
 interface VirtualNumber {
   id: string;
@@ -77,333 +63,279 @@ interface VirtualNumber {
   country_code: string;
   country_name: string;
   otp_code?: string;
-  otp_status?: string;
+  provider: string;
+  message_count: number;
 }
 
+const STATUS_TABS = {
+  active: ["PENDING", "RECEIVED", "ACTIVE"],
+  history: ["FINISHED", "CANCELED", "TIMEOUT", "BANNED", "CANCELLED", "SUSPENDED"],
+};
 
 export default function MyNumbersPage() {
   const { toast } = useToast();
+  const { format: formatCurrency } = useCurrency();
   const [numbers, setNumbers] = useState<VirtualNumber[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"active" | "history">("active");
-  const [activeStatus, setActiveStatus] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    fetchNumbers();
-  }, []);
+  useEffect(() => { fetchNumbers(); }, []);
 
   const fetchNumbers = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/numbers");
-      if (!response.ok) {
-        throw new Error("Failed to fetch numbers");
-      }
-
-      const data = await response.json();
-      // Map the backend data to our interface
-      const mappedNumbers = (data.numbers || []).map((n: any) => ({
-        id: n.fivsim_order_id || n.id,
-        phone: n.phone_number,
-        operator: n.operator || "virtual",
-        product: n.product || "activation",
-        price: n.monthly_cost || 0,
-        status: n.status || "PENDING",
-        expires_at: n.expires_at,
-        created_at: n.created_at,
-        country_code: n.country_code || "US",
-        otp_code: n.otp_code,
-        otp_status: n.otp_status,
-      }));
-      setNumbers(mappedNumbers);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load numbers",
-        variant: "destructive",
-      });
+      const res = await fetch("/api/numbers");
+      if (!res.ok) throw new Error("Failed to fetch numbers");
+      const data = await res.json();
+      setNumbers(
+        (data.numbers || []).map((n: any) => ({
+          id: n.id,
+          phone: n.phone_number,
+          operator: n.operator || "virtual",
+          product: n.product || "activation",
+          price: n.monthly_cost || 0,
+          status: n.status || "PENDING",
+          expires_at: n.expires_at,
+          created_at: n.created_at,
+          country_code: n.country_code || "US",
+          country_name: n.country_name || "",
+          otp_code: n.otp_code,
+          provider: n.provider,
+          message_count: n.message_count || 0,
+        }))
+      );
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
+
   const handleAction = async (numberId: string, action: string) => {
     try {
-      const response = await fetch(`/api/numbers/${numberId}`, {
+      const res = await fetch(`/api/numbers/${numberId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Action failed");
-      toast({ title: "Success", description: `Number ${action}ed successfully` });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Action failed");
+      toast({ title: "Done", description: `Number ${action}ed` });
       fetchNumbers();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   };
 
-  const filteredNumbers = numbers.filter((number) => {
-    const matchesSearch = !searchQuery ||
-      number.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      number.id.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus = activeStatus === "All" ||
-      number.status.toLowerCase() === activeStatus.toLowerCase();
-
-    const matchesTab = activeTab === "active"
-      ? ["PENDING", "RECEIVED", "ACTIVE"].includes(number.status.toUpperCase())
-      : ["FINISHED", "CANCELED", "TIMEOUT", "BANNED", "CANCELLED", "SUSPENDED"].includes(number.status.toUpperCase());
-
-    return matchesSearch && matchesStatus && matchesTab;
+  const filtered = numbers.filter((n) => {
+    const matchSearch = !searchQuery || n.phone.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchTab = STATUS_TABS[activeTab].includes(n.status.toUpperCase());
+    return matchSearch && matchTab;
   });
 
+  const activeNumber = activeTab === "active" ? filtered[0] : null;
+
   return (
-    <div className="space-y-8 p-4 md:p-8 max-w-7xl mx-auto bg-white dark:bg-slate-950 min-h-screen">
-      {/* Tabs */}
-      <div className="flex justify-center border-b border-slate-200 dark:border-slate-800 relative">
-        <button
-          onClick={() => setActiveTab("active")}
-          className={cn(
-            "px-12 py-4 text-xl font-bold transition-all relative",
-            activeTab === "active" ? "text-[#FF8A00]" : "text-slate-400"
-          )}
-        >
-          Active orders
-          {activeTab === "active" && (
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#FF8A00] rounded-t-full" />
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab("history")}
-          className={cn(
-            "px-12 py-4 text-xl font-bold transition-all relative",
-            activeTab === "history" ? "text-[#FF8A00]" : "text-slate-400"
-          )}
-        >
-          Order History
-          {activeTab === "history" && (
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#FF8A00] rounded-t-full" />
-          )}
-        </button>
-      </div>
+    <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
+      <div className="px-4 pt-4 pb-6 md:px-6 md:pt-6 max-w-6xl mx-auto space-y-4">
 
-      {activeTab === "history" && (
-        <div className="bg-[#EBF5FF] dark:bg-blue-950/30 p-4 rounded-2xl flex gap-4 items-start border border-blue-100 dark:border-blue-900">
-          <div className="bg-[#4AA8FF] rounded-full p-1 mt-1">
-            <Info className="h-4 w-4 text-white" />
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
+              My Numbers
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Virtual numbers you've purchased</p>
           </div>
-          <p className="text-[#2C699A] dark:text-blue-200 text-sm leading-relaxed">
-            Please note that the activation history can be periodically cleared by the system. If you require access to the list of previously used numbers, we advise you to save it beforehand.
-          </p>
-        </div>
-      )}
-
-      {/* Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-        <div className="md:col-span-4 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#4AA8FF]" />
-          <Input
-            placeholder="Search by number"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 h-14 rounded-full border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus-visible:ring-[#4AA8FF]"
-          />
+          <Link href="/dashboard/numbers">
+            <Button size="sm" className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl gap-1.5">
+              <Phone className="h-3.5 w-3.5" /> Buy Number
+            </Button>
+          </Link>
         </div>
 
-        <div className="md:col-span-1 flex justify-center">
+        {/* Tabs */}
+        <div className="flex gap-1 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-1 w-fit shadow-sm">
+          {(["active", "history"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "px-5 py-2 rounded-xl text-sm font-bold transition-all capitalize",
+                activeTab === tab
+                  ? "bg-[#7C5CFC] text-white shadow-md shadow-violet-200 dark:shadow-none"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              )}
+            >
+              {tab === "active" ? "Active" : "History"}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "history" && (
+          <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/50 rounded-xl p-4 flex gap-3 items-start">
+            <div className="w-6 h-6 rounded-full bg-[#7C5CFC] flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Info className="h-3.5 w-3.5 text-white" />
+            </div>
+            <p className="text-sm text-violet-700 dark:text-violet-300 leading-relaxed">
+              Activation history may be periodically cleared. Save any numbers you need to keep track of.
+            </p>
+          </div>
+        )}
+
+        {/* Search + Refresh */}
+        <div className="flex gap-3">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by number..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 rounded-full border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
+            />
+          </div>
           <button
             onClick={fetchNumbers}
-            className="w-12 h-12 rounded-xl bg-[#EBF5FF] dark:bg-blue-950 flex items-center justify-center text-[#4AA8FF] hover:bg-blue-100 transition-colors"
+            className="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-[#7C5CFC] hover:border-[#7C5CFC]/40 transition-colors"
           >
-            <RefreshCw className={cn("h-6 w-6", loading && "animate-spin")} />
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </button>
         </div>
 
-        <div className="md:col-span-4">
-          <Select>
-            <SelectTrigger className="h-14 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-              <SelectValue placeholder="Service" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Services</SelectItem>
-              <SelectItem value="telegram">Telegram</SelectItem>
-              <SelectItem value="whatsapp">WhatsApp</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Active Number Card */}
+        {activeNumber && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
+            {/* Top row */}
+            <div className="flex items-center justify-between mb-5">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">#{activeNumber.id.slice(0, 8)}</span>
+              <div className="flex items-center gap-4">
+                <Countdown expiresAt={activeNumber.expires_at} />
+                <span className="text-xs text-gray-400">{dateFormat(parseISO(activeNumber.created_at), "HH:mm")}</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-[#7C5CFC] shadow-[0_0_8px_#7C5CFC]" />
+              </div>
+            </div>
 
-        <div className="md:col-span-3 relative">
-          <div className="absolute -top-3 left-4 bg-white dark:bg-slate-950 px-2 text-xs text-slate-400 z-10">Date</div>
-          <div className="flex items-center justify-between h-14 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-400">
-            <span>dd-mm-yyyy</span>
-            <CalendarIcon className="h-5 w-5" />
+            {/* Info */}
+            <div className="flex flex-wrap items-center gap-5 mb-5">
+              <div className="flex items-center gap-2">
+                <ServiceIcon name={activeNumber.product} size="md" />
+                <span className="font-bold text-gray-800 dark:text-gray-100">{getServicePrettyName(activeNumber.product)}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xl">{getFlag(activeNumber.country_code)}</span>
+                <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">{activeNumber.country_name}</span>
+              </div>
+              <span className="font-bold text-gray-700 dark:text-gray-200">{formatCurrency(activeNumber.price)}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-violet-50 dark:bg-violet-900/30 text-[#7C5CFC]">
+                &gt;1 SMS
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-wrap items-center gap-2 mb-5">
+              <button
+                onClick={() => handleAction(activeNumber.id, "finish")}
+                className="h-10 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold flex items-center gap-1.5 transition-colors"
+              >
+                <Hourglass className="h-4 w-4" /> Finish
+              </button>
+              <button
+                onClick={() => handleAction(activeNumber.id, "ban")}
+                className="h-10 px-4 rounded-xl border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-bold hover:border-red-400 hover:text-red-500 transition-colors"
+              >
+                Ban
+              </button>
+              <button
+                onClick={() => handleAction(activeNumber.id, "cancel")}
+                className="h-10 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleAction(activeNumber.id, "sync")}
+                className="h-10 w-10 rounded-xl bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white flex items-center justify-center transition-colors"
+                title="Sync Messages"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Number + OTP */}
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 flex items-center rounded-2xl border-2 border-gray-100 dark:border-gray-700 overflow-hidden h-14">
+                <div className="w-14 h-full bg-[#7C5CFC] flex items-center justify-center flex-shrink-0">
+                  <div className="relative">
+                    <Plus className="h-3.5 w-3.5 text-white absolute -top-1 -left-1" />
+                    <Copy className="h-4 w-4 text-white" />
+                  </div>
+                </div>
+                <div className="flex-1 text-center font-bold text-lg text-gray-700 dark:text-gray-200 tracking-wider">
+                  {activeNumber.phone}
+                </div>
+                <div className="w-14 h-full bg-[#7C5CFC] flex items-center justify-center text-white">
+                  <CopyButton value={activeNumber.phone} label="Phone number" />
+                </div>
+              </div>
+
+              <div className="flex-1 flex items-center gap-3">
+                <span className="text-sm font-bold text-gray-500 whitespace-nowrap">Code</span>
+                <div className="flex-1 flex items-center rounded-2xl border-2 border-gray-100 dark:border-gray-700 overflow-hidden h-14">
+                  <div className="flex-1 text-center font-bold text-xl tracking-[0.5em] pl-[0.5em] text-gray-700 dark:text-gray-200">
+                    {activeNumber.otp_code || "—"}
+                  </div>
+                  <div className="w-14 h-full bg-[#7C5CFC] flex items-center justify-center text-white">
+                    <CopyButton value={activeNumber.otp_code || ""} label="OTP code" />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Status Bar */}
-      <StatusFilterBar
-        activeStatus={activeStatus}
-        onStatusChange={setActiveStatus}
-        className="mt-6"
-      />
-
-      {/* Active Order Card (If one is selected or just showing the first one as example) */}
-      {activeTab === "active" && filteredNumbers.length > 0 && (
-        <Card className="rounded-[2.5rem] border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden bg-white dark:bg-slate-900 mt-8 mb-12">
-          <CardContent className="p-8">
-            {/* Order Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="text-slate-400 font-medium">№ {filteredNumbers[0].id}</div>
-              <div className="flex items-center gap-6">
-                <Countdown expiresAt={filteredNumbers[0].expires_at} />
-                <div className="text-slate-400 font-medium">
-                  {format(parseISO(filteredNumbers[0].created_at), "HH:mm")}
+        {/* Table */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+          {loading ? (
+            <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4 px-5 py-4">
+                  {[...Array(5)].map((_, j) => <Skeleton key={j} className="h-4 flex-1" />)}
                 </div>
-                <div className="w-2.5 h-2.5 rounded-full bg-[#4AA8FF] shadow-[0_0_8px_#4AA8FF]" />
-              </div>
+              ))}
             </div>
-
-            {/* Info Row */}
-            <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="flex items-center gap-2.5">
-                  <ServiceIcon name={filteredNumbers[0].product} size="md" />
-                  <span className="font-bold text-slate-700 dark:text-slate-200 text-lg">
-                    {getServicePrettyName(filteredNumbers[0].product)}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">{getFlag(filteredNumbers[0].country_code)}</span>
-                  <span className="text-slate-500 font-bold truncate max-w-[120px]">
-                    {filteredNumbers[0].country_name}
-                  </span>
-                  <span className="text-slate-400 font-medium lowercase">
-                    {filteredNumbers[0].operator}
-                  </span>
-                </div>
-
-                <div className="font-bold text-slate-700 dark:text-slate-200 text-lg">
-                  ${filteredNumbers[0].price.toFixed(4)}
-                </div>
-
-                <div className="bg-[#EBF5FF] dark:bg-blue-900/30 text-[#4AA8FF] px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider">
-                  &gt;1 SMS
-                </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-16 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center mx-auto mb-3">
+                <Phone className="h-7 w-7 text-[#7C5CFC]" />
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => handleAction(filteredNumbers[0].id, "finish")}
-                  className="w-12 h-12 bg-[#FF8A00] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-orange-500/20 hover:scale-105 transition-transform"
-                >
-                  <Hourglass className="h-6 w-6" />
-                </button>
-                <button
-                  onClick={() => handleAction(filteredNumbers[0].id, "ban")}
-                  className="h-12 px-6 border-2 border-[#4AA8FF] rounded-2xl text-[#4AA8FF] font-bold hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
-                >
-                  Ban
-                </button>
-                <button
-                  onClick={() => handleAction(filteredNumbers[0].id, "cancel")}
-                  className="h-12 px-6 bg-[#4AA8FF] rounded-2xl text-white font-bold shadow-lg shadow-blue-500/20 hover:scale-105 transition-transform"
-                >
-                  Cancel
-                </button>
-              </div>
+              <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3">No numbers found</p>
+              <Link href="/dashboard/numbers">
+                <Button size="sm" className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl">
+                  Buy a Number
+                </Button>
+              </Link>
             </div>
-
-            {/* Input Row */}
-            <div className="flex flex-col md:flex-row items-center gap-8">
-              <div className="flex-1 w-full relative">
-                <div className="flex items-center h-16 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden group focus-within:border-[#4AA8FF] transition-all">
-                  <div className="w-16 h-full bg-[#4AA8FF] flex items-center justify-center">
-                    <div className="relative">
-                      <Plus className="h-4 w-4 text-white absolute -top-1 -left-1" />
-                      <Copy className="h-5 w-5 text-white" />
-                    </div>
-                  </div>
-                  <div className="flex-1 text-center font-bold text-xl text-slate-700 dark:text-slate-200 tracking-wider">
-                    {filteredNumbers[0].phone}
-                  </div>
-                  <CopyButton
-                    value={filteredNumbers[0].phone}
-                    label="Phone number"
-                    className="w-16 h-full bg-[#4AA8FF] text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="flex-1 w-full flex items-center gap-4">
-                <span className="text-slate-500 font-bold whitespace-nowrap">Code from SMS</span>
-                <div className="flex-1 flex items-center h-16 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden group focus-within:border-[#4AA8FF] transition-all">
-                  <div className="flex-1 text-center font-bold text-2xl text-slate-700 dark:text-slate-200 tracking-[0.5em] pl-[0.5em]">
-                    {filteredNumbers[0].otp_code || ""}
-                  </div>
-                  <CopyButton
-                    value={filteredNumbers[0].otp_code || ""}
-                    label="OTP code"
-                    className="w-16 h-full bg-[#4AA8FF] text-white"
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Table */}
-      <div className="overflow-x-auto rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-[#F8FBFF] dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
-              <th className="py-5 px-4 text-sm font-bold text-slate-500 uppercase tracking-wider">ID</th>
-              <th className="py-5 px-4 text-sm font-bold text-slate-500 uppercase tracking-wider">Date</th>
-              <th className="py-5 px-4 text-sm font-bold text-slate-500 uppercase tracking-wider">Service</th>
-              <th className="py-5 px-4 text-sm font-bold text-slate-500 uppercase tracking-wider">Country</th>
-              <th className="py-5 px-4 text-sm font-bold text-slate-500 uppercase tracking-wider leading-tight">Price<br /><span className="text-xs font-medium text-slate-400 normal-case">Operator</span></th>
-              <th className="py-5 px-4 text-sm font-bold text-slate-500 uppercase tracking-wider leading-tight">Number<br /><span className="text-xs font-medium text-slate-400 normal-case">Code</span></th>
-              <th className="py-5 px-4 text-sm font-bold text-slate-500 uppercase tracking-wider text-right pr-8">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              [...Array(5)].map((_, i) => (
-                <tr key={i} className="border-b border-slate-50 dark:border-slate-800">
-                  {[...Array(7)].map((_, j) => (
-                    <td key={j} className="py-4 px-4">
-                      <Skeleton className="h-4 w-20" />
-                    </td>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-700">
+                    {["ID", "Date", "Service", "Country", "Price / Operator", "Number / Code", "Status"].map((h, i) => (
+                      <th key={h} className={cn("py-3.5 px-4 text-xs font-bold text-gray-400 uppercase tracking-wide", i === 6 ? "text-right pr-5" : "text-left")}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-700/30">
+                  {filtered.map((order) => (
+                    <OrderTableRow key={order.id} order={order} />
                   ))}
-                </tr>
-              ))
-            ) : filteredNumbers.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="py-20 text-center">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
-                      <Search className="h-8 w-8 text-slate-300" />
-                    </div>
-                    <p className="text-slate-400 font-medium">No orders found</p>
-                    <Link href="/dashboard/numbers">
-                      <Button variant="outline" className="rounded-xl border-[#4AA8FF] text-[#4AA8FF] hover:bg-[#EBF5FF]">
-                        Buy a number
-                      </Button>
-                    </Link>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              filteredNumbers.map((order) => (
-                <OrderTableRow key={order.id} order={order} />
-              ))
-            )}
-          </tbody>
-        </table>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

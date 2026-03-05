@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "WebFetch(domain:www.smspool.net)",
+      "WebFetch(domain:smspool.net)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(curl -s \"https://api.smspool.net/rental/retrieve_all?key=HppN4WcgidnhLZ2CzHiF5CdoqYaVJGDz&type=1\")",
+      "Bash(curl -s \"https://api.smspool.net/request/price?key=HppN4WcgidnhLZ2CzHiF5CdoqYaVJGDz&country=1&service=1\")",
+      "Bash(curl -s \"https://api.smspool.net/service/retrieve_all?key=HppN4WcgidnhLZ2CzHiF5CdoqYaVJGDz\")"
+    ]
+  }
+}

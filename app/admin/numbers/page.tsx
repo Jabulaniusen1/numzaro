@@ -37,11 +37,41 @@ export default function AdminNumbersPage() {
   const [fixed, setFixed] = useState<string>("1.00");
   const [loadingPricing, setLoadingPricing] = useState(false);
   const [savingPricing, setSavingPricing] = useState(false);
+  const [markup, setMarkup] = useState<string>("50");
+  const [savingMarkup, setSavingMarkup] = useState(false);
 
   useEffect(() => {
     fetchStats();
     fetchPricingSettings();
+    fetchMarkup();
   }, []);
+
+  const fetchMarkup = async () => {
+    try {
+      const res = await fetch("/api/admin/numbers/markup");
+      if (res.ok) {
+        const data = await res.json();
+        setMarkup(data.markupPercentage?.toString() ?? "50");
+      }
+    } catch {}
+  };
+
+  const saveMarkup = async () => {
+    setSavingMarkup(true);
+    try {
+      const res = await fetch("/api/admin/numbers/markup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markupPercentage: parseFloat(markup) }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      toast({ title: "Markup saved", description: `Numbers will now be priced at ${(1 + parseFloat(markup) / 100).toFixed(2)}× API cost.` });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingMarkup(false);
+    }
+  };
 
   const fetchPricingSettings = async () => {
     setLoadingPricing(true);
@@ -236,6 +266,42 @@ export default function AdminNumbersPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* SMSPool Markup */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Number Price Markup
+          </CardTitle>
+          <CardDescription>
+            How much to charge users on top of the SMSPool API cost. Example: 50% markup means a $0.12 number costs users $0.18.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="markup">Markup Percentage (%)</Label>
+            <Input
+              id="markup"
+              type="number"
+              min="0"
+              step="1"
+              value={markup}
+              onChange={(e) => setMarkup(e.target.value)}
+              className="mt-1 max-w-xs"
+            />
+            {markup && !isNaN(parseFloat(markup)) && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Users pay <strong>{(1 + parseFloat(markup) / 100).toFixed(2)}×</strong> the API cost.
+                A $1.00 number becomes <strong>${(1 + parseFloat(markup) / 100).toFixed(2)}</strong>.
+              </p>
+            )}
+          </div>
+          <Button onClick={saveMarkup} disabled={savingMarkup}>
+            {savingMarkup ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : "Save Markup"}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* One-Time OTP Pricing Configuration */}
       <Card>

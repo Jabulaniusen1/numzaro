@@ -1,45 +1,50 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { releaseNumber } from "@/lib/twilio/numbers";
-import { refundToWallet } from "@/lib/wallet/purchase";
-import { getDefaultMonthlyCost, getPhoneNumbersMarkup } from "@/lib/twilio/costs";
-import { fiveSimClient } from "@/lib/5sim/client";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { id } = await params;
 
     const { data: number, error } = await supabase
       .from("virtual_numbers")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", id)
       .eq("user_id", user.id)
       .single();
 
     if (error || !number) {
-      return NextResponse.json(
-        { error: "Number not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Number not found" }, { status: 404 });
     }
 
-    // Get message count
+    // Sync messages from SMSPVA
+    if (number.provider === "smspva" && number.textverified_id) {
+      try {
+        const { syncSmspvaMessages } = await import("@/lib/smspva/adapter");
+        await syncSmspvaMessages(
+          number.id,
+          number.textverified_id,
+          number.product_code ?? number.product ?? "opt1",
+          number.country_code,
+          supabase
+        );
+      } catch (syncError) {
+        console.error("Failed to sync SMSPVA messages:", syncError);
+      }
+    }
+
     const { count: messageCount } = await supabase
       .from("messages")
       .select("*", { count: "exact", head: true })
       .eq("number_id", number.id);
 
-    // Get OTP count
     const { count: otpCount } = await supabase
       .from("otp_codes")
       .select("*", { count: "exact", head: true })
@@ -52,157 +57,122 @@ export async function GET(
     });
   } catch (error: any) {
     console.error("Error in GET /api/numbers/[id]:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { id } = await params;
 
-    // Get number details
     const { data: number, error: fetchError } = await supabase
       .from("virtual_numbers")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", id)
       .eq("user_id", user.id)
       .single();
 
     if (fetchError || !number) {
-      return NextResponse.json(
-        { error: "Number not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Number not found" }, { status: 404 });
     }
 
     if (number.status === "cancelled") {
-      return NextResponse.json(
-        { error: "Number is already cancelled" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Number is already cancelled" }, { status: 400 });
     }
 
-    // Provider specific cancellation
-    if (number.provider === "5sim") {
+    if (number.provider === "smspva" && number.textverified_id) {
       try {
-        await fiveSimClient.cancelOrder(number.fivsim_order_id);
-      } catch (e: any) {
-        console.error("5Sim cancel error:", e);
-      }
-    } else {
-      // Release number from Twilio
-      try {
-        await releaseNumber(number.twilio_sid);
-      } catch (twilioError: any) {
-        console.error("Error releasing number from Twilio:", twilioError);
+        const { smspvaClient } = await import("@/lib/smspva/client");
+        await smspvaClient.cancel(
+          number.textverified_id,
+          number.product_code ?? number.product,
+          number.country_code
+        );
+      } catch (e) {
+        console.error("SMSPVA cancel error:", e);
       }
     }
 
-    // Update status in database
-    const { error: updateError } = await supabase
+    await supabase
       .from("virtual_numbers")
       .update({ status: "cancelled" })
-      .eq("id", params.id);
-
-    if (updateError) {
-      console.error("Error updating number status:", updateError);
-      return NextResponse.json(
-        { error: "Failed to cancel number" },
-        { status: 500 }
-      );
-    }
+      .eq("id", id);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Error in DELETE /api/numbers/[id]:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { id } = await params;
+    const { action } = await request.json();
 
-    const body = await request.json();
-    const { action } = body;
-
-    // Get number details
     const { data: number, error: fetchError } = await supabase
       .from("virtual_numbers")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", id)
       .eq("user_id", user.id)
       .single();
 
     if (fetchError || !number) {
-      return NextResponse.json(
-        { error: "Number not found" },
-        { status: 404 }
+      return NextResponse.json({ error: "Number not found" }, { status: 404 });
+    }
+
+    if (action === "sync" && number.textverified_id && number.provider === "smspva") {
+      const { syncSmspvaMessages } = await import("@/lib/smspva/adapter");
+      await syncSmspvaMessages(
+        number.id,
+        number.textverified_id,
+        number.product_code ?? number.product ?? "opt1",
+        number.country_code,
+        supabase
       );
+      return NextResponse.json({ success: true });
     }
 
-    if (number.provider === "5sim") {
-      const orderId = number.fivsim_order_id;
-      try {
-        if (action === "cancel") {
-          await fiveSimClient.cancelOrder(orderId);
-          await supabase.from("virtual_numbers").update({ status: "CANCELED" }).eq("id", number.id);
-          return NextResponse.json({ success: true });
-        } else if (action === "finish") {
-          await fiveSimClient.finishOrder(orderId);
-          await supabase.from("virtual_numbers").update({ status: "FINISHED" }).eq("id", number.id);
-          return NextResponse.json({ success: true });
-        } else if (action === "ban") {
-          await fiveSimClient.banOrder(orderId);
-          await supabase.from("virtual_numbers").update({ status: "BANNED" }).eq("id", number.id);
-          return NextResponse.json({ success: true });
+    if (action === "cancel") {
+      if (number.provider === "smspva" && number.textverified_id) {
+        try {
+          const { smspvaClient } = await import("@/lib/smspva/client");
+          await smspvaClient.cancel(
+            number.textverified_id,
+            number.product_code ?? number.product,
+            number.country_code
+          );
+        } catch (e) {
+          console.error("SMSPVA cancel error:", e);
         }
-      } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
       }
+      await supabase
+        .from("virtual_numbers")
+        .update({ status: "CANCELLED" })
+        .eq("id", id);
+      return NextResponse.json({ success: true });
     }
 
-    if (action === "configure_webhook") {
-      const { webhookUrl } = body;
-      if (!webhookUrl) return NextResponse.json({ error: "webhookUrl is required" }, { status: 400 });
-      try {
-        const { configureNumberWebhook } = await import("@/lib/twilio/numbers");
-        await configureNumberWebhook(number.twilio_sid, webhookUrl);
-        return NextResponse.json({ success: true });
-      } catch (twilioError: any) {
-        return NextResponse.json({ error: twilioError.message }, { status: 500 });
-      }
-    }
-
-    if (action === "renew") {
-      if (number.number_type === "one_time_otp") return NextResponse.json({ error: "One-time OTP numbers cannot be renewed" }, { status: 400 });
-      // ... renewal logic ...
+    if (action === "finish") {
+      await supabase
+        .from("virtual_numbers")
+        .update({ status: "FINISHED" })
+        .eq("id", id);
+      return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });

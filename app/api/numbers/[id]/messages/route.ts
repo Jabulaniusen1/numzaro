@@ -3,31 +3,35 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { id } = await params;
 
-    // Verify number belongs to user
     const { data: number, error: numberError } = await supabase
       .from("virtual_numbers")
-      .select("id")
-      .eq("id", params.id)
+      .select("*")
+      .eq("id", id)
       .eq("user_id", user.id)
       .single();
 
     if (numberError || !number) {
-      return NextResponse.json(
-        { error: "Number not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Number not found" }, { status: 404 });
+    }
+
+    // Sync messages from SMSPool
+    if (number.provider === "smspool") {
+      if (number.number_type === "rental" && number.rental_code) {
+        const { syncSmsPoolRental } = await import("@/lib/smspool/adapter");
+        await syncSmsPoolRental(number.id, number.rental_code, supabase);
+      } else if (number.textverified_id) {
+        const { syncSmsPoolActivation } = await import("@/lib/smspool/adapter");
+        await syncSmsPoolActivation(number.id, number.textverified_id, supabase);
+      }
     }
 
     const searchParams = request.nextUrl.searchParams;
@@ -38,47 +42,23 @@ export async function GET(
     let query = supabase
       .from("messages")
       .select("*")
-      .eq("number_id", params.id)
+      .eq("number_id", id)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (isOTP === "true") {
-      query = query.eq("is_otp", true);
-    } else if (isOTP === "false") {
-      query = query.eq("is_otp", false);
-    }
+    if (isOTP === "true") query = query.eq("is_otp", true);
+    else if (isOTP === "false") query = query.eq("is_otp", false);
 
     const { data: messages, error } = await query;
 
     if (error) {
       console.error("Error fetching messages:", error);
-      return NextResponse.json(
-        { error: "Failed to fetch messages" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
     }
 
     return NextResponse.json({ messages: messages || [] });
   } catch (error: any) {
     console.error("Error in GET /api/numbers/[id]/messages:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
