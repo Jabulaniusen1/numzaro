@@ -262,9 +262,6 @@ export default function NumbersPage() {
           <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
             Virtual Phone Numbers
           </h1>
-          <p className="text-xs md:text-sm text-muted-foreground dark:text-gray-400 mt-0.5">
-            Powered by SMSPool
-          </p>
         </div>
         <Link href="/dashboard/numbers/my-numbers">
           <Button variant="outline" size="sm" className="dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 text-xs md:text-sm">
@@ -309,8 +306,22 @@ export default function NumbersPage() {
         </p>
       </div>
 
-      {/* Breadcrumb */}
-      <div className="px-4 md:px-6 pb-2 flex items-center gap-2 text-sm">
+      {/* Breadcrumb + Back button */}
+      <div className="px-4 md:px-6 pb-2 flex items-center gap-3 text-sm">
+        {/* Back button — visible whenever not on the first step */}
+        {step !== "service" && (
+          <button
+            onClick={() => {
+              if (step === "confirm" && mode === "activation") setStep("country");
+              else setStep("service");
+            }}
+            className="flex items-center gap-1 text-xs font-bold text-[#7C5CFC] bg-violet-50 dark:bg-violet-900/30 px-3 py-1.5 rounded-xl hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors mr-1"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Back
+          </button>
+        )}
+
         {mode === "rental" ? (
           <>
             <button onClick={() => setStep("service")} className={cn("font-semibold transition-colors", step === "service" ? "text-[#7C5CFC]" : "text-gray-400 hover:text-gray-600")}>
