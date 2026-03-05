@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { smsPoolClient } from "@/lib/smspool/client";
-import { getPhoneNumbersMarkup } from "@/lib/twilio/costs";
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,7 +39,7 @@ export async function POST(request: NextRequest) {
     let userCharged = 0;
     let expiresAt: string;
 
-    const markupPct = await getPhoneNumbersMarkup();
+    const markupPct = 50; // Fixed markup
     const markupMultiplier = 1 + markupPct / 100;
 
     if (mode === "rental") {

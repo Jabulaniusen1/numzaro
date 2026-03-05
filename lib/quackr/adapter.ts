@@ -1,8 +1,8 @@
 
-import { quackrClient, QuackrLocale, QuackrDuration } from "./client";
+import { quackrClient } from "./client";
 
 // Available locales as "services" for the numbers page
-const LOCALES: { id: QuackrLocale; name: string; flag: string }[] = [
+const LOCALES: { id: string; name: string; flag: string }[] = [
   { id: "US", name: "United States", flag: "🇺🇸" },
   { id: "UK", name: "United Kingdom", flag: "🇬🇧" },
   { id: "CA", name: "Canada", flag: "🇨🇦" },

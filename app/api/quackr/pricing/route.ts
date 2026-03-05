@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply markup and return labeled durations
-    const p = result.pricing as Record<string, string>;
+    const p = result.pricing as unknown as Record<string, string>;
     const durations = [
       { key: "halfDay",      label: "12 Hours" },
       { key: "oneDay",       label: "1 Day" },

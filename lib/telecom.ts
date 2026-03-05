@@ -6,18 +6,26 @@ export interface TelecomProvider {
   checkStatus?(numberId: string): Promise<{ status: string; sms?: string; code?: string }>;
 }
 
+/** Extract OTP/code from an SMS message string */
+function extractCode(message: string): string | null {
+  const match = message.match(/\b\d{4,8}\b/);
+  return match ? match[0] : null;
+}
+
 class QuackrProvider implements TelecomProvider {
   async releaseNumber(numberId: string): Promise<void> {
     await quackrClient.cancelNumber(numberId);
   }
 
   async checkStatus(numberId: string): Promise<{ status: string; sms?: string; code?: string }> {
-    const messages = await quackrClient.getMessages(numberId);
+    const result = await quackrClient.getMessages(numberId);
+    const messages = result?.data?.messages ?? [];
     const latest = messages[0];
+    const code = latest ? extractCode(latest.message) : null;
     return {
       status: latest ? "received" : "pending",
-      sms: latest?.content ?? undefined,
-      code: latest?.code ?? undefined,
+      sms: latest?.message ?? undefined,
+      code: code ?? undefined,
     };
   }
 }

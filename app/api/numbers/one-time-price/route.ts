@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOneTimeOTPPricing } from "@/lib/twilio/costs";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +12,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const price = await getOneTimeOTPPricing(monthlyCost);
+    const price = monthlyCost * 1.5; // Fixed markup
 
     return NextResponse.json({ price });
   } catch (error: any) {

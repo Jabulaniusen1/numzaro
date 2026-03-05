@@ -1,11 +1,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { smsPoolClient } from "@/lib/smspool/client";
-import { getPhoneNumbersMarkup } from "@/lib/twilio/costs";
 
 async function getMarkupMultiplier() {
-  const pct = await getPhoneNumbersMarkup(); // e.g. 50 → 1.5×
-  return 1 + pct / 100;
+  return 1.5; // Fixed markup
 }
 
 export async function GET(request: NextRequest) {
