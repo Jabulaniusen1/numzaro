@@ -23,8 +23,6 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { format, currency } = useCurrency();
-  const MINIMUM_DEPOSIT_NGN = 500; // Minimum deposit in Naira
-  
   // Suggested amounts in Naira
   const SUGGESTED_AMOUNTS_NGN = [5000, 10000, 20000];
 
@@ -33,16 +31,7 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
     if (!fundAmount || fundAmount <= 0) {
       toast({
         title: "Invalid amount",
-        description: `Minimum deposit is ${format(MINIMUM_DEPOSIT_NGN)}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (fundAmount < MINIMUM_DEPOSIT_NGN) {
-      toast({
-        title: "Minimum deposit required",
-        description: `You must deposit at least ${format(MINIMUM_DEPOSIT_NGN)}`,
+        description: "Please enter a valid amount",
         variant: "destructive",
       });
       return;
@@ -156,10 +145,6 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
           <DialogTitle>Fund Your Wallet</DialogTitle>
           <DialogDescription>
             Add funds to your wallet to place orders. A secure payment popup will appear to complete the payment.
-            <br />
-            <span className="text-sm font-medium text-gray-700">
-              Minimum deposit: {format(MINIMUM_DEPOSIT_NGN)}
-            </span>
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -186,15 +171,12 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
             <Input
               id="amount"
               type="number"
-              min={MINIMUM_DEPOSIT_NGN}
+              min={1}
               step="0.01"
-              placeholder={`Or enter custom amount (min ${format(MINIMUM_DEPOSIT_NGN)})`}
+              placeholder="Or enter custom amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
-            <p className="text-xs text-gray-500">
-              Minimum deposit: {format(MINIMUM_DEPOSIT_NGN)}
-            </p>
           </div>
           <Button
             onClick={handleFund}

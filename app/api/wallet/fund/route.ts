@@ -16,14 +16,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { amount, currency: requestCurrency } = body;
 
-    const MINIMUM_DEPOSIT_USD = 2.0;
-    
     // Default to USD if no currency specified
     const currency = requestCurrency || "USD";
 
     if (!amount || amount <= 0) {
       return NextResponse.json(
-        { error: `Invalid amount. Minimum deposit is $${MINIMUM_DEPOSIT_USD.toFixed(2)} USD` },
+        { error: "Invalid amount" },
         { status: 400 }
       );
     }
