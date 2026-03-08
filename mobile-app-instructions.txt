@@ -1,0 +1,1179 @@
+================================================================================
+  MOBILE APP INSTRUCTIONS — React Native + Supabase
+  Based on: Numzaro / SocialBooster Web App
+================================================================================
+
+This document describes how to build a feature-complete mobile version of the
+Numzaro web app using React Native (Expo) and Supabase. All features from the
+web app are mapped 1-to-1 to mobile screens.
+
+The mobile app calls the SAME backend API routes that the web app uses. You do
+not need to rewrite any server logic — just point the mobile app at the deployed
+web app's base URL.
+
+================================================================================
+  TABLE OF CONTENTS
+================================================================================
+
+  1.  Tech Stack
+  2.  Project Setup
+  3.  Supabase Configuration
+  4.  Folder Structure
+  5.  Environment Variables
+  6.  Navigation Architecture
+  7.  Authentication (Login + Signup)
+  8.  Dashboard (Home Screen)
+  9.  Boost Socials (Services + Order Flow)
+  10. Virtual Numbers — Buy Number Flow
+  11. My Numbers (Active + History)
+  12. My Orders
+  13. Notifications
+  14. Transactions
+  15. Wallet / Balance & Fund Wallet
+  16. Shared Components & Utilities
+  17. API Layer (Calling Backend Routes)
+  18. State Management
+  19. Push Notifications (Optional)
+  20. Building & Publishing
+
+================================================================================
+  1. TECH STACK
+================================================================================
+
+  - React Native via Expo (managed workflow)
+  - Expo Router v3  (file-based navigation, like Next.js App Router)
+  - Supabase JS SDK v2  (auth + database)
+  - React Native Paper OR NativeWind  (styling)
+  - Zustand  (lightweight global state for balance, user)
+  - React Query / TanStack Query  (server data fetching + caching)
+  - Expo Clipboard  (copy phone/OTP codes)
+  - Expo SecureStore  (token storage)
+  - Expo Notifications  (push notifications)
+  - date-fns  (date formatting — same as web)
+
+  Brand Colors (match the web app exactly):
+    Primary:   #7C5CFC  (violet)
+    Primary H: #6B4EFF  (hover)
+    Background: #F0F2FA
+    Dark BG:    #111827  (gray-900)
+
+================================================================================
+  2. PROJECT SETUP
+================================================================================
+
+Step 1 — Create the Expo project:
+
+  npx create-expo-app numzaro-mobile --template blank-typescript
+  cd numzaro-mobile
+
+Step 2 — Install Expo Router:
+
+  npx expo install expo-router expo-linking expo-constants expo-status-bar
+  npx expo install react-native-safe-area-context react-native-screens
+
+  In package.json, set "main": "expo-router/entry"
+
+Step 3 — Install Supabase:
+
+  npx expo install @supabase/supabase-js
+  npx expo install expo-secure-store
+  npx expo install @react-native-async-storage/async-storage
+
+Step 4 — Install additional packages:
+
+  npx expo install expo-clipboard
+  npx expo install expo-notifications
+  npm install zustand
+  npm install @tanstack/react-query
+  npm install date-fns
+  npm install nativewind
+  npm install tailwindcss  (dev dependency)
+
+Step 5 — Configure NativeWind (for Tailwind-like styling):
+
+  Run: npx tailwindcss init
+  In tailwind.config.js set content: ["./app/**/*.{js,jsx,ts,tsx}"]
+  In babel.config.js add: plugins: ["nativewind/babel"]
+
+Step 6 — Run the project:
+
+  npx expo start
+
+================================================================================
+  3. SUPABASE CONFIGURATION
+================================================================================
+
+File: lib/supabase.ts
+
+  import 'react-native-url-polyfill/auto';
+  import AsyncStorage from '@react-native-async-storage/async-storage';
+  import { createClient } from '@supabase/supabase-js';
+
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+  const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+
+  export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  });
+
+  // Also install: npx expo install react-native-url-polyfill
+
+Auth State Listener (put in root _layout.tsx):
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_OUT') router.replace('/auth/login');
+        if (event === 'SIGNED_IN') router.replace('/(tabs)');
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, []);
+
+================================================================================
+  4. FOLDER STRUCTURE
+================================================================================
+
+  numzaro-mobile/
+  ├── app/
+  │   ├── _layout.tsx                  (root layout, auth listener)
+  │   ├── auth/
+  │   │   ├── login.tsx                (Login screen)
+  │   │   └── signup.tsx               (Signup screen)
+  │   ├── (tabs)/
+  │   │   ├── _layout.tsx              (Bottom tab navigator)
+  │   │   ├── index.tsx                (Dashboard / Home)
+  │   │   ├── services.tsx             (Boost Socials)
+  │   │   ├── numbers.tsx              (Buy Virtual Number)
+  │   │   ├── orders.tsx               (My Orders)
+  │   │   └── profile.tsx              (Profile / Wallet / Settings)
+  │   ├── my-numbers/
+  │   │   └── index.tsx                (My Numbers — active + history)
+  │   ├── numbers/
+  │   │   └── [id]/
+  │   │       ├── messages.tsx         (SMS messages for a number)
+  │   │       └── otps.tsx             (OTPs for a number)
+  │   ├── notifications.tsx            (Notifications screen)
+  │   └── transactions.tsx             (Transactions screen)
+  ├── lib/
+  │   ├── supabase.ts                  (Supabase client)
+  │   ├── api.ts                       (All API call functions)
+  │   └── store.ts                     (Zustand global store)
+  ├── components/
+  │   ├── BalanceCard.tsx
+  │   ├── ServiceLogo.tsx
+  │   ├── CountdownTimer.tsx
+  │   ├── StatusBadge.tsx
+  │   ├── OrderCard.tsx
+  │   ├── NumberCard.tsx
+  │   ├── NotificationItem.tsx
+  │   └── TransactionItem.tsx
+  ├── hooks/
+  │   ├── useAuth.ts
+  │   ├── useBalance.ts
+  │   └── useCurrency.ts
+  └── constants/
+      └── theme.ts
+
+================================================================================
+  5. ENVIRONMENT VARIABLES
+================================================================================
+
+Create .env in project root:
+
+  EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+  EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+  EXPO_PUBLIC_API_BASE_URL=https://your-deployed-webapp.com
+
+  The API_BASE_URL is your deployed Next.js web app URL.
+  All API calls from mobile go to: EXPO_PUBLIC_API_BASE_URL + /api/...
+
+  IMPORTANT: Never put secret keys in mobile env vars. The mobile app only
+  uses the Supabase anon key (safe for public) and calls your own backend
+  routes which handle secrets server-side.
+
+================================================================================
+  6. NAVIGATION ARCHITECTURE
+================================================================================
+
+The app uses Expo Router with a bottom tab navigator for the main app, and
+a stack for auth screens.
+
+Root _layout.tsx:
+  - Wraps everything in QueryClientProvider + auth listener
+  - Stack navigator with two groups: (auth) and (tabs)
+  - Redirects unauthenticated users to /auth/login
+
+(tabs)/_layout.tsx — Bottom Tab Bar with 5 tabs:
+  1. Home        (icon: grid/home)     -> (tabs)/index.tsx
+  2. Boost       (icon: shopping-bag)  -> (tabs)/services.tsx
+  3. Numbers     (icon: phone)         -> (tabs)/numbers.tsx
+  4. Orders      (icon: package)       -> (tabs)/orders.tsx
+  5. Profile     (icon: user)          -> (tabs)/profile.tsx
+
+  Tab bar style:
+    backgroundColor: white (light) / #1f2937 (dark)
+    activeTintColor: #7C5CFC
+    inactiveTintColor: #9ca3af
+    borderTopColor: #e5e7eb
+
+Additional screens (pushed on top, not in tabs):
+  - /my-numbers          (navigated from Dashboard or Numbers tab)
+  - /notifications       (navigated from Profile or header bell)
+  - /transactions        (navigated from Profile)
+  - /numbers/[id]/messages
+  - /numbers/[id]/otps
+
+================================================================================
+  7. AUTHENTICATION — LOGIN & SIGNUP
+================================================================================
+
+--- LOGIN SCREEN (app/auth/login.tsx) ---
+
+State:
+  email, password, showPassword, loading, error
+
+UI Layout (ScrollView, full screen):
+  - App logo at top (Image component with your logo asset)
+  - "Welcome back" heading (bold, 24px)
+  - "No account? Sign up free" link -> /auth/signup
+  - Email TextInput (keyboardType="email-address", autoCapitalize="none")
+  - Password TextInput (secureTextEntry={!showPassword})
+    + Eye/EyeOff toggle button (absolute positioned right)
+  - "Sign in" TouchableOpacity button (bg #7C5CFC, white text, rounded-2xl)
+  - ActivityIndicator when loading
+
+Logic (handleLogin):
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) setError(error.message);
+  else router.replace('/(tabs)');
+
+After successful login, Expo Router's auth listener will handle redirect
+automatically, but you can also router.replace('/(tabs)') directly.
+
+--- SIGNUP SCREEN (app/auth/signup.tsx) ---
+
+State:
+  fullName, email, password, showPassword, loading, error
+
+UI Layout:
+  - Same layout as login
+  - "Create your account" heading
+  - Full Name TextInput (additional field)
+  - Email TextInput
+  - Password TextInput with toggle
+  - "Create account" button
+  - Terms + Privacy note at bottom
+
+Logic (handleSignup):
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: fullName } }
+  });
+  if (error) setError(error.message);
+  else {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from('users').insert({
+        id: user.id,
+        email: user.email,
+        full_name: fullName
+      });
+    }
+    router.replace('/(tabs)');
+  }
+
+================================================================================
+  8. DASHBOARD (HOME SCREEN) — app/(tabs)/index.tsx
+================================================================================
+
+This is the main landing screen after login.
+
+State:
+  profile (from Supabase users table)
+  recentOrders (from Supabase orders table)
+  loading, refreshing
+
+Data fetching (on mount + every 30s interval):
+  1. Get current user: supabase.auth.getUser()
+  2. Get profile: supabase.from('users').select('*').eq('id', user.id).maybeSingle()
+     - If no profile, insert one (same as web)
+  3. Get recent orders: supabase.from('orders')
+       .select('*, services(name)')
+       .eq('user_id', user.id)
+       .order('created_at', { ascending: false })
+       .limit(5)
+
+UI Layout (ScrollView with RefreshControl):
+
+  Header:
+    - "Dashboard" title (gradient text via LinearGradient or MaskedView)
+    - "Welcome back, {name}" subtitle
+
+  Balance Card (reusable component):
+    - Shows current balance with currency formatting
+    - "Fund Wallet" button -> opens payment flow (WebView with Paystack)
+    See Section 15 for wallet details.
+
+  Quick Access Grid (2 columns):
+    4 cards, each with:
+      - Gradient icon box (LinearGradient)
+      - Label (bold)
+      - Description (small gray text)
+    Cards:
+      1. "Boost Socials"     -> router.push('/(tabs)/services')
+      2. "Virtual Numbers"   -> router.push('/(tabs)/numbers')
+      3. "My Orders"         -> router.push('/(tabs)/orders')
+      4. "Notifications"     -> router.push('/notifications')
+
+  Recent Orders Section:
+    - Header with "Recent Orders" + refresh button + "View all" link
+    - If empty: empty state with "Browse Services" button
+    - List of 5 orders: service name, quantity, date, status badge, charge
+
+  Status colors for badges:
+    completed   -> green
+    in progress -> blue
+    partial     -> amber
+    pending     -> violet
+    cancelled   -> red
+
+================================================================================
+  9. BOOST SOCIALS (SERVICES) — app/(tabs)/services.tsx
+================================================================================
+
+This screen lets users order social media boosts (followers, likes, views, etc.)
+
+State:
+  services[], loading, error
+  selectedCategory, selectedServiceId, link, quantity, comments
+  submitting, balance, categories[]
+
+Data fetching (on mount):
+  - GET {API_BASE_URL}/api/services  -> returns { services, filters }
+  - GET {API_BASE_URL}/api/balance   -> returns { balance }
+  NOTE: These API calls require the user's Supabase JWT token in the
+  Authorization header. See Section 17 for how to attach it.
+
+Derived state:
+  filteredServices = services filtered by selectedCategory
+  selectedService = services.find by selectedServiceId
+  isCommentService = selectedService.name/type includes "comment"
+  charge = (quantity / 1000) * selectedService.rate
+
+UI Layout (ScrollView):
+
+  Header: "Boost Socials" title
+
+  Form Card (white card, rounded-2xl):
+
+    1. Category Picker:
+       On mobile, use a custom BottomSheet picker or Picker component
+       showing all categories as scrollable list with search.
+       When selected, reset service/link/quantity.
+
+    2. Service Picker (shown after category selected):
+       Same BottomSheet pattern, shows services filtered by category.
+       When selected, auto-fill quantity with min_quantity.
+
+    3. Service Info Card (shown after service selected):
+       - Service name + category + type
+       - "Refill" / "Cancel" badges if allowed
+       - Rate per 1,000 + quantity range
+
+    4. Link TextInput:
+       placeholder="https://..."
+       keyboardType="url"
+       autoCapitalize="none"
+
+    5. Quantity TextInput:
+       keyboardType="numeric"
+       Shows "(min – max)" range label
+
+    6. Comments TextInput (only for comment services):
+       multiline={true}, numberOfLines={5}
+       placeholder="One comment per line..."
+
+    7. Order Summary Card:
+       - Estimated time
+       - Total charge (large, violet)
+       - Your balance (red if insufficient)
+
+    8. "Place Order" Button:
+       Disabled if: submitting || charge > balance || !link || !quantity
+       Shows ActivityIndicator when submitting
+
+  handleSubmit:
+    POST {API_BASE_URL}/api/orders/create
+    body: { service_id, link, quantity, comments? }
+    On success: show success toast, clear form, refresh balance
+
+================================================================================
+  10. VIRTUAL NUMBERS — BUY NUMBER FLOW — app/(tabs)/numbers.tsx
+================================================================================
+
+This is a multi-step wizard, same as the web. 3 steps for activation, 2 for rental.
+
+State:
+  mode: "activation" | "rental"
+  step: "service" | "country" | "confirm"
+  services[], countries[]
+  selectedService, selectedCountry, pricing, selectedRentalOption
+  serviceSearch, countrySearch
+  servicesPage, servicesTotalPages
+  loadingServices, loadingCountries, loadingPricing, purchasing
+  balance
+
+API calls (all use getAuthHeaders() — see Section 17):
+  - GET /api/smspool/services?mode={mode}&page={page}&limit=24
+  - GET /api/smspool/countries
+  - GET /api/smspool/pricing?service={code}&country={code}&mode=activation
+  - GET /api/smspool/pricing?rentalId={code}&mode=rental
+  - POST /api/numbers/purchase
+
+UI Layout:
+
+  Header Row:
+    - "Virtual Phone Numbers" title (gradient)
+    - "My Numbers" button -> router.push('/my-numbers')
+
+  Mode Toggle (segmented control, 2 options):
+    [Clock icon] One-Time     [Calendar icon] Monthly Rental
+    Active tab: bg #7C5CFC, white text
+    Inactive: gray text
+    Below: short description of the mode
+
+  Breadcrumb / Progress Indicator:
+    Activation: "1. Service > 2. Country > 3. Confirm"
+    Rental:     "1. Country > 2. Confirm"
+    Active step in violet, others in gray
+    Back button (left arrow) if step !== "service"
+
+  --- STEP 1: SELECT SERVICE (activation) or COUNTRY (rental) ---
+
+  If activation mode:
+    Search bar at top
+    Grid of service cards (2 columns on mobile):
+      Each card: ServiceLogo + service name
+      Tap -> selectService(service), advance to country step
+    Pagination buttons at bottom (prev / next / page X of Y)
+
+  If rental mode:
+    Grid of country cards (2 columns):
+      Each card: large flag emoji + country name
+      No search bar
+      Tap -> selectService(country), advance to confirm step (skips country step)
+
+  ServiceLogo component:
+    If logo URL exists and loads: show image in white rounded box
+    If no logo or load error: show letter avatar (first char, gradient bg)
+
+  --- STEP 2: SELECT COUNTRY (activation only) ---
+
+  Selected service banner at top (logo + name + "Change" button)
+  Search bar
+  Grid of country cards (2 columns):
+    Each: flag emoji + country name
+    Tap -> selectCountry(country), advance to confirm step, fetch pricing
+
+  --- STEP 3: CONFIRM (both modes) ---
+
+  Order Summary Card (max-width centered):
+
+    If activation:
+      - Row: ServiceLogo + service name + "Change" button
+      - Row: flag + country name + "Change" button
+      - Badge: "One-Time (20 min)"
+
+    If rental:
+      - Row: flag + country name + "Change" button
+      - Badge: "Rental"
+
+    Pricing section (shows ActivityIndicator while loadingPricing):
+
+      If activation pricing:
+        - Price (large, bold, violet)
+        - Available count (green if > 0, red if 0)
+
+      If rental pricing:
+        "Select duration" label
+        2-column grid of duration option cards:
+          - Label (e.g. "7 days", "14 days")
+          - Price (bold)
+          - Available count
+          Selected card: violet border + violet price + checkmark badge
+          Tap to select
+
+    Balance row: "Your balance" / formatted balance
+
+  "Buy/Rent {service} Number — ${price}" Button:
+    Full width, bg #7C5CFC, h 56, rounded-2xl
+    Disabled if: purchasing || loadingPricing || !pricing || available===0
+                 || (rental && !selectedRentalOption)
+    Shows ActivityIndicator when purchasing
+
+  handlePurchase:
+    POST /api/numbers/purchase
+    body: { mode, ...service/country/rental fields }
+    On success: show success alert, reset to step 1, refresh balance
+
+================================================================================
+  11. MY NUMBERS — app/my-numbers/index.tsx
+================================================================================
+
+Shows the user's purchased virtual numbers.
+
+State:
+  numbers[], loading
+  activeTab: "active" | "history"
+  searchQuery
+
+Data fetching:
+  GET /api/numbers  -> { numbers: [...] }
+  Map response to VirtualNumber shape (same as web)
+
+Status tabs:
+  active:  ["PENDING", "RECEIVED", "ACTIVE"]
+  history: ["FINISHED", "CANCELED", "TIMEOUT", "BANNED", "CANCELLED", "SUSPENDED"]
+
+UI Layout (ScrollView):
+
+  Header:
+    - "My Numbers" title
+    - "Buy Number" button -> router.back() or router.push('/(tabs)/numbers')
+
+  Tab Switcher:
+    [Active]  [History]
+    Active tab: bg #7C5CFC, white text
+
+  History info banner (shown when tab === "history"):
+    Violet background, info icon, advisory text
+
+  Search Bar + Refresh button row:
+    TextInput with search icon on left
+    Refresh icon button on right
+
+  --- ACTIVE NUMBER CARD (shown if there's an active number) ---
+
+  White card, rounded-2xl:
+
+    Top row:
+      - Short ID (first 8 chars)
+      - CountdownTimer component (live countdown to expires_at)
+      - Created time
+      - Pulsing violet dot (status indicator)
+
+    Info row:
+      - ServiceIcon + product name
+      - Flag emoji + country name
+      - Price
+      - ">1 SMS" badge
+
+    Action Buttons row:
+      [Finish (amber)] [Ban (outline)] [Cancel (red)] [Sync (violet, icon only)]
+      Each calls: PATCH /api/numbers/{id}  body: { action: "finish"|"ban"|"cancel"|"sync" }
+
+    Phone Number Display:
+      Full-width row: [violet copy icon box] [phone number centered] [violet copy button]
+      Tap copy button -> Clipboard.setStringAsync(phone), show toast
+
+    OTP Code Display:
+      "Code" label + same style row: [OTP code large tracking] [violet copy button]
+      OTP might be "—" if not yet received
+
+  --- NUMBERS TABLE / LIST ---
+
+  For the list below the active card, use FlatList:
+    Each row (OrderTableRow equivalent on mobile):
+      - Short ID
+      - Date
+      - Service (icon + name)
+      - Country (flag + code)
+      - Price
+      - Number / OTP code (abbreviated)
+      - Status badge
+
+  Empty state: phone icon + "No numbers found" + "Buy a Number" button
+
+  CountdownTimer component:
+    Uses setInterval every second
+    Calculates remaining time from expiresAt ISO string
+    Displays as "Xd Xh" or "Xh Xm" or "MM:SS"
+    Shows "Expired" when diff <= 0
+
+================================================================================
+  12. MY ORDERS — app/(tabs)/orders.tsx
+================================================================================
+
+Shows social media boost orders.
+
+State:
+  orders[], loading, error
+  selectedStatus: "all" | "Pending" | "In Progress" | "Partial" | "Completed" | "Cancelled"
+  page, totalPages
+
+Data fetching (re-runs on page/status change):
+  GET /api/orders?page={page}&limit=20&status={status}
+  -> { orders: [...], pagination: { totalPages } }
+
+UI Layout (ScrollView or FlatList):
+
+  Header:
+    - "My Orders" title + subtitle "Track your social media orders"
+    - Refresh button (top right)
+
+  Status Filter Pills (horizontal ScrollView, not wrapping):
+    [All] [Pending] [In Progress] [Partial] [Completed] [Cancelled]
+    Active: bg #7C5CFC, white text
+    Inactive: white bg, gray text, border
+
+  Orders List (FlatList):
+    Each order card (mobile-optimized, not a table):
+      Row 1: Service name (bold) + Status badge (right)
+      Row 2: Category (gray)
+      Link row: external link icon + truncated URL (tappable -> Linking.openURL)
+      Row 3: "{qty} items · {date}"  +  "${charge}" (bold violet, right)
+
+  Empty state:
+    Package icon + "No orders found" + "Browse Services" button
+
+  Pagination:
+    [< Prev]  Page X of Y  [Next >]
+    Prev/Next disabled at boundaries
+
+  Status badge colors (same as web):
+    completed   -> green
+    in progress -> blue
+    partial     -> amber
+    pending     -> violet
+    cancelled   -> red
+
+================================================================================
+  13. NOTIFICATIONS — app/notifications.tsx
+================================================================================
+
+State:
+  notifications[], loading
+  filterType: "all" | type values
+  unreadCount, markingAll
+
+Data fetching (on mount + every 30s):
+  GET /api/notifications?type={filterType}&limit=100
+
+UI Layout (ScrollView):
+
+  Header:
+    "Notifications" title
+    "Mark All Read" button (shown if unreadCount > 0)
+
+  Filter Picker:
+    On mobile: use a BottomSheet or Picker with options:
+      All / Transactions / Billing / Reminders / Expiration / Payment Failed
+    Shows unread count badge next to filter
+
+  Notifications List (FlatList):
+    Each item (NotificationItem component):
+      - Unread indicator: blue left border or dot
+      - Icon based on type (bell, credit-card, etc.)
+      - Title (bold)
+      - Message (gray, 2 lines max)
+      - Time (relative, e.g. "2 hours ago")
+    Tap: mark as read (POST /api/notifications/{id}/read), navigate if applicable
+
+  Empty state:
+    Bell icon + "No notifications" + description
+
+  handleMarkAllRead:
+    POST /api/notifications  body: { markAll: true }
+
+================================================================================
+  14. TRANSACTIONS — app/transactions.tsx
+================================================================================
+
+State:
+  transactions[], loading
+  filter: "all" | "charges" | "deposits" | "numbers" | "sms_otp"
+
+Data fetching:
+  GET /api/transactions  -> { transactions: [...] }
+
+UI Layout:
+
+  Header:
+    "Transactions" title + subtitle
+    "Export" button (for now: show "Coming soon" toast)
+
+  Filter Pills (horizontal scroll):
+    [All] [Charges] [Deposits] [Numbers] [SMS/OTP]
+
+  Transaction List (FlatList):
+    Each item:
+      Left: icon (CreditCard / Phone / Wallet / MessageSquare) in gray circle
+      Center: description (bold) + badge (Deposit / Purchase / OTP / etc.)
+              date + phone number (if in metadata)
+              actual cost vs charged (if present)
+      Right: amount (green if positive "+$X.XX", red if negative "-$X.XX")
+             balance after (gray small text)
+
+  Empty state: "No transactions found"
+
+================================================================================
+  15. WALLET / BALANCE & FUND WALLET
+================================================================================
+
+--- BalanceCard Component ---
+
+  Displayed on the Dashboard home screen.
+  Fetches balance from Supabase: supabase.from('users').select('balance').eq('id', userId)
+  OR from API: GET /api/user/balance
+
+  UI:
+    Gradient card (violet to indigo)
+    "Account Balance" label
+    Large balance amount (white, bold)
+    "Fund Wallet" button (white bg, violet text)
+
+  The balance auto-refreshes when a "balanceUpdated" event fires.
+  On mobile, use a Zustand store event or React Query invalidation instead
+  of the DOM CustomEvent used in the web app.
+
+--- Fund Wallet Flow ---
+
+  The web app uses Paystack for payments. On mobile, you have two options:
+
+  OPTION A (Recommended) — WebView approach:
+    1. When "Fund Wallet" is tapped, show a TextInput modal asking for amount
+    2. Call POST /api/wallet/fund  body: { amount }
+       This returns a Paystack payment URL (authorization_url)
+    3. Open the URL in a WebView (expo-web-browser or react-native-webview)
+    4. Paystack redirects to your callback URL after payment
+    5. Your Next.js backend handles the webhook/verification
+    6. On WebView navigation change, detect the callback URL and close WebView
+    7. Call GET /api/wallet/transactions or refetch balance to confirm
+
+  OPTION B — Paystack React Native SDK:
+    Use @paystack/react-native (if available) for native payment sheet
+    This gives a better UX but requires Paystack's native SDK setup
+
+  After successful payment:
+    - Invalidate balance query or call fetchBalance()
+    - Show success toast: "Wallet funded!"
+
+  For the amount modal on mobile:
+    - Alert.prompt (iOS only) OR
+    - Custom Modal with TextInput (works on both platforms)
+
+================================================================================
+  16. SHARED COMPONENTS & UTILITIES
+================================================================================
+
+--- ServiceLogo (components/ServiceLogo.tsx) ---
+
+  Props: { logo: string | null, name: string, size?: "sm" | "md" | "lg" }
+  If logo URL: show Image with error fallback
+  If no logo or error: show View with gradient + letter
+
+--- StatusBadge (components/StatusBadge.tsx) ---
+
+  Props: { status: string }
+  Returns colored rounded pill with status text
+  Colors defined as a mapping object (same as web)
+
+--- CountdownTimer (components/CountdownTimer.tsx) ---
+
+  Props: { expiresAt: string | null }
+  Uses setInterval(1000) to update display
+  Cleans up on unmount
+  Format: Xd Xh / Xh Xm / MM:SS / "Expired"
+
+--- useCurrency hook (hooks/useCurrency.ts) ---
+
+  Fetches user's currency from /api/currency/detect on mount
+  Provides format(amount: number): string
+  Stores currency in Zustand or AsyncStorage
+
+--- useBalance hook (hooks/useBalance.ts) ---
+
+  Uses React Query to fetch and cache balance
+  Provides: balance, refetch, isLoading
+  Query key: ['balance', userId]
+  Fetches from: /api/user/balance
+
+--- useAuth hook (hooks/useAuth.ts) ---
+
+  Returns: user, session, signOut, loading
+  Uses supabase.auth.getSession() + onAuthStateChange listener
+
+--- Zustand Store (lib/store.ts) ---
+
+  interface AppStore {
+    user: User | null;
+    balance: number | null;
+    setUser: (user: User | null) => void;
+    setBalance: (balance: number | null) => void;
+  }
+
+  export const useAppStore = create<AppStore>((set) => ({
+    user: null,
+    balance: null,
+    setUser: (user) => set({ user }),
+    setBalance: (balance) => set({ balance }),
+  }));
+
+================================================================================
+  17. API LAYER — CALLING BACKEND ROUTES
+================================================================================
+
+All API calls go to your deployed Next.js web app. The mobile app sends the
+Supabase JWT token in every authenticated request.
+
+File: lib/api.ts
+
+  const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+
+  async function getAuthHeaders(): Promise<Record<string, string>> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    };
+  }
+
+  export async function fetchServices() {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${BASE_URL}/api/services`, { headers });
+    if (!res.ok) throw new Error('Failed to fetch services');
+    return res.json();
+  }
+
+  export async function fetchBalance() {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${BASE_URL}/api/user/balance`, { headers });
+    if (!res.ok) throw new Error('Failed to fetch balance');
+    return res.json();
+  }
+
+  export async function fetchSmsPoolServices(mode: string, page: number) {
+    const headers = await getAuthHeaders();
+    const res = await fetch(
+      `${BASE_URL}/api/smspool/services?mode=${mode}&page=${page}&limit=24`,
+      { headers }
+    );
+    if (!res.ok) throw new Error('Failed to fetch SMS pool services');
+    return res.json();
+  }
+
+  export async function fetchSmsPoolCountries() {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${BASE_URL}/api/smspool/countries`, { headers });
+    if (!res.ok) throw new Error('Failed to fetch countries');
+    return res.json();
+  }
+
+  export async function fetchPricing(params: string) {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${BASE_URL}/api/smspool/pricing?${params}`, { headers });
+    if (!res.ok) throw new Error('Failed to fetch pricing');
+    return res.json();
+  }
+
+  export async function purchaseNumber(body: object) {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${BASE_URL}/api/numbers/purchase`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Purchase failed');
+    return data;
+  }
+
+  export async function createOrder(body: object) {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${BASE_URL}/api/orders/create`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Order failed');
+    return data;
+  }
+
+  export async function fetchOrders(page: number, status: string) {
+    const headers = await getAuthHeaders();
+    const params = new URLSearchParams({ page: String(page), limit: '20' });
+    if (status !== 'all') params.append('status', status);
+    const res = await fetch(`${BASE_URL}/api/orders?${params}`, { headers });
+    if (!res.ok) throw new Error('Failed to fetch orders');
+    return res.json();
+  }
+
+  export async function fetchNumbers() {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${BASE_URL}/api/numbers`, { headers });
+    if (!res.ok) throw new Error('Failed to fetch numbers');
+    return res.json();
+  }
+
+  export async function updateNumber(id: string, action: string) {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${BASE_URL}/api/numbers/${id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ action }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Action failed');
+    return data;
+  }
+
+  export async function fetchNotifications(type: string) {
+    const headers = await getAuthHeaders();
+    const params = new URLSearchParams({ limit: '100' });
+    if (type !== 'all') params.append('type', type);
+    const res = await fetch(`${BASE_URL}/api/notifications?${params}`, { headers });
+    if (!res.ok) throw new Error('Failed to fetch notifications');
+    return res.json();
+  }
+
+  export async function markNotificationRead(id: string) {
+    const headers = await getAuthHeaders();
+    await fetch(`${BASE_URL}/api/notifications/${id}/read`, {
+      method: 'POST',
+      headers,
+    });
+  }
+
+  export async function markAllNotificationsRead() {
+    const headers = await getAuthHeaders();
+    await fetch(`${BASE_URL}/api/notifications`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ markAll: true }),
+    });
+  }
+
+  export async function fetchTransactions() {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${BASE_URL}/api/transactions`, { headers });
+    if (!res.ok) throw new Error('Failed to fetch transactions');
+    return res.json();
+  }
+
+  export async function fundWallet(amount: number) {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${BASE_URL}/api/wallet/fund`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ amount }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to initiate payment');
+    return data; // returns { authorization_url, reference }
+  }
+
+IMPORTANT — Backend CORS:
+  Your Next.js app must allow requests from the mobile app. Since the mobile
+  app does NOT have a domain (it's a native app), requests come without an
+  Origin header in many cases. The Supabase JWT-based auth in your API routes
+  handles authentication regardless of origin. No CORS changes are needed for
+  most routes, but if you hit CORS errors during dev (Expo Go), add:
+
+  In next.config.js:
+    async headers() {
+      return [{
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PATCH,DELETE,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      }];
+    }
+
+================================================================================
+  18. STATE MANAGEMENT
+================================================================================
+
+Use a combination of:
+
+  1. LOCAL STATE (useState) — for screen-level state (forms, selections, loading)
+  2. REACT QUERY — for server data (orders, numbers, services, notifications)
+     Provides caching, background refresh, and automatic retry
+  3. ZUSTAND — for global shared state (user, balance, currency)
+
+React Query setup (app/_layout.tsx):
+
+  import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+  const queryClient = new QueryClient();
+
+  export default function RootLayout() {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Stack />
+      </QueryClientProvider>
+    );
+  }
+
+Example query in a screen:
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['orders', page, selectedStatus],
+    queryFn: () => fetchOrders(page, selectedStatus),
+  });
+
+Example mutation:
+
+  const mutation = useMutation({
+    mutationFn: createOrder,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['balance'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      showToast('Order placed!');
+    },
+    onError: (err: Error) => showToast(err.message, 'error'),
+  });
+
+================================================================================
+  19. PUSH NOTIFICATIONS (OPTIONAL)
+================================================================================
+
+To notify users of new OTPs, order status changes, etc.:
+
+Step 1 — Setup Expo Notifications:
+  npx expo install expo-notifications expo-device
+
+Step 2 — Register for push token:
+
+  async function registerForPushNotifications() {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== 'granted') return;
+    const token = (await Notifications.getExpoPushTokenAsync()).data;
+    // Save token to Supabase: supabase.from('users').update({ push_token: token })
+    return token;
+  }
+
+Step 3 — Send from backend:
+  When an OTP is received or order status changes, your Next.js backend
+  sends a push notification via Expo Push API:
+
+  POST https://exp.host/--/api/v2/push/send
+  body: { to: pushToken, title, body, data }
+
+Step 4 — Handle notification tap:
+
+  Notifications.addNotificationResponseReceivedListener((response) => {
+    const data = response.notification.request.content.data;
+    if (data.type === 'otp') router.push('/my-numbers');
+    if (data.type === 'order') router.push('/(tabs)/orders');
+  });
+
+================================================================================
+  20. BUILDING & PUBLISHING
+================================================================================
+
+Development:
+  npx expo start               (start dev server)
+  npx expo start --ios         (iOS simulator)
+  npx expo start --android     (Android emulator)
+
+Build for production:
+
+  iOS (requires Apple Developer account):
+    eas build --platform ios
+
+  Android:
+    eas build --platform android
+
+  Install EAS CLI first: npm install -g eas-cli
+  Configure: eas build:configure
+
+App Store / Play Store submission:
+  eas submit --platform ios
+  eas submit --platform android
+
+OTA Updates (over-the-air, no app store review):
+  eas update --channel production
+  This pushes JS bundle updates instantly to users.
+
+================================================================================
+  FEATURE PARITY CHECKLIST
+================================================================================
+
+  [x] Login with email + password
+  [x] Signup with full name + email + password
+  [x] Dashboard with balance card + quick links + recent orders
+  [x] Boost Socials — category picker, service picker, link/qty form, order
+  [x] Virtual Numbers — activation flow (service > country > confirm)
+  [x] Virtual Numbers — rental flow (country > confirm with duration picker)
+  [x] Phone number display with copy button
+  [x] OTP code display with copy button
+  [x] Countdown timer for active numbers
+  [x] Number actions: Finish, Ban, Cancel, Sync
+  [x] My Numbers — Active tab + History tab + search
+  [x] My Orders — paginated list with status filter
+  [x] Notifications — filter + mark as read + mark all as read
+  [x] Transactions — filter by type
+  [x] Fund Wallet — Paystack via WebView
+  [x] Currency formatting (user's local currency)
+  [x] Pull-to-refresh on all list screens
+  [x] Auto-refresh orders every 30 seconds (background interval)
+  [x] Sign out
+
+================================================================================
+  MOBILE-SPECIFIC CONSIDERATIONS
+================================================================================
+
+1. BOTTOM SHEETS instead of dropdown menus:
+   Use @gorhom/bottom-sheet for category/service pickers.
+   install: npm install @gorhom/bottom-sheet
+
+2. HAPTIC FEEDBACK on button presses:
+   import * as Haptics from 'expo-haptics';
+   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+3. PULL-TO-REFRESH on all FlatList/ScrollView screens:
+   <FlatList refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} />} />
+
+4. KEYBOARD AVOIDING for forms:
+   Wrap forms in KeyboardAvoidingView + ScrollView
+
+5. SAFE AREA:
+   Use SafeAreaView or useSafeAreaInsets() for notch/home indicator areas
+
+6. DARK MODE:
+   Use useColorScheme() from react-native + NativeWind dark: prefix classes
+
+7. CLIPBOARD (copy phone/OTP):
+   import * as Clipboard from 'expo-clipboard';
+   await Clipboard.setStringAsync(value);
+
+8. DEEP LINKING (for payment redirect from WebView):
+   Set up a scheme in app.json:
+     "scheme": "numzaro"
+   Payment callback URL: numzaro://payment-callback
+   Listen for it in WebView's onNavigationStateChange
+
+9. SERVICE LOGO IMAGES:
+   React Native Image handles remote URLs natively.
+   Wrap in a try/catch or use onError prop to fall back to letter avatar.
+
+10. PAGINATION for services grid:
+    Since mobile is a single-column/2-column infinite scroll,
+    consider using FlatList with onEndReached for infinite scroll
+    instead of page buttons:
+      onEndReached={() => { if (hasMore) fetchNextPage(); }}
+      onEndReachedThreshold={0.5}
+
+================================================================================
+  END OF INSTRUCTIONS
+================================================================================

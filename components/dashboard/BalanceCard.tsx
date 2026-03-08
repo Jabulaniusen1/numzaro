@@ -23,7 +23,7 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { format, currency } = useCurrency();
-  const MINIMUM_DEPOSIT_NGN = 2000; // Minimum deposit in Naira
+  const MINIMUM_DEPOSIT_NGN = 500; // Minimum deposit in Naira
   
   // Suggested amounts in Naira
   const SUGGESTED_AMOUNTS_NGN = [5000, 10000, 20000];
