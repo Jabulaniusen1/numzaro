@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { authenticateRequest } from "@/lib/supabase/server";
 import { createOrder } from "@/lib/api/socialboost";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    
-    // Authenticate user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { user, supabase } = await authenticateRequest(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

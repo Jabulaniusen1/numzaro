@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTransaction, PaystackError } from "@/lib/paystack/client";
-import { createClient } from "@/lib/supabase/server";
+import { authenticateRequest } from "@/lib/supabase/server";
 import { createTransactionNotification } from "@/lib/notifications/create";
 
 export async function GET(request: NextRequest) {
@@ -23,10 +23,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { user, supabase } = await authenticateRequest(request);
 
     if (!user) {
       return NextResponse.redirect(
