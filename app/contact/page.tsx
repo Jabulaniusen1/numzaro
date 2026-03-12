@@ -60,7 +60,7 @@ export default function ContactPage() {
                 <CardHeader>
                   <CardTitle>Get in Touch</CardTitle>
                   <CardDescription>
-                    Choose the best way to reach us
+                    Choose the best way to reach Numzaro
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -72,7 +72,7 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-1">Email</h3>
-                      <p className="text-gray-600">support@milexboost.com</p>
+                      <p className="text-gray-600">support@numzaro.com</p>
                       <p className="text-gray-600 text-sm">We'll respond within 24 hours</p>
                     </div>
                   </div>
@@ -215,4 +215,3 @@ export default function ContactPage() {
     </div>
   );
 }
-

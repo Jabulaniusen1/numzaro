@@ -9,6 +9,8 @@ import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Phone, ShoppingBag } from "lucide-react"
+import { FaApple, FaFacebookF, FaGooglePlay, FaInstagram, FaLinkedinIn, FaTiktok, FaYoutube } from "react-icons/fa"
+import { FaXTwitter } from "react-icons/fa6"
 
 const reviews = [
   {
@@ -110,10 +112,92 @@ function ServiceCTA({ destination, children, variant = "default" }: { destinatio
 }
 
 export default function HomePage() {
+  const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
+
+  const openWaitlist = () => {
+    setIsWaitlistOpen(true);
+    setWaitlistSubmitted(false);
+  };
+  const closeWaitlist = () => {
+    setIsWaitlistOpen(false);
+    setWaitlistEmail("");
+    setWaitlistSubmitted(false);
+  };
+
+  const handleWaitlistSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!waitlistEmail.trim()) return;
+    setWaitlistSubmitted(true);
+  };
+
+  useEffect(() => {
+    if (!isWaitlistOpen || !waitlistSubmitted) return;
+    const timer = setTimeout(() => {
+      closeWaitlist();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [isWaitlistOpen, waitlistSubmitted]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-primary/10 dark:from-gray-950 dark:via-primary/10 dark:to-secondary/10">
       {/* Navigation */}
       <Navbar />
+
+      {isWaitlistOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-primary/20 bg-white p-6 shadow-2xl dark:border-primary/30 dark:bg-gray-900">
+            <div className="mb-4">
+              <p className="text-xs uppercase tracking-widest text-primary/60">Coming Soon</p>
+              <h3 className="text-2xl font-semibold text-primary">Download App</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-gray-900 px-3 py-2 text-white">
+                <FaApple className="h-5 w-5" />
+                <div className="leading-tight">
+                  <p className="text-[10px] uppercase tracking-widest text-white/70">App Store</p>
+                  <p className="text-sm font-semibold">Coming soon</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-xl border border-secondary/20 bg-gray-900 px-3 py-2 text-white">
+                <FaGooglePlay className="h-5 w-5" />
+                <div className="leading-tight">
+                  <p className="text-[10px] uppercase tracking-widest text-white/70">Google Play</p>
+                  <p className="text-sm font-semibold">Coming soon</p>
+                </div>
+              </div>
+            </div>
+            <p className="text-sm sm:text-base text-primary/80 mb-6">
+              The Numzaro mobile app is almost here. Join the wait list to get early access and launch updates.
+            </p>
+            {waitlistSubmitted ? (
+              <div className="rounded-xl border border-secondary/30 bg-secondary/10 p-4 text-sm text-primary/80">
+                Thanks! You’re on the wait list. We’ll email you when the app is ready.
+              </div>
+            ) : (
+              <form onSubmit={handleWaitlistSubmit} className="space-y-3">
+                <input
+                  type="email"
+                  value={waitlistEmail}
+                  onChange={(e) => setWaitlistEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  className="h-12 w-full rounded-xl border border-primary/20 bg-white/80 px-4 text-sm text-primary outline-none placeholder:text-primary/50 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 dark:bg-gray-900 dark:border-primary/30"
+                  required
+                />
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button type="submit" className="w-full">
+                    Join wait list
+                  </Button>
+                  <Button variant="outline" className="w-full" type="button" onClick={closeWaitlist}>
+                    Close
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center justify-center overflow-hidden">
@@ -171,53 +255,99 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Trust Row */}
-                <div className="flex flex-wrap gap-3 sm:gap-4 justify-center lg:justify-start px-4 lg:px-0">
-                  <span className="text-xs sm:text-sm text-primary/70 border border-primary/20 rounded-full px-3 py-1 bg-white/60 dark:bg-white/5">Fast OTP delivery</span>
-                  <span className="text-xs sm:text-sm text-primary/70 border border-secondary/20 rounded-full px-3 py-1 bg-white/60 dark:bg-white/5">15+ platforms</span>
-                  <span className="text-xs sm:text-sm text-primary/70 border border-primary/20 rounded-full px-3 py-1 bg-white/60 dark:bg-white/5">Secure checkout</span>
+                <div className="flex items-center justify-center lg:justify-start px-4 lg:px-0">
+                  <button
+                    type="button"
+                    onClick={openWaitlist}
+                    className="text-sm font-medium text-primary/80 hover:text-primary underline underline-offset-4 decoration-primary/40"
+                  >
+                    Download app (coming soon) — Join wait list
+                  </button>
                 </div>
               </div>
 
-              {/* Right: Stats + Mini Feature Card */}
-              <div className="space-y-4 sm:space-y-6">
-                <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  <Card className="text-center p-4 border border-primary/20 dark:border-primary/30 bg-white/70 dark:bg-white/5 backdrop-blur-md hover:bg-white/90 dark:hover:bg-white/10 hover:shadow-xl transition-all">
-                    <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-1">827K+</div>
-                    <p className="text-xs sm:text-sm text-primary/80 dark:text-primary/80 font-medium">Verified Customers</p>
-                  </Card>
-                  <Card className="text-center p-4 border border-secondary/20 dark:border-secondary/30 bg-white/70 dark:bg-white/5 backdrop-blur-md hover:bg-white/90 dark:hover:bg-white/10 hover:shadow-xl transition-all">
-                    <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-secondary to-primary bg-clip-text text-transparent mb-1">4M+</div>
-                    <p className="text-xs sm:text-sm text-secondary/80 dark:text-secondary/80 font-medium">Orders Completed</p>
-                  </Card>
-                  <Card className="text-center p-4 border border-primary/20 dark:border-primary/30 bg-white/70 dark:bg-white/5 backdrop-blur-md hover:bg-white/90 dark:hover:bg-white/10 hover:shadow-xl transition-all">
-                    <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-1">50K+</div>
-                    <p className="text-xs sm:text-sm text-primary/80 dark:text-primary/80 font-medium">SMS Numbers</p>
-                  </Card>
-                  <Card className="text-center p-4 border border-secondary/20 dark:border-secondary/30 bg-white/70 dark:bg-white/5 backdrop-blur-md hover:bg-white/90 dark:hover:bg-white/10 hover:shadow-xl transition-all">
-                    <div className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-secondary to-primary bg-clip-text text-transparent mb-1">15+</div>
-                    <p className="text-xs sm:text-sm text-secondary/80 dark:text-secondary/80 font-medium">Social Platforms</p>
-                  </Card>
+              {/* Right: App Preview */}
+              <div className="space-y-6">
+                <div className="relative hidden md:flex items-center justify-center min-h-[460px] sm:min-h-[520px]">
+                  <div className="absolute -left-6 top-8 h-[360px] w-[200px] sm:h-[420px] sm:w-[230px] rounded-[2.2rem] bg-gradient-to-br from-secondary/20 to-primary/20 border border-secondary/30 shadow-2xl -rotate-6"></div>
+                  <div className="relative h-[420px] w-[240px] sm:h-[500px] sm:w-[280px] rounded-[2.7rem] bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30 shadow-2xl">
+                    <div className="absolute top-3 left-1/2 h-6 w-20 -translate-x-1/2 rounded-full bg-primary/20"></div>
+                    <div className="absolute inset-4 rounded-[2.2rem] bg-white/85 dark:bg-gray-900/70 border border-primary/10 p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-secondary"></div>
+                        <div className="h-3 w-20 rounded-full bg-primary/20"></div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mb-4">
+                        <div className="rounded-xl border border-primary/10 bg-white/80 dark:bg-gray-900/60 px-2 py-2 text-center">
+                          <p className="text-[10px] uppercase tracking-widest text-primary/60">Likes</p>
+                          <p className="text-sm font-semibold text-primary">128k</p>
+                        </div>
+                        <div className="rounded-xl border border-primary/10 bg-white/80 dark:bg-gray-900/60 px-2 py-2 text-center">
+                          <p className="text-[10px] uppercase tracking-widest text-primary/60">Views</p>
+                          <p className="text-sm font-semibold text-primary">3.2M</p>
+                        </div>
+                        <div className="rounded-xl border border-primary/10 bg-white/80 dark:bg-gray-900/60 px-2 py-2 text-center">
+                          <p className="text-[10px] uppercase tracking-widest text-primary/60">Follows</p>
+                          <p className="text-sm font-semibold text-primary">41k</p>
+                        </div>
+                      </div>
+                      <div className="h-28 rounded-2xl bg-gradient-to-br from-primary/15 to-secondary/15 border border-primary/10 mb-4"></div>
+                      <div className="space-y-2">
+                        <div className="h-3 rounded-full bg-primary/15"></div>
+                        <div className="h-3 rounded-full bg-primary/15 w-4/5"></div>
+                        <div className="h-3 rounded-full bg-primary/15 w-3/5"></div>
+                      </div>
+                      <div className="mt-5 grid grid-cols-3 gap-2">
+                        <div className="h-10 rounded-xl bg-secondary/20"></div>
+                        <div className="h-10 rounded-xl bg-primary/20"></div>
+                        <div className="h-10 rounded-xl bg-secondary/20"></div>
+                      </div>
+                      <div className="mt-4 h-11 rounded-xl bg-gradient-to-r from-primary/60 to-secondary/60"></div>
+                    </div>
+                  </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-                <Card className="border border-primary/20 dark:border-primary/30 bg-white/80 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-widest text-primary/60">All‑in‑one</p>
-                      <h3 className="text-lg sm:text-xl font-semibold text-primary">Verification + Growth</h3>
-                    </div>
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
-                      N
-                    </div>
-                  </div>
-                  <p className="text-sm sm:text-base text-primary/80 leading-relaxed mb-4">
-                    Manage virtual numbers, SMS verification, and social media marketing services in one dashboard with transparent delivery tracking.
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <div className="h-2 w-2 rounded-full bg-secondary"></div>
-                    <span className="text-xs sm:text-sm text-primary/70">Real‑time order updates</span>
-                  </div>
-                </Card>
+      {/* Social + Countries Strip */}
+      <section className="relative -mt-8 sm:-mt-10 pb-8">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto max-w-5xl rounded-2xl border border-primary/15 bg-white/80 dark:bg-white/5 backdrop-blur-md px-4 py-4 sm:px-6 sm:py-5 shadow-lg">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-xs uppercase tracking-widest text-primary/60">Platforms</span>
+                <div className="flex items-center gap-2">
+                  {[
+                    { Icon: FaInstagram, color: "text-[#E1306C]" },
+                    { Icon: FaTiktok, color: "text-[#010101]" },
+                    { Icon: FaYoutube, color: "text-[#FF0000]" },
+                    { Icon: FaFacebookF, color: "text-[#1877F2]" },
+                    { Icon: FaXTwitter, color: "text-[#000000]" },
+                    { Icon: FaLinkedinIn, color: "text-[#0A66C2]" },
+                  ].map(({ Icon, color }, index) => (
+                    <span
+                      key={`social-strip-${index}`}
+                      className="h-9 w-9 rounded-full border border-primary/15 bg-white/70 dark:bg-white/5 flex items-center justify-center"
+                    >
+                      <Icon className={`h-4 w-4 ${color}`} />
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="hidden md:block h-6 w-px bg-primary/20"></div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs uppercase tracking-widest text-primary/60">Countries</span>
+                <div className="flex items-center gap-2 text-lg">
+                  <span className="h-9 w-9 rounded-full border border-secondary/20 bg-white/70 dark:bg-white/5 flex items-center justify-center">🇺🇸</span>
+                  <span className="h-9 w-9 rounded-full border border-secondary/20 bg-white/70 dark:bg-white/5 flex items-center justify-center">🇬🇧</span>
+                  <span className="h-9 w-9 rounded-full border border-secondary/20 bg-white/70 dark:bg-white/5 flex items-center justify-center">🇨🇦</span>
+                  <span className="h-9 w-9 rounded-full border border-secondary/20 bg-white/70 dark:bg-white/5 flex items-center justify-center">🇳🇬</span>
+                  <span className="h-9 w-9 rounded-full border border-secondary/20 bg-white/70 dark:bg-white/5 flex items-center justify-center">🇦🇺</span>
+                  <span className="h-9 w-9 rounded-full border border-secondary/20 bg-white/70 dark:bg-white/5 flex items-center justify-center">🇮🇳</span>
+                </div>
               </div>
             </div>
           </div>
@@ -689,9 +819,7 @@ export default function HomePage() {
                   </svg>
                 </a>
                 <a href="#" className="text-gray-400 hover:text-secondary transition-colors">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-                  </svg>
+                  <FaXTwitter className="w-5 h-5" />
                 </a>
                 <a href="#" className="text-gray-400 hover:text-secondary transition-colors">
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
