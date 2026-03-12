@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Navbar } from "@/components/Navbar"
+import { ThemeToggle } from "@/components/ThemeToggle"
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -116,6 +117,11 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center justify-center overflow-hidden">
+        <div className="absolute top-6 right-6 z-[2]">
+          <div className="rounded-full bg-white/70 dark:bg-gray-900/70 backdrop-blur-md border border-primary/20 dark:border-primary/30 shadow-sm p-1">
+            <ThemeToggle />
+          </div>
+        </div>
         {/* Background */}
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-secondary/10 to-primary/20 dark:from-primary/25 dark:via-secondary/15 dark:to-primary/30"></div>
