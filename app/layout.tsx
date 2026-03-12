@@ -1,14 +1,14 @@
 import type { Metadata } from "next"
-import { Outfit } from "next/font/google"
+import { Poppins } from "next/font/google"
 import Script from "next/script"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/lib/hooks/use-theme"
 
-const outfit = Outfit({ 
+const poppins = Poppins({ 
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800", "900"],
-  variable: "--font-outfit"
+  variable: "--font-poppins"
 })
 
 export const metadata: Metadata = {
@@ -26,7 +26,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={outfit.className}>
+      <body className={poppins.className}>
         <ThemeProvider defaultTheme="light" storageKey="ui-theme">
           {children}
           <Toaster />
@@ -36,4 +36,3 @@ export default function RootLayout({
     </html>
   )
 }
-

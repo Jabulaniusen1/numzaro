@@ -8,104 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
-import { Loader2, Clock, ChevronDown, Search, ShoppingBag } from "lucide-react";
+import {
+  Loader2, Clock, ChevronRight, ShoppingBag, X,
+  Users, Heart, Eye, MessageCircle, Share2, Play, Star, Zap,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface SearchableSelectProps {
-  options: { value: string; label: string }[];
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  disabled?: boolean;
-  id?: string;
-}
-
-function SearchableSelect({ options, value, onChange, placeholder = "Select...", disabled = false, id }: SearchableSelectProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const filteredOptions = useMemo(() => {
-    if (!searchQuery) return options;
-    const q = searchQuery.toLowerCase();
-    return options.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q));
-  }, [options, searchQuery]);
-
-  const selectedOption = options.find((o) => o.value === value);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-        setSearchQuery("");
-      }
-    };
-    if (isOpen) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [isOpen]);
-
-  return (
-    <div ref={dropdownRef} className="relative w-full">
-      <button
-        type="button"
-        id={id}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        disabled={disabled}
-        className={cn(
-          "flex h-11 w-full items-center justify-between rounded-full border px-4 text-sm transition-colors",
-          "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-gray-100",
-          "disabled:cursor-not-allowed disabled:opacity-50",
-          isOpen && "border-[#7C5CFC] ring-2 ring-[#7C5CFC]/20"
-        )}
-      >
-        <span className={selectedOption ? "text-gray-800 dark:text-gray-100 font-medium" : "text-gray-400"}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <ChevronDown className={cn("h-4 w-4 text-gray-400 transition-transform", isOpen && "rotate-180")} />
-      </button>
-
-      {isOpen && (
-        <div className="absolute z-50 mt-2 w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl overflow-hidden">
-          <div className="p-2 border-b border-gray-100 dark:border-gray-700">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-8 pl-8 pr-3 text-xs rounded-full border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:border-[#7C5CFC]"
-                autoFocus
-                onKeyDown={(e) => { if (e.key === "Escape") { setIsOpen(false); setSearchQuery(""); } }}
-              />
-            </div>
-          </div>
-          <div className="max-h-64 overflow-auto p-1.5">
-            {filteredOptions.length === 0 ? (
-              <p className="py-4 text-center text-xs text-gray-400">No results found</p>
-            ) : (
-              filteredOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => { onChange(option.value); setIsOpen(false); setSearchQuery(""); }}
-                  className={cn(
-                    "flex w-full items-center rounded-xl px-3 py-2 text-sm text-left transition-colors",
-                    value === option.value
-                      ? "bg-violet-50 dark:bg-violet-900/30 text-[#7C5CFC] font-semibold"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+import {
+  FaFacebook, FaInstagram, FaTiktok, FaTwitter, FaDiscord,
+  FaTelegram, FaWhatsapp, FaYoutube, FaSpotify, FaLinkedin,
+  FaPinterest, FaSnapchatGhost, FaTwitch,
+} from "react-icons/fa";
 
 interface Service {
   id: number;
@@ -120,126 +32,209 @@ interface Service {
   cancel_allowed: boolean;
 }
 
+// ─── Platforms ───────────────────────────────────────────────────────────────
+const PLATFORMS = [
+  { id: "instagram", name: "Instagram",  Icon: FaInstagram,    bg: "bg-gradient-to-br from-[#f09433] via-[#e6683c] to-[#bc1888]", color: "#e6683c", keywords: ["instagram"] },
+  { id: "tiktok",    name: "TikTok",     Icon: FaTiktok,       bg: "bg-gradient-to-br from-[#010101] to-[#69C9D0]",               color: "#69C9D0", keywords: ["tiktok"] },
+  { id: "facebook",  name: "Facebook",   Icon: FaFacebook,     bg: "bg-gradient-to-br from-[#1877F2] to-[#0d5bc8]",               color: "#1877F2", keywords: ["facebook", "fb "] },
+  { id: "youtube",   name: "YouTube",    Icon: FaYoutube,      bg: "bg-gradient-to-br from-[#FF0000] to-[#cc0000]",               color: "#FF0000", keywords: ["youtube", "yt "] },
+  { id: "twitter",   name: "Twitter / X",Icon: FaTwitter,      bg: "bg-gradient-to-br from-[#1DA1F2] to-[#0c85d0]",               color: "#1DA1F2", keywords: ["twitter", "tweet", " x "] },
+  { id: "telegram",  name: "Telegram",   Icon: FaTelegram,     bg: "bg-gradient-to-br from-[#0088cc] to-[#005b8c]",               color: "#0088cc", keywords: ["telegram"] },
+  { id: "discord",   name: "Discord",    Icon: FaDiscord,      bg: "bg-gradient-to-br from-[#5865F2] to-[#3d4bc8]",               color: "#5865F2", keywords: ["discord"] },
+  { id: "spotify",   name: "Spotify",    Icon: FaSpotify,      bg: "bg-gradient-to-br from-[#1DB954] to-[#157d3b]",               color: "#1DB954", keywords: ["spotify"] },
+  { id: "whatsapp",  name: "WhatsApp",   Icon: FaWhatsapp,     bg: "bg-gradient-to-br from-[#25D366] to-[#128C7E]",               color: "#25D366", keywords: ["whatsapp"] },
+  { id: "linkedin",  name: "LinkedIn",   Icon: FaLinkedin,     bg: "bg-gradient-to-br from-[#0A66C2] to-[#004182]",               color: "#0A66C2", keywords: ["linkedin"] },
+  { id: "pinterest", name: "Pinterest",  Icon: FaPinterest,    bg: "bg-gradient-to-br from-[#E60023] to-[#a3001a]",               color: "#E60023", keywords: ["pinterest"] },
+  { id: "snapchat",  name: "Snapchat",   Icon: FaSnapchatGhost,bg: "bg-gradient-to-br from-[#FFFC00] to-[#f5d800]",               color: "#FFFC00", keywords: ["snapchat"] },
+  { id: "twitch",    name: "Twitch",     Icon: FaTwitch,       bg: "bg-gradient-to-br from-[#9146FF] to-[#6c2cd6]",               color: "#9146FF", keywords: ["twitch"] },
+];
+
+// ─── Service type metadata ────────────────────────────────────────────────────
+const TYPE_META: Record<string, { Icon: React.ElementType; label: string }> = {
+  followers:   { Icon: Users,         label: "Followers"   },
+  subscribers: { Icon: Users,         label: "Subscribers" },
+  likes:       { Icon: Heart,         label: "Likes"       },
+  views:       { Icon: Eye,           label: "Views"       },
+  comments:    { Icon: MessageCircle, label: "Comments"    },
+  shares:      { Icon: Share2,        label: "Shares"      },
+  plays:       { Icon: Play,          label: "Plays"       },
+  members:     { Icon: Users,         label: "Members"     },
+  saves:       { Icon: Star,          label: "Saves"       },
+};
+
+function detectPlatform(category: string) {
+  const c = category.toLowerCase();
+  for (const p of PLATFORMS) {
+    if (p.keywords.some((k) => c.includes(k))) return p.id;
+  }
+  return "other";
+}
+
+function detectType(name: string, type: string) {
+  const n = (name + " " + type).toLowerCase();
+  if (n.includes("follower"))                          return "followers";
+  if (n.includes("subscriber"))                        return "subscribers";
+  if (n.includes("like"))                              return "likes";
+  if (n.includes("view") || n.includes("watch"))       return "views";
+  if (n.includes("comment"))                           return "comments";
+  if (n.includes("share") || n.includes("retweet"))    return "shares";
+  if (n.includes("play") || n.includes("stream"))      return "plays";
+  if (n.includes("member"))                            return "members";
+  if (n.includes("save"))                              return "saves";
+  return "other";
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ServicesPage() {
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedServiceId, setSelectedServiceId] = useState("");
-  const [link, setLink] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [comments, setComments] = useState("");
+  const [services, setServices]     = useState<Service[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
+  const [activePlatform, setActivePlatform] = useState("all");
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [link, setLink]             = useState("");
+  const [quantity, setQuantity]     = useState("");
+  const [comments, setComments]     = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [balance, setBalance] = useState(0);
-  const [categories, setCategories] = useState<string[]>([]);
-  const { toast } = useToast();
+  const [balance, setBalance]       = useState(0);
+  const filterRef                   = useRef<HTMLDivElement>(null);
+  const { toast }  = useToast();
   const { format } = useCurrency();
 
   useEffect(() => { fetchServices(); fetchBalance(); }, []);
 
-  const fetchServices = async () => {
+  async function fetchServices() {
     try {
       setLoading(true); setError(null);
       const res = await fetch("/api/services");
       if (!res.ok) throw new Error("Failed to fetch services");
       const data = await res.json();
       setServices(data.services || []);
-      setCategories(data.filters?.categories || []);
     } catch (err: any) {
       setError(err.message || "Failed to load services");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const fetchBalance = async () => {
+  async function fetchBalance() {
     try {
       const res = await fetch("/api/balance");
-      if (res.ok) { const data = await res.json(); setBalance(parseFloat(data.balance || "0")); }
+      if (res.ok) {
+        const data = await res.json();
+        setBalance(parseFloat(data.balance || "0"));
+      }
     } catch {}
-  };
+  }
 
-  const filteredServices = useMemo(() => {
-    if (!selectedCategory) return [];
-    return services.filter((s) => s.category?.toLowerCase() === selectedCategory.toLowerCase());
-  }, [services, selectedCategory]);
+  // Group services by platform
+  const byPlatform = useMemo(() => {
+    const map: Record<string, Service[]> = {};
+    for (const s of services) {
+      const pid = detectPlatform(s.category);
+      (map[pid] ??= []).push(s);
+    }
+    return map;
+  }, [services]);
 
-  const selectedService = useMemo(() => {
-    if (!selectedServiceId) return null;
-    return services.find((s) => s.id.toString() === selectedServiceId) || null;
-  }, [services, selectedServiceId]);
+  const availablePlatforms = useMemo(
+    () => PLATFORMS.filter((p) => (byPlatform[p.id]?.length ?? 0) > 0),
+    [byPlatform]
+  );
 
-  const isCommentService = () => {
-    if (!selectedService) return false;
-    const n = (selectedService.name || "").toLowerCase();
-    const t = (selectedService.type || "").toLowerCase();
-    return n.includes("comment") || t.includes("comment");
-  };
+  // Services visible under the active platform filter
+  const visibleServices = useMemo(() => {
+    if (activePlatform === "all") return services;
+    return byPlatform[activePlatform] ?? [];
+  }, [services, byPlatform, activePlatform]);
+
+  // Group visible services by their category string (for section headers)
+  const groupedByCategory = useMemo(() => {
+    const map: Record<string, Service[]> = {};
+    for (const s of visibleServices) {
+      (map[s.category] ??= []).push(s);
+    }
+    return map;
+  }, [visibleServices]);
+
+  const currentPlatformDef = PLATFORMS.find((p) => p.id === activePlatform);
 
   const charge = useMemo(() => {
     if (!selectedService || !quantity) return 0;
     const qty = parseInt(quantity, 10);
-    if (isNaN(qty) || qty <= 0) return 0;
-    return (qty / 1000) * (selectedService.rate || 0);
+    return isNaN(qty) || qty <= 0 ? 0 : (qty / 1000) * selectedService.rate;
   }, [selectedService, quantity]);
 
-  useEffect(() => {
-    setSelectedServiceId(""); setQuantity(""); setLink(""); setComments("");
-  }, [selectedCategory]);
+  const isComment = () =>
+    selectedService ? detectType(selectedService.name, selectedService.type) === "comments" : false;
 
-  useEffect(() => {
-    if (selectedService && !quantity) setQuantity(String(selectedService.min_quantity || 100));
-  }, [selectedService]);
+  function openService(s: Service) {
+    setSelectedService(s);
+    setQuantity(String(s.min_quantity));
+    setLink("");
+    setComments("");
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  function closeOrder() {
+    setSelectedService(null);
+    setLink(""); setQuantity(""); setComments("");
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedService) return toast({ title: "Select a service", variant: "destructive" });
-    if (!link.trim()) return toast({ title: "Link required", description: "Enter a valid link", variant: "destructive" });
+    if (!selectedService) return;
+    if (!link.trim()) return toast({ title: "Link required", variant: "destructive" });
     const qty = parseInt(quantity, 10);
     if (!quantity || isNaN(qty) || qty < selectedService.min_quantity || qty > selectedService.max_quantity) {
-      return toast({ title: "Invalid quantity", description: `Between ${selectedService.min_quantity.toLocaleString()} and ${selectedService.max_quantity.toLocaleString()}`, variant: "destructive" });
+      return toast({
+        title: "Invalid quantity",
+        description: `Between ${selectedService.min_quantity.toLocaleString()} and ${selectedService.max_quantity.toLocaleString()}`,
+        variant: "destructive",
+      });
     }
-    if (charge > balance) return toast({ title: "Insufficient balance", description: `Need ${format(charge)}, have ${format(balance)}`, variant: "destructive" });
-
+    if (charge > balance) {
+      return toast({
+        title: "Insufficient balance",
+        description: `Need ${format(charge)}, have ${format(balance)}`,
+        variant: "destructive",
+      });
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ service_id: selectedService.id, link: link.trim(), quantity: Math.floor(qty), ...(comments.trim() && { comments: comments.trim() }) }),
+        body: JSON.stringify({
+          service_id: selectedService.id,
+          link: link.trim(),
+          quantity: Math.floor(qty),
+          ...(comments.trim() && { comments: comments.trim() }),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create order");
-      toast({ title: "Order placed!", description: `${selectedService.name} order is being processed.` });
+      toast({ title: "Order placed!", description: `${selectedService.name} is being processed.` });
       window.dispatchEvent(new CustomEvent("balanceUpdated"));
       fetchBalance();
-      setLink(""); setQuantity(""); setComments(""); setSelectedServiceId(""); setSelectedCategory("");
+      closeOrder();
     } catch (err: any) {
       toast({ title: "Order failed", description: err.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
-  const getEstimatedTime = () => {
-    if (!selectedService) return null;
-    const t = (selectedService.type || "").toLowerCase();
-    if (t.includes("followers") || t.includes("subscribers")) return "24–48 hours";
-    if (t.includes("likes") || t.includes("views")) return "1–6 hours";
-    if (t.includes("comments")) return "12–24 hours";
-    return "12–48 hours";
-  };
-
+  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
-      <div className="px-4 pt-4 pb-6 md:px-6 md:pt-6 max-w-2xl mx-auto">
+      <div className="px-4 pt-4 pb-32 md:px-6 md:pt-6 max-w-2xl mx-auto">
+
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
+        <div className="mb-5">
+          <h1 className="text-2xl font-extrabold bg-gradient-to-r from-violet-600 to-indigo-500 bg-clip-text text-transparent leading-tight">
             Boost Socials
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Grow your social media presence
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            Select a platform then choose your service
           </p>
         </div>
 
@@ -250,168 +245,296 @@ export default function ServicesPage() {
           </div>
         )}
 
-        {/* Form Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 space-y-5">
-          <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-            Create New Order
-          </h2>
+        {/* ── Platform filter bar ──────────────────────────────────────────────── */}
+        <div
+          ref={filterRef}
+          className="flex gap-2 overflow-x-auto pb-1 mb-5 scrollbar-hide -mx-4 px-4 md:-mx-6 md:px-6"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {/* All tab */}
+          <button
+            onClick={() => setActivePlatform("all")}
+            className={cn(
+              "flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all",
+              activePlatform === "all"
+                ? "bg-[#7C5CFC] text-white shadow-md shadow-violet-300/40"
+                : "bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
+            )}
+          >
+            <Zap className="h-3 w-3" />
+            All
+          </button>
 
-          {loading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-11 w-full rounded-full" />
-              <Skeleton className="h-11 w-full rounded-full" />
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Category */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</Label>
-                <SearchableSelect
-                  id="category"
-                  options={categories.map((c) => ({ value: c, label: c }))}
-                  value={selectedCategory}
-                  onChange={setSelectedCategory}
-                  placeholder="Select a category"
-                />
+          {loading
+            ? Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="flex-shrink-0 h-8 w-24 rounded-full" />
+              ))
+            : availablePlatforms.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setActivePlatform(p.id)}
+                  className={cn(
+                    "flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all",
+                    activePlatform === p.id
+                      ? "text-white shadow-md"
+                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                  )}
+                  style={
+                    activePlatform === p.id
+                      ? { background: `linear-gradient(135deg, ${p.color}cc, ${p.color})` }
+                      : {}
+                  }
+                >
+                  <p.Icon className="h-3 w-3" />
+                  {p.name}
+                </button>
+              ))
+          }
+        </div>
+
+        {/* ── Services list ────────────────────────────────────────────────────── */}
+        {loading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 rounded-2xl" />
+            ))}
+          </div>
+        ) : visibleServices.length === 0 ? (
+          <div className="text-center py-16 text-gray-400 text-sm">No services available for this platform.</div>
+        ) : (
+          <div className="space-y-6">
+            {Object.entries(groupedByCategory).map(([category, items]) => {
+              const platId = detectPlatform(category);
+              const platDef = PLATFORMS.find((p) => p.id === platId);
+
+              return (
+                <div key={category}>
+                  {/* Category section header */}
+                  <div className="flex items-center gap-2 mb-2">
+                    {platDef && (
+                      <div className={cn("w-6 h-6 rounded-lg flex items-center justify-center text-white flex-shrink-0", platDef.bg)}>
+                        <platDef.Icon className="h-3 w-3" />
+                      </div>
+                    )}
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide truncate">
+                      {category}
+                    </p>
+                    <span className="text-[10px] font-semibold px-1.5 py-px rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 flex-shrink-0">
+                      {items.length}
+                    </span>
+                  </div>
+
+                  {/* Service cards */}
+                  <div className="space-y-2">
+                    {items.map((s) => {
+                      const t    = detectType(s.name, s.type);
+                      const meta = TYPE_META[t];
+                      const isSelected = selectedService?.id === s.id;
+
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => isSelected ? closeOrder() : openService(s)}
+                          className={cn(
+                            "w-full group bg-white dark:bg-gray-800 rounded-2xl border p-4 flex items-center gap-3 text-left transition-all",
+                            isSelected
+                              ? "border-[#7C5CFC] shadow-md shadow-violet-100 dark:shadow-none"
+                              : "border-gray-100 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700 hover:shadow-sm"
+                          )}
+                        >
+                          {/* Icon bubble */}
+                          <div className={cn(
+                            "w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center text-white shadow-sm",
+                            platDef ? platDef.bg : "bg-[#7C5CFC]"
+                          )}>
+                            {meta ? <meta.Icon className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{s.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <span className="text-xs text-gray-400">{format(s.rate)} / 1k</span>
+                              {s.refill_allowed && (
+                                <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400">
+                                  Refill
+                                </span>
+                              )}
+                              {s.cancel_allowed && (
+                                <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
+                                  Cancel
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <ChevronRight className={cn(
+                            "h-4 w-4 flex-shrink-0 transition-all",
+                            isSelected ? "text-[#7C5CFC] rotate-90" : "text-gray-300 group-hover:text-[#7C5CFC]"
+                          )} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Order form — bottom sheet ──────────────────────────────────────────── */}
+      {selectedService && (() => {
+        const platId  = detectPlatform(selectedService.category);
+        const platDef = PLATFORMS.find((p) => p.id === platId);
+        return (
+          <div className="fixed inset-0 z-40 flex flex-col justify-end pointer-events-none">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/30 backdrop-blur-sm pointer-events-auto"
+              onClick={closeOrder}
+            />
+
+            {/* Sheet */}
+            <div className="relative pointer-events-auto bg-white dark:bg-gray-900 rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-gray-200 dark:bg-gray-700" />
               </div>
 
-              {/* Service */}
-              {selectedCategory && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Service</Label>
-                  <SearchableSelect
-                    id="service"
-                    options={filteredServices.map((s) => ({ value: s.id.toString(), label: s.name }))}
-                    value={selectedServiceId}
-                    onChange={setSelectedServiceId}
-                    placeholder={filteredServices.length === 0 ? "No services available" : "Select a service"}
-                    disabled={filteredServices.length === 0}
-                  />
-                </div>
-              )}
-
-              {/* Service Info */}
-              {selectedService && (
-                <div className="rounded-xl border border-violet-100 dark:border-violet-800/40 bg-violet-50 dark:bg-violet-900/20 p-4 space-y-3">
+              <div className="px-5 pb-8 pt-2 space-y-5 max-w-2xl mx-auto w-full">
+                {/* Service banner */}
+                <div className={cn("rounded-2xl p-4 text-white relative overflow-hidden", platDef?.bg ?? "bg-[#7C5CFC]")}>
+                  {platDef && (
+                    <platDef.Icon className="absolute -right-3 -bottom-3 h-20 w-20 opacity-10" />
+                  )}
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-bold text-sm text-gray-800 dark:text-gray-100">{selectedService.name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{selectedService.category} · {selectedService.type}</p>
-                    </div>
-                    <div className="flex gap-1.5">
-                      {selectedService.refill_allowed && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">Refill</span>
+                      {platDef && (
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <platDef.Icon className="h-3.5 w-3.5 opacity-75" />
+                          <p className="text-[11px] font-semibold opacity-75 uppercase tracking-wide">{platDef.name}</p>
+                        </div>
                       )}
-                      {selectedService.cancel_allowed && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">Cancel</span>
-                      )}
+                      <p className="font-bold text-sm leading-snug pr-8">{selectedService.name}</p>
                     </div>
+                    <button
+                      onClick={closeOrder}
+                      className="flex-shrink-0 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
                   </div>
-                  <div className="flex gap-6 text-sm">
+                  <div className="flex gap-5 mt-3">
                     <div>
-                      <p className="text-xs text-gray-400">Per 1,000</p>
-                      <p className="font-black text-[#7C5CFC]">{format(selectedService.rate)}</p>
+                      <p className="text-[11px] opacity-60">Per 1,000</p>
+                      <p className="font-black text-base">{format(selectedService.rate)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-400">Quantity range</p>
-                      <p className="font-semibold text-gray-700 dark:text-gray-200">
+                      <p className="text-[11px] opacity-60">Range</p>
+                      <p className="font-semibold text-sm">
                         {selectedService.min_quantity.toLocaleString()} – {selectedService.max_quantity.toLocaleString()}
                       </p>
                     </div>
                   </div>
                 </div>
-              )}
 
-              {/* Link */}
-              {selectedService && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Link</Label>
-                  <Input
-                    type="url"
-                    placeholder="https://..."
-                    value={link}
-                    onChange={(e) => setLink(e.target.value)}
-                    required
-                    disabled={submitting}
-                    className="rounded-full border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
-                  />
-                </div>
-              )}
-
-              {/* Quantity */}
-              {selectedService && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Quantity ({selectedService.min_quantity.toLocaleString()} – {selectedService.max_quantity.toLocaleString()})
-                  </Label>
-                  <Input
-                    type="number"
-                    min={selectedService.min_quantity}
-                    max={selectedService.max_quantity}
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    onBlur={(e) => { if (!e.target.value || isNaN(parseInt(e.target.value))) setQuantity(String(selectedService.min_quantity)); }}
-                    required
-                    disabled={submitting}
-                    className="rounded-full border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
-                  />
-                </div>
-              )}
-
-              {/* Comments */}
-              {selectedService && isCommentService() && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Custom Comments</Label>
-                  <Textarea
-                    placeholder="One comment per line..."
-                    value={comments}
-                    onChange={(e) => setComments(e.target.value)}
-                    rows={5}
-                    disabled={submitting}
-                    className="rounded-2xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 resize-none focus-visible:ring-[#7C5CFC]"
-                  />
-                </div>
-              )}
-
-              {/* Order Summary */}
-              {selectedService && quantity && (
-                <div className="rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-4 space-y-2.5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Order Summary</p>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-1.5 text-gray-500">
-                      <Clock className="h-3.5 w-3.5" /> Estimated time
-                    </span>
-                    <span className="font-semibold text-gray-700 dark:text-gray-200">{getEstimatedTime()}</span>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Link */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Link</Label>
+                    <Input
+                      type="url"
+                      placeholder="https://..."
+                      value={link}
+                      onChange={(e) => setLink(e.target.value)}
+                      required
+                      disabled={submitting}
+                      className="rounded-full border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
+                    />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Total charge</span>
-                    <span className="text-xl font-black text-[#7C5CFC]">{format(charge)}</span>
-                  </div>
-                  <div className="border-t border-gray-100 dark:border-gray-700 pt-2 flex items-center justify-between text-xs text-gray-400">
-                    <span>Your balance</span>
-                    <span className={cn("font-semibold", charge > balance && "text-red-500")}>{format(balance)}</span>
-                  </div>
-                </div>
-              )}
 
-              {/* Submit */}
-              {selectedService && (
-                <Button
-                  type="submit"
-                  disabled={submitting || charge > balance || !link.trim() || !quantity}
-                  className="w-full bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white h-12 text-sm font-bold rounded-2xl shadow-md shadow-violet-200 dark:shadow-none"
-                >
-                  {submitting ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Placing Order...</>
-                  ) : (
-                    <><ShoppingBag className="mr-2 h-4 w-4" />Place Order — {format(charge)}</>
+                  {/* Quantity */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                      Quantity ({selectedService.min_quantity.toLocaleString()} – {selectedService.max_quantity.toLocaleString()})
+                    </Label>
+                    <Input
+                      type="number"
+                      min={selectedService.min_quantity}
+                      max={selectedService.max_quantity}
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      onBlur={(e) => {
+                        if (!e.target.value || isNaN(parseInt(e.target.value)))
+                          setQuantity(String(selectedService.min_quantity));
+                      }}
+                      required
+                      disabled={submitting}
+                      className="rounded-full border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
+                    />
+                  </div>
+
+                  {/* Comments */}
+                  {isComment() && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Custom Comments</Label>
+                      <Textarea
+                        placeholder="One comment per line..."
+                        value={comments}
+                        onChange={(e) => setComments(e.target.value)}
+                        rows={4}
+                        disabled={submitting}
+                        className="rounded-2xl border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 resize-none focus-visible:ring-[#7C5CFC]"
+                      />
+                    </div>
                   )}
-                </Button>
-              )}
-            </form>
-          )}
-        </div>
-      </div>
+
+                  {/* Summary */}
+                  {quantity && (
+                    <div className="rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-4 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-1.5 text-gray-500">
+                          <Clock className="h-3.5 w-3.5" /> Est. delivery
+                        </span>
+                        <span className="font-semibold text-gray-700 dark:text-gray-200">
+                          {(() => {
+                            const t = detectType(selectedService.name, selectedService.type);
+                            if (t === "followers" || t === "subscribers") return "24–48 hours";
+                            if (t === "likes" || t === "views") return "1–6 hours";
+                            if (t === "comments") return "12–24 hours";
+                            return "12–48 hours";
+                          })()}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">Total charge</span>
+                        <span className="text-xl font-black text-[#7C5CFC]">{format(charge)}</span>
+                      </div>
+                      <div className="pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-xs">
+                        <span className="text-gray-400">Your balance</span>
+                        <span className={cn("font-semibold", charge > balance ? "text-red-500" : "text-gray-500 dark:text-gray-400")}>
+                          {format(balance)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    disabled={submitting || charge > balance || !link.trim() || !quantity}
+                    className="w-full bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white h-12 text-sm font-bold rounded-2xl shadow-md shadow-violet-200 dark:shadow-none"
+                  >
+                    {submitting
+                      ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Placing Order…</>
+                      : <><ShoppingBag className="mr-2 h-4 w-4" />Place Order — {format(charge)}</>
+                    }
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
