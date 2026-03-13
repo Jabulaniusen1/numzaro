@@ -264,6 +264,14 @@ export default function HomePage() {
                     Download app (coming soon) — Join wait list
                   </button>
                 </div>
+
+                <div className="md:hidden mt-6 sm:mt-8 flex flex-wrap justify-center lg:justify-start gap-3 sm:gap-4 text-xs sm:text-sm text-primary/70">
+                  <span>827K+ Active Users</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span>50K+ Phone Numbers</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span>4M+ Orders Delivered</span>
+                </div>
               </div>
 
               {/* Right: App Preview */}
@@ -918,13 +926,6 @@ export default function HomePage() {
                   Jabulani Usen
                 </a>
               </p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-sm text-gray-600 dark:text-gray-300">
-              <span>827K+ Active Users</span>
-              <span className="hidden sm:inline">•</span>
-              <span>50K+ Phone Numbers</span>
-              <span className="hidden sm:inline">•</span>
-              <span>4M+ Orders Delivered</span>
             </div>
           </div>
         </div>
