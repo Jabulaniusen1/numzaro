@@ -26,6 +26,9 @@ export function Navbar() {
           </Link>
 
           <div className="flex items-center space-x-2">
+            <Link href="/">
+              <Button variant="ghost">Home</Button>
+            </Link>
             <Link href="/pricing">
               <Button variant="ghost">Pricing</Button>
             </Link>
@@ -86,6 +89,15 @@ export function Navbar() {
           <div className="md:hidden mt-4 pb-4 border-t dark:border-gray-800 pt-4 animate-in slide-in-from-top-2">
             <div className="flex flex-col space-y-2">
               <Link
+                href="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full"
+              >
+                <Button variant="ghost" className="w-full justify-start">
+                  Home
+                </Button>
+              </Link>
+              <Link
                 href="/pricing"
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full"
@@ -137,4 +149,3 @@ export function Navbar() {
     </nav>
   );
 }
-
