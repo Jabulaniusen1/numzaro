@@ -80,7 +80,10 @@ return (
 
           {/* Logo */}
           <Link href="/" className="inline-block">
-            <Image src="/numzaro-logo.png" alt="Numzaro" width={140} height={40} className="h-9 w-auto" priority />
+            <div className="h-12 w-[170px]">
+              <Image src="/logo%20c%26b.png" alt="Numzaro" width={170} height={52} className="h-full w-full object-contain dark:hidden" priority />
+              <Image src="/logo%20w%26c.png" alt="Numzaro" width={170} height={52} className="hidden h-full w-full object-contain dark:block" priority />
+            </div>
           </Link>
 
           {/* Heading */}

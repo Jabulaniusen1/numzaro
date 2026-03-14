@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   title: "Numzaro - Buy Social Media Services",
   description: "Buy followers, likes, and comments for your social media accounts",
   icons: {
-    icon: "/4.png",
+    icon: "/icon%20color.png",
   },
 }
 

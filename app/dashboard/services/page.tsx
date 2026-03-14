@@ -10,7 +10,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import {
   Loader2, Clock, ChevronRight, ShoppingBag, X,
-  Users, Heart, Eye, MessageCircle, Share2, Play, Star, Zap,
+  Users, Heart, Eye, MessageCircle, Share2, Play, Star, Zap, Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -94,6 +94,8 @@ export default function ServicesPage() {
   const [link, setLink]             = useState("");
   const [quantity, setQuantity]     = useState("");
   const [comments, setComments]     = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [balance, setBalance]       = useState(0);
   const filterRef                   = useRef<HTMLDivElement>(null);
@@ -147,14 +149,26 @@ export default function ServicesPage() {
     return byPlatform[activePlatform] ?? [];
   }, [services, byPlatform, activePlatform]);
 
+  const filteredServices = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return visibleServices;
+    return visibleServices.filter((s) => {
+      return (
+        s.name.toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q) ||
+        s.type.toLowerCase().includes(q)
+      );
+    });
+  }, [visibleServices, searchTerm]);
+
   // Group visible services by their category string (for section headers)
   const groupedByCategory = useMemo(() => {
     const map: Record<string, Service[]> = {};
-    for (const s of visibleServices) {
+    for (const s of filteredServices) {
       (map[s.category] ??= []).push(s);
     }
     return map;
-  }, [visibleServices]);
+  }, [filteredServices]);
 
   const currentPlatformDef = PLATFORMS.find((p) => p.id === activePlatform);
 
@@ -177,6 +191,13 @@ export default function ServicesPage() {
   function closeOrder() {
     setSelectedService(null);
     setLink(""); setQuantity(""); setComments("");
+  }
+
+  function toggleCategory(category: string) {
+    setCollapsedCategories((prev) => ({
+      ...prev,
+      [category]: !prev[category],
+    }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -238,6 +259,29 @@ export default function ServicesPage() {
           </p>
         </div>
 
+        {/* Search */}
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search services..."
+              className="h-11 rounded-full pl-9 pr-10 border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
         {error && (
           <div className="mb-4 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300 flex items-center justify-between">
             {error}
@@ -294,13 +338,26 @@ export default function ServicesPage() {
 
         {/* ── Services list ────────────────────────────────────────────────────── */}
         {loading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 rounded-2xl" />
+          <div className="space-y-5">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-6 w-6 rounded-lg" />
+                  <Skeleton className="h-3 w-40" />
+                  <Skeleton className="h-4 w-6 rounded-full" />
+                </div>
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((__, j) => (
+                    <Skeleton key={j} className="h-16 rounded-2xl" />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
-        ) : visibleServices.length === 0 ? (
-          <div className="text-center py-16 text-gray-400 text-sm">No services available for this platform.</div>
+        ) : filteredServices.length === 0 ? (
+          <div className="text-center py-16 text-gray-400 text-sm">
+            {searchTerm.trim() ? "No services match your search." : "No services available for this platform."}
+          </div>
         ) : (
           <div className="space-y-6">
             {Object.entries(groupedByCategory).map(([category, items]) => {
@@ -310,7 +367,12 @@ export default function ServicesPage() {
               return (
                 <div key={category}>
                   {/* Category section header */}
-                  <div className="flex items-center gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(category)}
+                    className="w-full flex items-center gap-2 mb-2 text-left group"
+                    aria-expanded={!collapsedCategories[category]}
+                  >
                     {platDef && (
                       <div className={cn("w-6 h-6 rounded-lg flex items-center justify-center text-white flex-shrink-0", platDef.bg)}>
                         <platDef.Icon className="h-3 w-3" />
@@ -322,58 +384,73 @@ export default function ServicesPage() {
                     <span className="text-[10px] font-semibold px-1.5 py-px rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 flex-shrink-0">
                       {items.length}
                     </span>
-                  </div>
+                    <ChevronRight
+                      className={cn(
+                        "ml-auto h-4 w-4 text-gray-300 transition-transform group-hover:text-gray-400",
+                        collapsedCategories[category] ? "" : "rotate-90"
+                      )}
+                    />
+                  </button>
 
                   {/* Service cards */}
-                  <div className="space-y-2">
-                    {items.map((s) => {
-                      const t    = detectType(s.name, s.type);
-                      const meta = TYPE_META[t];
-                      const isSelected = selectedService?.id === s.id;
+                  <div
+                    className={cn(
+                      "grid transition-all duration-300 ease-in-out",
+                      collapsedCategories[category] ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"
+                    )}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="space-y-2">
+                        {items.map((s) => {
+                          const t    = detectType(s.name, s.type);
+                          const meta = TYPE_META[t];
+                          const isSelected = selectedService?.id === s.id;
 
-                      return (
-                        <button
-                          key={s.id}
-                          onClick={() => isSelected ? closeOrder() : openService(s)}
-                          className={cn(
-                            "w-full group bg-white dark:bg-gray-800 rounded-2xl border p-4 flex items-center gap-3 text-left transition-all",
-                            isSelected
-                              ? "border-[#7C5CFC] shadow-md shadow-violet-100 dark:shadow-none"
-                              : "border-gray-100 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700 hover:shadow-sm"
-                          )}
-                        >
-                          {/* Icon bubble */}
-                          <div className={cn(
-                            "w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center text-white shadow-sm",
-                            platDef ? platDef.bg : "bg-[#7C5CFC]"
-                          )}>
-                            {meta ? <meta.Icon className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{s.name}</p>
-                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              <span className="text-xs text-gray-400">{format(s.rate)} / 1k</span>
-                              {s.refill_allowed && (
-                                <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400">
-                                  Refill
-                                </span>
+                          return (
+                            <button
+                              key={s.id}
+                              onClick={() => isSelected ? closeOrder() : openService(s)}
+                              className={cn(
+                                "w-full group bg-white dark:bg-gray-800 rounded-2xl border p-4 flex items-center gap-3 text-left transition-all",
+                                isSelected
+                                  ? "border-[#7C5CFC] shadow-md shadow-violet-100 dark:shadow-none"
+                                  : "border-gray-100 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700 hover:shadow-sm"
                               )}
-                              {s.cancel_allowed && (
-                                <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
-                                  Cancel
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                            >
+                              {/* Icon bubble */}
+                              <div className={cn(
+                                "w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center text-white shadow-sm",
+                                platDef ? platDef.bg : "bg-[#7C5CFC]"
+                              )}>
+                                {meta ? <meta.Icon className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+                              </div>
 
-                          <ChevronRight className={cn(
-                            "h-4 w-4 flex-shrink-0 transition-all",
-                            isSelected ? "text-[#7C5CFC] rotate-90" : "text-gray-300 group-hover:text-[#7C5CFC]"
-                          )} />
-                        </button>
-                      );
-                    })}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{s.name}</p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="text-xs text-gray-400">{format(s.rate)} / 1k</span>
+                                  {s.refill_allowed && (
+                                    <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400">
+                                      Refill
+                                    </span>
+                                  )}
+                                  {s.cancel_allowed && (
+                                    <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
+                                      Cancel
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <ChevronRight className={cn(
+                                "h-4 w-4 flex-shrink-0 transition-all",
+                                isSelected ? "text-[#7C5CFC] rotate-90" : "text-gray-300 group-hover:text-[#7C5CFC]"
+                              )} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
@@ -478,6 +555,9 @@ export default function ServicesPage() {
                   {isComment() && (
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Custom Comments</Label>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                        Enter one comment per line. The service sends comments as newline-separated values.
+                      </p>
                       <Textarea
                         placeholder="One comment per line..."
                         value={comments}

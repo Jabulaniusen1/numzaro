@@ -15,14 +15,24 @@ export function Navbar() {
         {/* Desktop Navigation */}
         <div className="hidden md:flex justify-between items-center">
           <Link href="/" className="flex items-center">
-            <Image
-              src="/numzaro-logo.png"
-              alt="Numzaro"
-              width={180}
-              height={60}
-              className="h-14 w-auto"
-              priority
-            />
+            <div className="h-16 w-[220px]">
+              <Image
+                src="/logo%20c%26b.png"
+                alt="Numzaro"
+                width={220}
+                height={74}
+                className="h-full w-full object-cover dark:hidden"
+                priority
+              />
+              <Image
+                src="/logo%20w%26c.png"
+                alt="Numzaro"
+                width={220}
+                height={74}
+                className="hidden h-full w-full object-cover dark:block"
+                priority
+              />
+            </div>
           </Link>
 
           <div className="flex items-center space-x-2">
@@ -64,14 +74,24 @@ export function Navbar() {
 
           {/* Logo - Center */}
           <Link href="/" className="flex items-center absolute left-1/2 transform -translate-x-1/2">
-            <Image
-              src="/numzaro-logo.png"
-              alt="Numzaro"
-              width={120}
-              height={34}
-              className="h-10 w-auto"
-              priority
-            />
+            <div className="h-12 w-[150px]">
+              <Image
+                src="/logo%20c%26b.png"
+                alt="Numzaro"
+                width={150}
+                height={44}
+                className="h-full w-full object-contain dark:hidden"
+                priority
+              />
+              <Image
+                src="/logo%20w%26c.png"
+                alt="Numzaro"
+                width={150}
+                height={44}
+                className="hidden h-full w-full object-contain dark:block"
+                priority
+              />
+            </div>
           </Link>
 
           {/* Actions - Right */}
