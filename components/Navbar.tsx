@@ -80,7 +80,7 @@ export function Navbar() {
                 alt="Numzaro"
                 width={150}
                 height={44}
-                className="h-full w-full object-contain dark:hidden"
+                className="h-full w-full object-cover dark:hidden"
                 priority
               />
               <Image
@@ -88,7 +88,7 @@ export function Navbar() {
                 alt="Numzaro"
                 width={150}
                 height={44}
-                className="hidden h-full w-full object-contain dark:block"
+                className="hidden h-full w-full object-cover dark:block"
                 priority
               />
             </div>
