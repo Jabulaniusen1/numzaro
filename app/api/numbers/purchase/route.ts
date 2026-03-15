@@ -85,6 +85,12 @@ export async function POST(request: NextRequest) {
     const displayCountryName = countryName || country;
     const displayName = serviceName || serviceCode || rentalName || String(rentalId);
 
+    const normalizePhone = (value: unknown) => {
+      const str = typeof value === "string" ? value : value == null ? "" : String(value);
+      if (!str) return "";
+      return str.startsWith("+") ? str : `+${str}`;
+    };
+
     if (mode === "rental") {
       const result = await smsPoolClient.purchaseRental(String(rentalId), days);
       if (!result.success || !result.phonenumber || !result.rental_code) {
@@ -93,7 +99,13 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
-      phoneNumber = result.phonenumber;
+      phoneNumber = normalizePhone(result.phonenumber);
+      if (!phoneNumber) {
+        return NextResponse.json(
+          { error: "Rental purchase returned invalid phone number" },
+          { status: 500 }
+        );
+      }
       rentalCode = result.rental_code;
       expiresAt = new Date(result.expiry * 1000).toISOString();
     } else {
@@ -104,7 +116,13 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
-      phoneNumber = result.number.startsWith("+") ? result.number : `+${result.number}`;
+      phoneNumber = normalizePhone(result.number);
+      if (!phoneNumber) {
+        return NextResponse.json(
+          { error: "Purchase returned invalid phone number" },
+          { status: 500 }
+        );
+      }
       orderId = result.order_id;
       expiresAt = new Date(result.expiration * 1000).toISOString();
     }

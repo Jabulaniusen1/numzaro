@@ -9,6 +9,7 @@ import { useCurrency } from "@/lib/hooks/use-currency";
 import { Search, List, Loader2, ChevronRight, Clock, Calendar, Check, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface Service {
   code: string;
@@ -74,6 +75,7 @@ function ServiceLogo({ logo, name }: { logo: string | null; name: string }) {
 export default function NumbersPage() {
   const { toast } = useToast();
   const { format: formatCurrency } = useCurrency();
+  const router = useRouter();
 
   const [mode, setMode] = useState<Mode>("activation");
   const [balance, setBalance] = useState<number | null>(null);
@@ -230,6 +232,7 @@ export default function NumbersPage() {
       setSelectedRentalOption(null);
       setStep("service");
       fetchBalance();
+      router.push("/dashboard/numbers/my-numbers");
     } catch (e: any) {
       toast({ title: "Purchase Failed", description: e.message, variant: "destructive" });
     } finally {
