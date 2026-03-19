@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
+import { convertCurrency } from "@/lib/currency/rates";
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,30 +30,9 @@ export async function GET(request: NextRequest) {
     // Convert from USD to NGN for display
     if (balanceNGN > 0) {
       try {
-        // Fetch exchange rate from USD to NGN
-        const API_KEY = process.env.EXCHANGE_RATE_API_KEY;
-        if (API_KEY) {
-          const exchangeRateResponse = await fetch(
-            `https://v6.exchangerate-api.com/v6/${API_KEY}/pair/USD/NGN`,
-            {
-              cache: 'no-store',
-            }
-          );
-          if (exchangeRateResponse.ok) {
-            const rateData = await exchangeRateResponse.json();
-            if (rateData.result === "success" && rateData.conversion_rate) {
-              // Convert from USD to NGN
-              balanceNGN = balanceNGN * rateData.conversion_rate;
-            }
-          } else {
-            console.warn("Exchange rate API returned non-OK status:", exchangeRateResponse.status);
-          }
-        } else {
-          console.warn("EXCHANGE_RATE_API_KEY not set, using fallback rate");
-        }
+        balanceNGN = await convertCurrency(balanceNGN, "USD", "NGN");
       } catch (error) {
         console.error("Error converting USD to NGN:", error);
-        // If conversion fails, use a fallback rate (approximately 1500 NGN per USD)
         balanceNGN = balanceNGN * 1500;
       }
     }

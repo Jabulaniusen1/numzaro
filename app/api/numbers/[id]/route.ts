@@ -39,6 +39,37 @@ export async function GET(
       }
     }
 
+    // Sync messages from Textverified
+    if (number.provider === "textverified" && number.textverified_id) {
+      try {
+        if (number.number_type === "rental") {
+          const { syncTextverifiedRental } = await import("@/lib/textverified/adapter");
+          const reservationType = number.product_code === "nonrenewable" ? "nonrenewable" : "renewable";
+          await syncTextverifiedRental(number.id, number.textverified_id, reservationType, supabase);
+        } else {
+          const { syncTextverifiedVerification } = await import("@/lib/textverified/adapter");
+          await syncTextverifiedVerification(number.id, number.textverified_id, supabase);
+        }
+      } catch (syncError) {
+        console.error("Failed to sync Textverified messages:", syncError);
+      }
+    }
+
+    // Sync messages from SMSPool
+    if (number.provider === "smspool") {
+      try {
+        if (number.number_type === "rental" && number.rental_code) {
+          const { syncSmsPoolRental } = await import("@/lib/smspool/adapter");
+          await syncSmsPoolRental(number.id, number.rental_code, supabase);
+        } else if (number.textverified_id) {
+          const { syncSmsPoolActivation } = await import("@/lib/smspool/adapter");
+          await syncSmsPoolActivation(number.id, number.textverified_id, supabase);
+        }
+      } catch (syncError) {
+        console.error("Failed to sync SMSPool messages:", syncError);
+      }
+    }
+
     const { count: messageCount } = await supabase
       .from("messages")
       .select("*", { count: "exact", head: true })
@@ -98,6 +129,32 @@ export async function DELETE(
       }
     }
 
+    if (number.provider === "textverified" && number.textverified_id) {
+      try {
+        const { textverifiedClient } = await import("@/lib/textverified/client");
+        if (number.number_type === "rental") {
+          if (number.product_code === "nonrenewable") {
+            await textverifiedClient.refundNonrenewableRental(number.textverified_id);
+          } else {
+            await textverifiedClient.refundRenewableRental(number.textverified_id);
+          }
+        } else {
+          await textverifiedClient.cancelVerification(number.textverified_id);
+        }
+      } catch (e) {
+        console.error("Textverified cancel error:", e);
+      }
+    }
+
+    if (number.provider === "smspool" && number.textverified_id) {
+      try {
+        const { smsPoolClient } = await import("@/lib/smspool/client");
+        await smsPoolClient.cancelSMS(number.textverified_id);
+      } catch (e) {
+        console.error("SMSPool cancel error:", e);
+      }
+    }
+
     await supabase
       .from("virtual_numbers")
       .update({ status: "cancelled" })
@@ -132,16 +189,39 @@ export async function PATCH(
       return NextResponse.json({ error: "Number not found" }, { status: 404 });
     }
 
-    if (action === "sync" && number.textverified_id && number.provider === "smspva") {
-      const { syncSmspvaMessages } = await import("@/lib/smspva/adapter");
-      await syncSmspvaMessages(
-        number.id,
-        number.textverified_id,
-        number.product_code ?? number.product ?? "opt1",
-        number.country_code,
-        supabase
-      );
-      return NextResponse.json({ success: true });
+    if (action === "sync" && (number.textverified_id || (number.provider === "smspool" && number.rental_code))) {
+      if (number.provider === "smspva") {
+        const { syncSmspvaMessages } = await import("@/lib/smspva/adapter");
+        await syncSmspvaMessages(
+          number.id,
+          number.textverified_id,
+          number.product_code ?? number.product ?? "opt1",
+          number.country_code,
+          supabase
+        );
+        return NextResponse.json({ success: true });
+      }
+      if (number.provider === "textverified") {
+        if (number.number_type === "rental") {
+          const { syncTextverifiedRental } = await import("@/lib/textverified/adapter");
+          const reservationType = number.product_code === "nonrenewable" ? "nonrenewable" : "renewable";
+          await syncTextverifiedRental(number.id, number.textverified_id, reservationType, supabase);
+          return NextResponse.json({ success: true });
+        }
+        const { syncTextverifiedVerification } = await import("@/lib/textverified/adapter");
+        await syncTextverifiedVerification(number.id, number.textverified_id, supabase);
+        return NextResponse.json({ success: true });
+      }
+      if (number.provider === "smspool") {
+        if (number.number_type === "rental" && number.rental_code) {
+          const { syncSmsPoolRental } = await import("@/lib/smspool/adapter");
+          await syncSmsPoolRental(number.id, number.rental_code, supabase);
+          return NextResponse.json({ success: true });
+        }
+        const { syncSmsPoolActivation } = await import("@/lib/smspool/adapter");
+        await syncSmsPoolActivation(number.id, number.textverified_id, supabase);
+        return NextResponse.json({ success: true });
+      }
     }
 
     if (action === "cancel") {
@@ -155,6 +235,30 @@ export async function PATCH(
           );
         } catch (e) {
           console.error("SMSPVA cancel error:", e);
+        }
+      }
+      if (number.provider === "textverified" && number.textverified_id) {
+        try {
+          const { textverifiedClient } = await import("@/lib/textverified/client");
+          if (number.number_type === "rental") {
+            if (number.product_code === "nonrenewable") {
+              await textverifiedClient.refundNonrenewableRental(number.textverified_id);
+            } else {
+              await textverifiedClient.refundRenewableRental(number.textverified_id);
+            }
+          } else {
+            await textverifiedClient.cancelVerification(number.textverified_id);
+          }
+        } catch (e) {
+          console.error("Textverified cancel error:", e);
+        }
+      }
+      if (number.provider === "smspool" && number.textverified_id) {
+        try {
+          const { smsPoolClient } = await import("@/lib/smspool/client");
+          await smsPoolClient.cancelSMS(number.textverified_id);
+        } catch (e) {
+          console.error("SMSPool cancel error:", e);
         }
       }
       await supabase

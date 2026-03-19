@@ -35,7 +35,7 @@ export function OrderForm({ service, onSuccess, onCancel }: OrderFormProps) {
   const [loading, setLoading] = useState(false);
   const [balance, setBalance] = useState<number>(0);
   const { toast } = useToast();
-  const { format } = useCurrency();
+  const { format, convert } = useCurrency();
 
   // Check if service is comment-related
   const isCommentService = () => {
@@ -101,7 +101,7 @@ export function OrderForm({ service, onSuccess, onCancel }: OrderFormProps) {
     if (charge > balance) {
       toast({
         title: "Insufficient balance",
-        description: `You need ${format(charge)} but only have ${format(balance)}. Please fund your wallet.`,
+        description: `You need ${format(convert(charge))} but only have ${format(convert(balance))}. Please fund your wallet.`,
         variant: "destructive",
       });
       return;
@@ -223,7 +223,7 @@ export function OrderForm({ service, onSuccess, onCancel }: OrderFormProps) {
       <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-gray-600 dark:text-gray-400">Price per 1000:</span>
-          <span className="font-medium">{format(service.rate)}</span>
+          <span className="font-medium">{format(convert(service.rate))}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600 dark:text-gray-400">Quantity:</span>
@@ -232,12 +232,12 @@ export function OrderForm({ service, onSuccess, onCancel }: OrderFormProps) {
         <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
           <div className="flex justify-between">
             <span className="font-semibold">Total Charge:</span>
-            <span className="font-bold text-lg">{format(charge)}</span>
+            <span className="font-bold text-lg">{format(convert(charge))}</span>
           </div>
         </div>
         <div className="flex justify-between text-xs text-gray-500">
           <span>Your Balance:</span>
-          <span>{format(balance)}</span>
+          <span>{format(convert(balance))}</span>
         </div>
       </div>
 

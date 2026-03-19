@@ -31,7 +31,7 @@ export default function NumberDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { format: formatCurrency } = useCurrency();
+  const { format: formatCurrency, convert } = useCurrency();
   const [number, setNumber] = useState<VirtualNumber | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -135,7 +135,7 @@ export default function NumberDetailPage() {
           <Card>
             <CardHeader>
               <CardDescription>Monthly Fee</CardDescription>
-              <CardTitle>${number.monthly_cost.toFixed(2)} USD</CardTitle>
+              <CardTitle>{formatCurrency(convert(number.monthly_cost))}</CardTitle>
             </CardHeader>
           </Card>
         )}
@@ -268,4 +268,3 @@ export default function NumberDetailPage() {
     </div>
   );
 }
-

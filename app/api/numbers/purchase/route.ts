@@ -1,8 +1,75 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { smsPoolClient } from "@/lib/smspool/client";
+
+async function getMarkupMultiplier() {
+  try {
+    const supabase = createServiceRoleClient();
+    const { data } = await supabase
+      .from("admin_settings")
+      .select("value")
+      .eq("key", "phone_numbers_markup_percentage")
+      .single();
+    const pct = data ? parseFloat(data.value) : 400.0;
+    return 1 + pct / 100;
+  } catch (e) {
+    console.error("[purchase] markup fetch failed:", e);
+    return 5.0;
+  }
+}
+
+function stripHtml(value: string): string {
+  return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function normalizePhone(value: unknown, countryCode?: unknown) {
+  const raw = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  if (!raw) return "";
+  if (raw.startsWith("+")) return raw;
+
+  const digits = raw.replace(/[^\d]/g, "");
+  const cc = (typeof countryCode === "string" || typeof countryCode === "number" ? String(countryCode) : "")
+    .replace(/[^\d]/g, "");
+
+  if (!digits) return "";
+  if (cc && !digits.startsWith(cc)) return `+${cc}${digits}`;
+  return `+${digits}`;
+}
+
+function parseExpiryFromUnix(unixSeconds?: number) {
+  if (!unixSeconds || Number.isNaN(unixSeconds)) {
+    return new Date(Date.now() + 20 * 60 * 1000).toISOString();
+  }
+  return new Date(unixSeconds * 1000).toISOString();
+}
+
+function formatNairaFromUsd(usdAmount: number, usdToNgnRate: number = 1500) {
+  const ngnAmount = usdAmount * usdToNgnRate;
+  return `₦${ngnAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function extractSmsPoolError(result: any): string {
+  const rawMessage = typeof result?.message === "string" ? result.message : "";
+  if (rawMessage) return stripHtml(rawMessage);
+
+  if (Array.isArray(result?.errors) && result.errors[0]?.message) {
+    return String(result.errors[0].message);
+  }
+
+  if (result?.pools && typeof result.pools === "object") {
+    for (const entry of Object.values(result.pools) as Array<any>) {
+      if (typeof entry?.message === "string" && entry.message) {
+        return stripHtml(entry.message);
+      }
+      if (Array.isArray(entry?.errors) && entry.errors[0]?.message) {
+        return String(entry.errors[0].message);
+      }
+    }
+  }
+
+  return "Failed to purchase number from SMSPool.";
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,58 +77,26 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const {
-      mode = "activation",   // "activation" | "rental"
-      // Activation fields
-      serviceCode,           // SMSPool service ID e.g. "12"
-      serviceName,
-      country,               // SMSPool country ID e.g. "1"
-      countryName,
-      // Rental fields
-      rentalId,              // SMSPool rental listing ID
-      rentalName,
-      days = 30,             // rental duration in days
-    } = body;
+    const serviceCode = String(body?.serviceCode || "").trim();
+    const serviceName = String(body?.serviceName || "").trim();
+    const countryId = String(body?.country || "").trim();
+    const countryName = String(body?.countryName || "").trim();
+    const countryShortCode = String(body?.countryShortCode || "").trim();
+    const maxPrice = typeof body?.maxPrice === "number" ? body.maxPrice : undefined;
 
-    // ── Validate input ────────────────────────────────────────────────────
-
-    if (mode === "activation" && (!serviceCode || !country)) {
+    if (!serviceCode || !countryId) {
       return NextResponse.json({ error: "serviceCode and country are required" }, { status: 400 });
     }
-    if (mode === "rental" && !rentalId) {
-      return NextResponse.json({ error: "rentalId is required for rental mode" }, { status: 400 });
+
+    const markupMultiplier = await getMarkupMultiplier();
+
+    const pricing = await smsPoolClient.getSMSServicePrice(countryId, serviceCode);
+    const baseRawPrice = parseFloat(String(pricing.high_price ?? pricing.price));
+    if (Number.isNaN(baseRawPrice)) {
+      return NextResponse.json({ error: "Invalid price returned from provider" }, { status: 400 });
     }
-
-    // ── Get price ─────────────────────────────────────────────────────────
-
-    let rawPrice = 0;
-    let userCharged = 0;
-    let expiresAt: string;
-
-    const markupPct = 50; // Fixed markup
-    const markupMultiplier = 1 + markupPct / 100;
-
-    if (mode === "rental") {
-      const rentals = await smsPoolClient.getRentals(true);
-      const rental = rentals.data?.find((r) => String(r.ID) === String(rentalId));
-      if (!rental) {
-        return NextResponse.json({ error: "Rental not found" }, { status: 404 });
-      }
-      // pricing[days] = total price for that duration
-      rawPrice = parseFloat((rental.pricing[String(days)] ?? Object.values(rental.pricing)[0]).toFixed(4));
-      userCharged = parseFloat((rawPrice * markupMultiplier).toFixed(2));
-      expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-    } else {
-      const priceResult = await smsPoolClient.getSMSServicePrice(country, serviceCode);
-      if (!priceResult.price) {
-        return NextResponse.json({ error: "Could not fetch price for this service/country" }, { status: 400 });
-      }
-      rawPrice = parseFloat(priceResult.price);
-      userCharged = parseFloat((rawPrice * markupMultiplier).toFixed(2));
-      expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString(); // 20 min
-    }
-
-    // ── Check user balance ────────────────────────────────────────────────
+    let rawPrice = baseRawPrice;
+    let userCharged = parseFloat((rawPrice * markupMultiplier).toFixed(2));
 
     const { data: userData } = await supabase
       .from("users")
@@ -72,80 +107,95 @@ export async function POST(request: NextRequest) {
     const userBalance = parseFloat(userData?.wallet_balance || "0");
     if (userBalance < userCharged) {
       return NextResponse.json(
-        { error: `Insufficient balance. Required: $${userCharged.toFixed(2)}, Available: $${userBalance.toFixed(2)}` },
+        {
+          error: `Insufficient balance. Required: ${formatNairaFromUsd(userCharged)}, Available: ${formatNairaFromUsd(userBalance)}`,
+        },
         { status: 402 }
       );
     }
 
-    // ── Purchase from SMSPool ─────────────────────────────────────────────
+    const purchase = await smsPoolClient.purchaseSMS(countryId, serviceCode, {
+      pricingOption: 1, // Always highest success rate
+      quantity: 1,
+      activationType: "SMS",
+      maxPrice,
+    });
 
-    let phoneNumber: string;
-    let orderId: string | null = null;
-    let rentalCode: string | null = null;
-    const displayCountryName = countryName || country;
-    const displayName = serviceName || serviceCode || rentalName || String(rentalId);
-
-    const normalizePhone = (value: unknown) => {
-      const str = typeof value === "string" ? value : value == null ? "" : String(value);
-      if (!str) return "";
-      return str.startsWith("+") ? str : `+${str}`;
-    };
-
-    if (mode === "rental") {
-      const result = await smsPoolClient.purchaseRental(String(rentalId), days);
-      if (!result.success || !result.phonenumber || !result.rental_code) {
-        return NextResponse.json(
-          { error: result.message || "Rental purchase failed" },
-          { status: 500 }
-        );
-      }
-      phoneNumber = normalizePhone(result.phonenumber);
-      if (!phoneNumber) {
-        return NextResponse.json(
-          { error: "Rental purchase returned invalid phone number" },
-          { status: 500 }
-        );
-      }
-      rentalCode = result.rental_code;
-      expiresAt = new Date(result.expiry * 1000).toISOString();
-    } else {
-      const result = await smsPoolClient.purchaseSMS(country, serviceCode);
-      if (!result.success || !result.number || !result.order_id) {
-        return NextResponse.json(
-          { error: result.message || "No numbers available for this service/country" },
-          { status: 500 }
-        );
-      }
-      phoneNumber = normalizePhone(result.number);
-      if (!phoneNumber) {
-        return NextResponse.json(
-          { error: "Purchase returned invalid phone number" },
-          { status: 500 }
-        );
-      }
-      orderId = result.order_id;
-      expiresAt = new Date(result.expiration * 1000).toISOString();
+    if (!purchase.success) {
+      return NextResponse.json({ error: extractSmsPoolError(purchase) }, { status: 400 });
     }
 
-    // ── Save to database ──────────────────────────────────────────────────
+    const activationId = purchase.order_id;
+    if (!activationId) {
+      return NextResponse.json({ error: "Purchase returned invalid order id" }, { status: 500 });
+    }
+
+    const phoneNumber = normalizePhone(purchase.number ?? purchase.phonenumber, purchase.cc);
+    if (!phoneNumber) {
+      try {
+        await smsPoolClient.cancelSMS(activationId);
+      } catch {}
+      return NextResponse.json({ error: "Purchase returned invalid phone number" }, { status: 500 });
+    }
+
+    const purchaseCost = parseFloat(String(purchase.cost ?? rawPrice));
+    if (!Number.isNaN(purchaseCost) && purchaseCost > 0) {
+      rawPrice = purchaseCost;
+      userCharged = parseFloat((rawPrice * markupMultiplier).toFixed(2));
+    }
+
+    if (userBalance < userCharged) {
+      try {
+        await smsPoolClient.cancelSMS(activationId);
+      } catch (cancelError) {
+        console.error("[purchase] failed to cancel over-budget SMSPool order:", cancelError);
+      }
+      return NextResponse.json(
+        {
+          error: `Insufficient balance after purchase. Required: ${formatNairaFromUsd(userCharged)}, Available: ${formatNairaFromUsd(userBalance)}`,
+        },
+        { status: 402 }
+      );
+    }
+
+    let resolvedCountryCode = countryShortCode || "";
+    let displayCountryName = countryName || "";
+    if (!resolvedCountryCode || !displayCountryName) {
+      try {
+        const countries = await smsPoolClient.getCountries();
+        const matched = countries.find((c) => String(c.ID) === countryId);
+        if (matched) {
+          resolvedCountryCode = resolvedCountryCode || matched.short_name || "";
+          displayCountryName = displayCountryName || matched.name;
+        }
+      } catch (countryLookupError) {
+        console.error("[purchase] failed to resolve country metadata:", countryLookupError);
+      }
+    }
+    if (!resolvedCountryCode) resolvedCountryCode = "US";
+    if (!displayCountryName) displayCountryName = countryName || `Country ${countryId}`;
+
+    const displayName = serviceName || serviceCode;
+    const expiresAt = parseExpiryFromUnix(purchase.expiration);
 
     const { data: virtualNumber, error: numberError } = await supabase
       .from("virtual_numbers")
       .insert({
         user_id: user.id,
         phone_number: phoneNumber,
-        country_code: country || "",
+        country_code: resolvedCountryCode,
         country_name: displayCountryName,
-        twilio_sid: orderId || rentalCode || "",
-        textverified_id: orderId || rentalCode,
-        rental_code: rentalCode,
+        twilio_sid: activationId,
+        textverified_id: activationId,
         status: "active",
         capabilities: ["sms"],
         twilio_monthly_cost: rawPrice,
         monthly_cost: userCharged,
-        number_type: mode === "rental" ? "rental" : "activation",
+        number_type: "activation",
         provider: "smspool",
         product: displayName,
+        product_code: serviceCode,
+        product_type: "activation",
         expires_at: expiresAt,
       })
       .select()
@@ -153,10 +203,13 @@ export async function POST(request: NextRequest) {
 
     if (numberError) {
       console.error("DB error creating virtual_number:", numberError);
+      try {
+        await smsPoolClient.cancelSMS(activationId);
+      } catch (cancelError) {
+        console.error("[purchase] failed to cancel SMSPool order after DB error:", cancelError);
+      }
       return NextResponse.json({ error: `Database error: ${numberError.message}` }, { status: 500 });
     }
-
-    // ── Deduct wallet ─────────────────────────────────────────────────────
 
     await supabase
       .from("users")
@@ -169,7 +222,7 @@ export async function POST(request: NextRequest) {
       amount: -userCharged,
       balance_before: userBalance,
       balance_after: userBalance - userCharged,
-      description: `SMSPool ${displayName} (${displayCountryName}) ${mode}: ${phoneNumber}`,
+      description: `SMSPool ${displayName} (${displayCountryName}): ${phoneNumber}`,
     });
 
     await supabase.from("number_purchases").insert({
@@ -188,7 +241,7 @@ export async function POST(request: NextRequest) {
       type: "transaction",
       title: "Number Purchased",
       message: `${phoneNumber} — ${displayName} via SMSPool`,
-      data: { type: "number_purchased", number_id: virtualNumber.id, provider: "smspool", mode },
+      data: { type: "number_purchased", number_id: virtualNumber.id, provider: "smspool", mode: "activation" },
     });
 
     return NextResponse.json({ success: true, number: virtualNumber });

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { BalanceCard } from "@/components/dashboard/BalanceCard";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
-import { ShoppingBag, Phone, Package, Bell, ArrowRight, Loader2, RefreshCw } from "lucide-react";
+import { ShoppingBag, Phone, Package, Bell, ArrowRight, Loader2, RefreshCw, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const QUICK_LINKS = [
@@ -23,15 +23,22 @@ const QUICK_LINKS = [
     href: "/dashboard/numbers",
     icon: Phone,
     label: "Virtual Numbers",
-    description: "Get numbers from 100+ countries",
+    description: "One-time US verifications",
     gradient: "from-indigo-500 to-blue-500",
+  },
+  {
+    href: "/dashboard/rentals",
+    icon: Calendar,
+    label: "Rental Numbers",
+    description: "Long-term US rentals",
+    gradient: "from-blue-500 to-cyan-500",
   },
   {
     href: "/dashboard/orders",
     icon: Package,
     label: "My Orders",
     description: "View and track your orders",
-    gradient: "from-blue-500 to-cyan-500",
+    gradient: "from-cyan-500 to-teal-500",
   },
   {
     href: "/dashboard/notifications",
@@ -54,7 +61,7 @@ function statusColor(status: string) {
 export default function DashboardPage() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { format } = useCurrency();
+  const { format, convert } = useCurrency();
   const [profile, setProfile] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -211,7 +218,7 @@ export default function DashboardPage() {
                       {order.status}
                     </span>
                     <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
-                      {format(order.charge || 0)}
+                      {format(convert(order.charge || 0))}
                     </span>
                   </div>
                 </div>

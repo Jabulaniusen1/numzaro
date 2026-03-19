@@ -1,6 +1,4 @@
-
 const BASE_URL = "https://api.smspool.net";
-const BASE_URL_ALT = "https://smspool.net/api"; // some endpoints use this
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -8,7 +6,7 @@ export interface SMSPoolCountry {
   ID: string;
   name: string;
   short_name: string; // 2-letter code e.g. "US"
-  cc: string;         // dial code e.g. "1"
+  cc?: string; // dial code e.g. "1"
   region: string;
 }
 
@@ -17,25 +15,41 @@ export interface SMSPoolService {
   name: string;
 }
 
+export interface SMSPoolPool {
+  ID: number;
+  name: string;
+}
+
 export interface SMSPoolPriceResponse {
+  pool?: number;
   price: string;
-  high_price: string;
-  success_rate: number;
+  high_price?: string;
+  success_rate: number | string;
 }
 
 export interface SMSPoolPurchaseSMSResponse {
   success: number;
-  number: string;      // phone number
-  order_id: string;
-  expiration: number;  // unix timestamp
-  message?: string;    // error message if success=0
+  number?: string | number;
+  cc?: string | number;
+  phonenumber?: string | number;
+  order_id?: string;
+  expiration?: number;
+  expires_in?: number;
+  cost?: string;
+  cost_in_cents?: number;
+  message?: string;
+  type?: string;
+  errors?: Array<{ message: string }>;
 }
 
 export interface SMSPoolCheckSMSResponse {
-  success: number;
-  sms: string;
-  full_sms: string;
-  status: number; // 1=waiting, 2=received, 3=cancelled
+  status: number; // waiting/received/refunded etc.
+  resend?: number;
+  expiration?: number;
+  time_left?: number;
+  sms?: string;
+  full_sms?: string;
+  message?: string;
 }
 
 export interface SMSPoolRental {
@@ -43,7 +57,7 @@ export interface SMSPoolRental {
   name: string;
   tag: string;
   region: string;
-  pricing: Record<string, number>; // keys=days, values=total price e.g. {"1":6,"7":12,"28":18}
+  pricing: Record<string, number>;
   pool: number;
 }
 
@@ -51,20 +65,35 @@ export interface SMSPoolPurchaseRentalResponse {
   success: number;
   phonenumber: string;
   rental_code: string;
-  expiry: number;      // unix timestamp
+  expiry: number;
   message?: string;
 }
 
 export interface SMSPoolRentalMessage {
   message: string;
   sender: string;
-  date: string;
+  date?: string;
+  timestamp?: string;
 }
 
 export interface SMSPoolRentalStatus {
-  active: number;
-  expiry: number;       // unix timestamp
+  available?: number;
+  active?: number;
+  expiry: number;
   phonenumber: string;
+}
+
+export interface SMSPoolPurchaseSMSOptions {
+  pool?: string;
+  maxPrice?: number;
+  pricingOption?: 0 | 1;
+  quantity?: number;
+  areaCodeJson?: string;
+  excludeAreaCodes?: boolean;
+  createToken?: boolean;
+  activationType?: "SMS" | "VOICE" | "FLASH";
+  carrier?: string;
+  phoneNumber?: string;
 }
 
 // ─── Client ─────────────────────────────────────────────────────────────────
@@ -74,65 +103,111 @@ class SMSPoolClient {
     return process.env.SMSPOOL_API_KEY ?? "";
   }
 
-  private async get<T>(baseUrl: string, path: string, params: Record<string, string> = {}): Promise<T> {
+  private requireApiKey() {
     if (!this.apiKey) throw new Error("SMSPOOL_API_KEY env var is required");
-    const p = new URLSearchParams({ key: this.apiKey, ...params });
-    const res = await fetch(`${baseUrl}${path}?${p}`, { cache: "no-store" });
+  }
+
+  private async parseResponse<T>(res: Response): Promise<T> {
     const text = await res.text();
-    if (!res.ok) throw new Error(`SMSPool request failed (${res.status}): ${text}`);
+    const trimmed = text.trim();
+    if (!res.ok) {
+      throw new Error(
+        `SMSPool request failed (${res.status}): ${trimmed || "No response body returned by provider"}`
+      );
+    }
     try {
-      return JSON.parse(text) as T;
+      return JSON.parse(trimmed || "{}") as T;
     } catch {
-      throw new Error(`SMSPool returned non-JSON: ${text}`);
+      throw new Error(`SMSPool returned non-JSON: ${trimmed || "<empty>"}`);
     }
   }
 
-  private req<T>(path: string, params: Record<string, string> = {}): Promise<T> {
-    return this.get<T>(BASE_URL, path, params);
+  private async get<T>(path: string, params: Record<string, string> = {}): Promise<T> {
+    this.requireApiKey();
+    const query = new URLSearchParams({ key: this.apiKey, ...params });
+    const res = await fetch(`${BASE_URL}${path}?${query.toString()}`, {
+      method: "GET",
+      cache: "no-store",
+    });
+    return this.parseResponse<T>(res);
+  }
+
+  private async post<T>(path: string, params: Record<string, string> = {}): Promise<T> {
+    this.requireApiKey();
+    const body = new URLSearchParams({ key: this.apiKey, ...params });
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+      cache: "no-store",
+    });
+    return this.parseResponse<T>(res);
   }
 
   // ── Account ──────────────────────────────────────────────────────────────
 
   getBalance(): Promise<{ balance: string }> {
-    return this.req("/request/balance");
+    return this.post("/request/balance");
   }
 
   getCountries(): Promise<SMSPoolCountry[]> {
-    return this.req("/country/retrieve_all");
+    return this.get("/country/retrieve_all");
   }
 
   getServices(country?: string): Promise<SMSPoolService[]> {
-    return this.req("/service/retrieve_all", country ? { country } : {});
+    return this.get("/service/retrieve_all", country ? { country } : {});
+  }
+
+  getPools(): Promise<SMSPoolPool[]> {
+    return this.post("/pool/retrieve_all");
   }
 
   // ── One-time SMS ─────────────────────────────────────────────────────────
 
-  getSMSServicePrice(country: string, service: string): Promise<SMSPoolPriceResponse> {
-    return this.req("/request/price", { country, service });
-  }
-
-  purchaseSMS(country: string, service: string, pool?: string): Promise<SMSPoolPurchaseSMSResponse> {
+  getSMSServicePrice(country: string, service: string, pool?: string): Promise<SMSPoolPriceResponse> {
     const params: Record<string, string> = { country, service };
     if (pool) params.pool = pool;
-    return this.req("/purchase/sms", params);
+    return this.get("/request/price", params);
+  }
+
+  purchaseSMS(
+    country: string,
+    service: string,
+    options: SMSPoolPurchaseSMSOptions = {}
+  ): Promise<SMSPoolPurchaseSMSResponse> {
+    const params: Record<string, string> = {
+      country,
+      service,
+      pricing_option: String(options.pricingOption ?? 1), // 1 = highest success rate
+      quantity: String(options.quantity ?? 1),
+      activation_type: options.activationType ?? "SMS",
+    };
+    if (options.pool) params.pool = options.pool;
+    if (typeof options.maxPrice === "number") params.max_price = String(options.maxPrice);
+    if (options.areaCodeJson) params.areacode = options.areaCodeJson;
+    if (options.excludeAreaCodes) params.exclude = "1";
+    if (options.createToken) params.create_token = "1";
+    if (options.carrier) params.carrier = options.carrier;
+    if (options.phoneNumber) params.phonenumber = options.phoneNumber;
+    return this.post("/purchase/sms", params);
   }
 
   checkSMS(orderID: string): Promise<SMSPoolCheckSMSResponse> {
-    return this.req("/sms/check", { orderid: orderID });
+    return this.post("/sms/check", { orderid: orderID });
   }
 
   resendSMS(orderID: string): Promise<{ success: number; message: string; resend: number }> {
-    return this.req("/sms/resend", { orderid: orderID });
+    return this.post("/sms/resend", { orderid: orderID });
   }
 
-  cancelSMS(orderID: string): Promise<{ success: number }> {
-    return this.req("/sms/cancel", { orderid: orderID });
+  cancelSMS(orderID: string): Promise<{ success: number; message?: string }> {
+    return this.post("/sms/cancel", { orderid: orderID });
   }
 
   // ── Rentals ──────────────────────────────────────────────────────────────
 
   getRentals(extendable: boolean): Promise<{ success: number; data: SMSPoolRental[] }> {
-    return this.req("/rental/retrieve_all", { type: extendable ? "1" : "0" });
+    return this.post("/rental/retrieve_all", { type: extendable ? "1" : "0" });
   }
 
   purchaseRental(
@@ -142,23 +217,25 @@ class SMSPoolClient {
   ): Promise<SMSPoolPurchaseRentalResponse> {
     const params: Record<string, string> = { id: rentalID, days: String(days) };
     if (service_id) params.service_id = service_id;
-    return this.req("/purchase/rental", params);
+    return this.post("/purchase/rental", params);
   }
 
-  getRentalMessages(rental_code: string): Promise<{ success: number; messages: SMSPoolRentalMessage[]; source: string }> {
-    return this.req("/rental/retrieve_messages", { rental_code });
+  getRentalMessages(
+    rental_code: string
+  ): Promise<{ success: number; messages: SMSPoolRentalMessage[]; source: string }> {
+    return this.post("/rental/retrieve_messages", { rental_code });
   }
 
   getRentalStatus(rental_code: string): Promise<{ success: number; status: SMSPoolRentalStatus }> {
-    return this.get(BASE_URL_ALT, "/rental/retrieve_status.php", { rental_code });
+    return this.post("/rental/retrieve_status", { rental_code });
   }
 
   extendRental(rental_code: string, days: number): Promise<{ success: number; message: string }> {
-    return this.req("/rental/extend.php", { rental_code, days: String(days) });
+    return this.post("/rental/extend", { rental_code, days: String(days) });
   }
 
   refundRental(rental_code: string): Promise<{ success: number; message: string }> {
-    return this.req("/rental/refund.php", { rental_code });
+    return this.post("/rental/refund", { rental_code });
   }
 }
 

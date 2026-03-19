@@ -1,28 +1,23 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { smsPoolClient } from "@/lib/smspool/client";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { convertCurrency } from "@/lib/currency/rates";
 
 async function getMarkupMultiplier() {
-  return 1.5; // Fixed markup
-}
-
-async function convertUSDtoNGN(usdAmount: number): Promise<number> {
   try {
-    const API_KEY = process.env.EXCHANGE_RATE_API_KEY;
-    if (API_KEY) {
-      const res = await fetch(
-        `https://v6.exchangerate-api.com/v6/${API_KEY}/pair/USD/NGN`,
-        { cache: "no-store" }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        if (data.result === "success" && data.conversion_rate) {
-          return usdAmount * data.conversion_rate;
-        }
-      }
-    }
-  } catch {}
-  return usdAmount * 1500; // fallback rate
+    const supabase = createServiceRoleClient();
+    const { data } = await supabase
+      .from("admin_settings")
+      .select("value")
+      .eq("key", "phone_numbers_markup_percentage")
+      .single();
+    const pct = data ? parseFloat(data.value) : 400.0;
+    return 1 + pct / 100;
+  } catch (e) {
+    console.error("[smspool/pricing] markup fetch failed:", e);
+    return 5.0;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -78,11 +73,24 @@ export async function GET(request: NextRequest) {
     }
 
     const markup = await getMarkupMultiplier();
-    const rawPrice = parseFloat(result.price);
+    const rawPrice = parseFloat(result.high_price || result.price);
+    if (Number.isNaN(rawPrice)) {
+      return NextResponse.json({ error: "Invalid price returned from provider" }, { status: 400 });
+    }
+    const successRate = Number(result.success_rate);
     const price = parseFloat((rawPrice * markup).toFixed(2));
-    const priceNGN = parseFloat((await convertUSDtoNGN(price)).toFixed(2));
+    const priceNGN = parseFloat((await convertCurrency(price, "USD", "NGN")).toFixed(2));
 
-    return NextResponse.json({ mode: "activation", service, country, price, priceNGN, rawPrice, available: null });
+    return NextResponse.json({
+      mode: "activation",
+      service,
+      country,
+      price,
+      priceNGN,
+      rawPrice,
+      successRate: Number.isNaN(successRate) ? null : successRate,
+      available: null,
+    });
   } catch (error: any) {
     console.error("[smspool/pricing]", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });

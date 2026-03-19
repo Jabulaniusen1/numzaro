@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTransaction } from "@/lib/paystack/client";
 import { authenticateRequest } from "@/lib/supabase/server";
+import { convertCurrency } from "@/lib/currency/rates";
 
 export async function POST(request: NextRequest) {
   try {
@@ -79,15 +80,7 @@ export async function POST(request: NextRequest) {
         let depositAmountUSD = paidAmount;
         if (paidCurrency !== "USD") {
           try {
-            const exchangeRateResponse = await fetch(
-              `https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_RATE_API_KEY}/pair/${paidCurrency}/USD`
-            );
-            if (exchangeRateResponse.ok) {
-              const rateData = await exchangeRateResponse.json();
-              if (rateData.result === "success" && rateData.conversion_rate) {
-                depositAmountUSD = paidAmount * rateData.conversion_rate;
-              }
-            }
+            depositAmountUSD = await convertCurrency(paidAmount, paidCurrency, "USD");
           } catch (error) {
             console.error("Error converting currency:", error);
           }
@@ -136,4 +129,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

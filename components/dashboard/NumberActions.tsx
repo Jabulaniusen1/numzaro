@@ -14,6 +14,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useCurrency } from "@/lib/hooks/use-currency";
 import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -39,6 +40,7 @@ export function NumberActions({
   onReleased,
 }: NumberActionsProps) {
   const { toast } = useToast();
+  const { format: formatCurrency, convert } = useCurrency();
   const router = useRouter();
   const [renewing, setRenewing] = useState(false);
   const [releasing, setReleasing] = useState(false);
@@ -96,7 +98,7 @@ export function NumberActions({
       toast({
         title: "Number Released",
         description: data.refund
-          ? `Number released. Refunded $${data.refund.toFixed(2)} USD to your wallet.`
+          ? `Number released. Refunded ${formatCurrency(convert(data.refund))} to your wallet.`
           : "Number released successfully.",
       });
 
@@ -117,6 +119,7 @@ export function NumberActions({
 
   const isExpired = expiresAt ? new Date(expiresAt) < new Date() : false;
   const isOneTime = numberType === "one_time_otp";
+  const monthlyCostInNaira = convert(monthlyCost);
 
   return (
     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -136,7 +139,7 @@ export function NumberActions({
             ) : (
               <>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Renew (${monthlyCost.toFixed(2)} USD)</span>
+                <span className="hidden sm:inline">Renew ({formatCurrency(monthlyCostInNaira)})</span>
                 <span className="sm:hidden">Renew</span>
               </>
             )}
@@ -196,7 +199,7 @@ export function NumberActions({
           ) : (
               <>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Renew Expired Number (${monthlyCost.toFixed(2)} USD)</span>
+                <span className="hidden sm:inline">Renew Expired Number ({formatCurrency(monthlyCostInNaira)})</span>
                 <span className="sm:hidden">Renew Expired</span>
               </>
           )}
@@ -205,4 +208,3 @@ export function NumberActions({
     </div>
   );
 }
-

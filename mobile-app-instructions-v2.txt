@@ -1,0 +1,216 @@
+================================================================================
+  MOBILE APP INSTRUCTIONS (V2) — Updates For Current Backend
+  Base doc: mobile-app-instructions.txt
+================================================================================
+
+This file is the NEW changeset to apply on top of the original
+`mobile-app-instructions.txt`, so the mobile app matches the latest web/backend.
+
+================================================================================
+  1) CRITICAL CHANGES (WHAT CHANGED)
+================================================================================
+
+1. Currency display is now NGN-first everywhere in app UX.
+2. FX conversion is now driven by Korra (KoraPay) on the server:
+   - Primary: Korra conversion endpoint
+   - Fallback: ExchangeRate API
+   - Final fallback: static safe rate
+3. One-time numbers and long-term rentals are now clearly split:
+   - One-time activation = SMSPool
+   - Long-term rental = Textverified/Grizzly flow
+4. One-time purchase is forced to highest success-rate mode:
+   - `pricing_option = 1` in SMSPool purchase call.
+
+================================================================================
+  2) DIRECT SUPABASE VS API ROUTES (UPDATED)
+================================================================================
+
+Keep the same rule:
+- Direct Supabase for pure DB read/write under RLS.
+- Next.js API routes for secret-backed provider actions.
+
+DIRECT SUPABASE (no API route):
+- Auth/session
+- Orders, notifications, transactions, numbers history reads
+- Services table reads for social boost
+
+MUST USE API ROUTES:
+- FX + converted balances:
+  - `GET /api/user/balance` (returns NGN display balance)
+  - `GET /api/currency/rate?from=USD&to=NGN` (live rate)
+- One-time number marketplace + purchase:
+  - `GET /api/smspool/services?page=1&limit=24&mode=activation`
+  - `GET /api/smspool/countries`
+  - `GET /api/smspool/pricing?service={serviceId}&country={countryId}&mode=activation`
+  - `POST /api/numbers/purchase`
+- Number actions/messages sync:
+  - `PATCH /api/numbers/{id}` (finish/ban/cancel/sync)
+  - `GET /api/numbers/{id}/messages`
+  - `GET /api/numbers/{id}/otps`
+- Rental marketplace + purchase:
+  - `GET /api/grizzly/services?page=1&limit=24&reservationType=renewable|nonrenewable`
+  - `GET /api/grizzly/countries`
+  - `GET /api/grizzly/pricing?mode=rental&service={serviceName}&country={countryCode}&isRenewable=true|false`
+  - `POST /api/rentals/purchase`
+- Wallet funding/payment verification:
+  - `POST /api/wallet/fund`
+  - `POST /api/payments/verify-popup`
+
+================================================================================
+  3) CURRENCY + FX MODEL (UPDATED)
+================================================================================
+
+Backend truth:
+- `users.wallet_balance` remains stored in USD.
+- UI should display NGN values.
+
+How mobile should handle display:
+- For wallet balance card: always call `GET /api/user/balance` and show returned NGN.
+- For provider USD prices:
+  - Use `GET /api/currency/rate?from=USD&to=NGN` and convert on client, OR
+  - Use NGN values returned by pricing routes when available (`priceNGN`).
+
+Important:
+- Do NOT call Korra directly from mobile.
+- Korra key stays server-only.
+
+================================================================================
+  4) ONE-TIME NUMBERS FLOW (UPDATED)
+================================================================================
+
+Screen: Buy Number (one-time activation)
+
+Step 1: load services
+- `GET /api/smspool/services?page=1&limit=24&mode=activation`
+
+Step 2: select country
+- `GET /api/smspool/countries`
+
+Step 3: get pricing for selected service+country
+- `GET /api/smspool/pricing?service={serviceId}&country={countryId}&mode=activation`
+- response includes:
+  - `price` (USD, markup applied)
+  - `priceNGN` (already converted)
+  - `rawPrice`
+  - `successRate` (for display)
+
+Step 4: purchase
+- `POST /api/numbers/purchase` body:
+  {
+    "serviceCode": "...",
+    "serviceName": "...",
+    "country": "...",
+    "countryName": "...",
+    "countryShortCode": "..."
+  }
+
+Highest success-rate guarantee:
+- Server purchase uses SMSPool `pricing_option=1` (highest success route).
+
+================================================================================
+  5) RENTAL FLOW (UPDATED)
+================================================================================
+
+Screen: Rentals (long-term)
+
+Step 1: load rental services
+- `GET /api/grizzly/services?page=1&limit=24&reservationType=renewable|nonrenewable`
+
+Step 2: load countries/area options
+- `GET /api/grizzly/countries`
+
+Step 3: load rental options
+- `GET /api/grizzly/pricing?mode=rental&service={serviceName}&country={countryCode}&isRenewable=true|false`
+
+Step 4: purchase rental
+- `POST /api/rentals/purchase` body:
+  {
+    "serviceName": "...",
+    "areaCode": "...",
+    "isRenewable": true,
+    "duration": "oneDay|threeDay|sevenDay|fourteenDay|thirtyDay|ninetyDay|oneYear"
+  }
+
+Provider note:
+- Rentals remain Textverified-backed (as required).
+
+================================================================================
+  6) BALANCE + WALLET FUNDING (UPDATED)
+================================================================================
+
+Display balance:
+- `GET /api/user/balance`
+- Expected response:
+  {
+    "balance": "12345.67",
+    "currency": "NGN"
+  }
+
+Fund wallet:
+- `POST /api/wallet/fund`
+- Keep sending NGN from mobile:
+  {
+    "amount": 5000,
+    "currency": "NGN"
+  }
+
+Verify:
+- `POST /api/payments/verify-popup`
+
+================================================================================
+  7) ENVIRONMENT VARIABLES (UPDATED)
+================================================================================
+
+Server (Next.js) must have:
+- `KORAPAY_API_KEY`
+- `KORAPAY_BASE_URL=https://api.korapay.com`
+- `EXCHANGE_RATE_API_KEY` (fallback)
+- Existing provider keys (SMSPOOL, TEXTVERIFIED, PAYSTACK, etc.)
+
+Mobile (Expo public env) should NOT include any secret provider keys.
+Only public app/supabase/base-url values.
+
+================================================================================
+  8) API CLIENT DELTAS FOR MOBILE (lib/api.ts)
+================================================================================
+
+Add/update helpers:
+
+- `fetchConvertedBalance() -> GET /api/user/balance`
+- `fetchFxRate(from, to) -> GET /api/currency/rate?from={from}&to={to}`
+- `fetchSmsPoolServices(page, limit)`
+- `fetchSmsPoolCountries()`
+- `fetchSmsPoolPricing(service, country)`
+- `purchaseOneTimeNumber(payload)`
+- `fetchRentalServices(page, limit, reservationType)`
+- `fetchRentalCountries()`
+- `fetchRentalPricing(service, country, isRenewable)`
+- `purchaseRental(payload)`
+
+================================================================================
+  9) MIGRATION CHECKLIST FOR MOBILE TEAM
+================================================================================
+
+- Remove old "USD display" branches from UI.
+- Replace old rental-through-smspool assumptions with `/api/grizzly/*` + `/api/rentals/purchase`.
+- Ensure one-time purchase screen uses SMSPool activation endpoints only.
+- Keep showing NGN as primary currency in all cards/lists/modals.
+- Show success-rate badge when `successRate` exists in activation pricing response.
+- Test cancel/sync/finish flows for active numbers.
+- Test Korra unavailable scenario (fallback rates still return usable values).
+
+================================================================================
+  10) TEST SCENARIOS (MUST PASS)
+================================================================================
+
+1. One-time buy (service + country) succeeds and creates number.
+2. One-time buy uses highest success route (server controlled).
+3. Rental purchase still works and remains Textverified-backed.
+4. Wallet balance always shown in NGN.
+5. Price labels across buy/rental/order screens are NGN.
+6. Payment verification still credits wallet (USD storage, NGN display).
+7. If Korra is unavailable, rates still resolve via fallback without app crash.
+
+================================================================================
+  END OF V2 UPDATE FILE
+================================================================================

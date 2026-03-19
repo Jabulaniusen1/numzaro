@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Phone, DollarSign, TrendingUp, Settings } from "lucide-react";
+import { ArrowLeft, Loader2, Phone, Wallet, TrendingUp, Settings } from "lucide-react";
 import { COUNTRIES } from "@/lib/data/countries";
 
 interface Stats {
@@ -29,7 +29,7 @@ interface Stats {
 
 export default function AdminNumbersPage() {
   const { toast } = useToast();
-  const { format } = useCurrency();
+  const { format: formatCurrency, convert } = useCurrency();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [pricingType, setPricingType] = useState<"percentage" | "fixed">("percentage");
@@ -181,15 +181,15 @@ export default function AdminNumbersPage() {
           <CardHeader className="pb-2">
             <CardDescription>Total Revenue</CardDescription>
             <CardTitle className="text-2xl flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              {format(stats.totalRevenue)}
+              <Wallet className="h-5 w-5" />
+              {formatCurrency(convert(stats.totalRevenue))}
             </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total Costs</CardDescription>
-            <CardTitle className="text-2xl">{format(stats.totalCosts)}</CardTitle>
+            <CardTitle className="text-2xl">{formatCurrency(convert(stats.totalCosts))}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
@@ -197,7 +197,7 @@ export default function AdminNumbersPage() {
             <CardDescription>Total Profit</CardDescription>
             <CardTitle className="text-2xl flex items-center gap-2 text-green-600">
               <TrendingUp className="h-5 w-5" />
-              {format(stats.totalProfit)}
+              {formatCurrency(convert(stats.totalProfit))}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -218,15 +218,15 @@ export default function AdminNumbersPage() {
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">Revenue</p>
-              <p className="text-2xl font-bold">{format(stats.thisMonthRevenue)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(convert(stats.thisMonthRevenue))}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Costs</p>
-              <p className="text-2xl font-bold">{format(stats.thisMonthCosts)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(convert(stats.thisMonthCosts))}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Profit</p>
-              <p className="text-2xl font-bold text-green-600">{format(stats.thisMonthProfit)}</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(convert(stats.thisMonthProfit))}</p>
             </div>
           </CardContent>
         </Card>
@@ -267,7 +267,7 @@ export default function AdminNumbersPage() {
         </Card>
       </div>
 
-      {/* SMSPool Markup */}
+      {/* Textverified Markup */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -275,7 +275,7 @@ export default function AdminNumbersPage() {
             Number Price Markup
           </CardTitle>
           <CardDescription>
-            How much to charge users on top of the SMSPool API cost. Example: 50% markup means a $0.12 number costs users $0.18.
+            How much to charge users on top of the Textverified API cost. Example: 50% markup means a {formatCurrency(convert(0.12))} number costs users {formatCurrency(convert(0.18))}.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -293,7 +293,7 @@ export default function AdminNumbersPage() {
             {markup && !isNaN(parseFloat(markup)) && (
               <p className="text-xs text-muted-foreground mt-1">
                 Users pay <strong>{(1 + parseFloat(markup) / 100).toFixed(2)}×</strong> the API cost.
-                A $1.00 number becomes <strong>${(1 + parseFloat(markup) / 100).toFixed(2)}</strong>.
+                A {formatCurrency(convert(1))} number becomes <strong>{formatCurrency(convert(1 + parseFloat(markup) / 100))}</strong>.
               </p>
             )}
           </div>
@@ -349,7 +349,7 @@ export default function AdminNumbersPage() {
                   >
                     <p className="font-medium">Fixed Amount</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Fixed price in USD
+                      Fixed base price
                     </p>
                   </button>
                 </div>
@@ -374,7 +374,7 @@ export default function AdminNumbersPage() {
                 </div>
               ) : (
                 <div>
-                  <Label htmlFor="fixed">Fixed Price (USD)</Label>
+                  <Label htmlFor="fixed">Fixed Price (Base Value)</Label>
                   <Input
                     id="fixed"
                     type="number"
@@ -385,7 +385,7 @@ export default function AdminNumbersPage() {
                     className="mt-1"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Fixed price in USD for all one-time OTP numbers
+                    Fixed base price for all one-time OTP numbers
                   </p>
                 </div>
               )}
@@ -411,4 +411,3 @@ export default function AdminNumbersPage() {
     </div>
   );
 }
-

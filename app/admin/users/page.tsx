@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Search, User, DollarSign, Phone, Package } from "lucide-react";
+import { ArrowLeft, Loader2, Search, User, Wallet, Phone, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface User {
@@ -23,7 +23,7 @@ interface User {
 
 export default function AdminUsersPage() {
   const { toast } = useToast();
-  const { format } = useCurrency();
+  const { format, convert } = useCurrency();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -106,8 +106,8 @@ export default function AdminUsersPage() {
           <CardHeader className="pb-2">
             <CardDescription>Total Wallet Balance</CardDescription>
             <CardTitle className="text-2xl flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              {format(stats.totalBalance)}
+              <Wallet className="h-5 w-5" />
+              {format(convert(stats.totalBalance))}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -183,7 +183,7 @@ export default function AdminUsersPage() {
                         {user.full_name || "-"}
                       </td>
                       <td className="p-2 text-right font-medium">
-                        {format(parseFloat(user.wallet_balance?.toString() || "0"))}
+                        {format(convert(parseFloat(user.wallet_balance?.toString() || "0")))}
                       </td>
                       <td className="p-2 text-right">
                         <Badge variant="outline">{user.numbers_count || 0}</Badge>
@@ -192,7 +192,7 @@ export default function AdminUsersPage() {
                         <Badge variant="outline">{user.orders_count || 0}</Badge>
                       </td>
                       <td className="p-2 text-right font-medium">
-                        {format(user.total_spent || 0)}
+                        {format(convert(user.total_spent || 0))}
                       </td>
                       <td className="p-2 text-sm text-muted-foreground">
                         {new Date(user.created_at).toLocaleDateString()}
@@ -208,4 +208,3 @@ export default function AdminUsersPage() {
       </div>
     );
   }
-

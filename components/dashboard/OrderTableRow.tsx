@@ -4,6 +4,7 @@ import { cn, getFlag } from "@/lib/utils";
 import { Clock, CheckCircle2, XCircle, Ban, AlertCircle, Mail } from "lucide-react";
 import { ServiceIcon, getServicePrettyName } from "./ServiceIcon";
 import { format, parseISO } from "date-fns";
+import { useCurrency } from "@/lib/hooks/use-currency";
 
 interface OrderTableRowProps {
     order: {
@@ -23,6 +24,8 @@ interface OrderTableRowProps {
 }
 
 export function OrderTableRow({ order, onAction }: OrderTableRowProps) {
+    const { format: formatCurrency, convert } = useCurrency();
+
     const getStatusIcon = (status: string) => {
         switch (status.toUpperCase()) {
             case "PENDING":
@@ -75,7 +78,7 @@ export function OrderTableRow({ order, onAction }: OrderTableRowProps) {
             <td className="py-6 px-4">
                 <div className="flex flex-col">
                     <span className="text-sm font-bold text-slate-900 dark:text-slate-50">
-                        ${order.price.toFixed(4)}
+                        {formatCurrency(convert(order.price))}
                     </span>
                     <span className="text-sm font-medium text-slate-400">
                         {order.operator.charAt(0).toUpperCase() + order.operator.slice(1)}

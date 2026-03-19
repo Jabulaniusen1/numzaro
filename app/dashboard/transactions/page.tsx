@@ -26,7 +26,7 @@ interface Transaction {
 
 export default function TransactionsPage() {
   const { toast } = useToast();
-  const { format: formatCurrency } = useCurrency();
+  const { format: formatCurrency, convert } = useCurrency();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
@@ -269,7 +269,7 @@ export default function TransactionsPage() {
                       </div>
                       {transaction.actual_cost && transaction.user_charged && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          Cost: ${transaction.actual_cost.toFixed(4)} | Charged: ${transaction.user_charged.toFixed(2)}
+                          Cost: {formatCurrency(convert(transaction.actual_cost))} | Charged: {formatCurrency(convert(transaction.user_charged))}
                         </p>
                       )}
                     </div>
@@ -277,11 +277,11 @@ export default function TransactionsPage() {
                   <div className="flex flex-col items-end sm:items-end gap-1 flex-shrink-0">
                     <p className={`font-semibold ${getTransactionColor(transaction.amount)}`}>
                       {transaction.amount > 0 ? "+" : ""}
-                      {formatCurrency(Math.abs(transaction.amount))}
+                      {formatCurrency(convert(Math.abs(transaction.amount)))}
                     </p>
                     {transaction.balance_after !== undefined && (
                       <p className="text-xs text-muted-foreground">
-                        Balance: {formatCurrency(transaction.balance_after)}
+                        Balance: {formatCurrency(convert(transaction.balance_after))}
                       </p>
                     )}
                   </div>
@@ -294,4 +294,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-

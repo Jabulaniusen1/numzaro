@@ -1,0 +1,366 @@
+SMSPool API
+This is the Postman directory for SMSPool in order to simplify your API needs.
+
+AUTHORIZATION
+Bearer Token
+Token
+POST
+Register user
+https://api.smspool.net/business/create
+AUTHORIZATION
+Bearer Token
+This request is using Bearer Token from collectionSMSPool API
+Body
+formdata
+username
+username
+
+password
+password
+
+Example Request
+200
+curl
+curl --location 'https://api.smspool.net/business/create' \
+--form 'username="test41213141"' \
+--form 'password="testpassword"'
+200 OK
+Example Response
+Body
+Headers (19)
+json
+{
+  "success": 1,
+  "message": "Your sub-account has been created"
+}
+eSIMs
+Introduction to the eSIM API usage. Here's a step-to-step process on how to streamline your eSIM purchases:
+
+Retrieve the country list from View eSIM countries
+
+Retrieve the plans per country using the countryCode
+
+Create your first purchase using the Purchase eSIM
+
+Retrieve the transactionId from Purchase eSIM
+
+Use the View eSIM profile endpoint to retrieve the QR code, or the access URL in order to install the eSIM or view remaining data.
+
+AUTHORIZATION
+Bearer Token
+This folder is using Bearer Token from collectionSMSPool API
+POST
+Purchase eSIM
+https://api.smspool.net/esim/purchase
+AUTHORIZATION
+Bearer Token
+This request is using Bearer Token from collectionSMSPool API
+Body
+formdata
+key
+plan
+1
+
+The plan ID which is obtained from /esim/pricing
+
+Example Request
+200
+curl
+curl --location 'https://api.smspool.net/esim/purchase' \
+--form 'key=""' \
+--form 'plan="1"'
+200 OK
+Example Response
+Body
+Headers (13)
+{
+  "success": 1,
+  "message": "Plan purchased successfully",
+  "transactionId": "ABCDEFGHI123456"
+}
+POST
+View eSIM countries
+https://api.smspool.net/esim/pricing
+AUTHORIZATION
+Bearer Token
+This request is using Bearer Token from collectionSMSPool API
+Body
+formdata
+key
+start
+Start page
+
+length
+Amount of rows per page
+
+Search
+Search query for country
+
+Example Request
+200
+curl
+curl --location 'https://api.smspool.net/esim/pricing' \
+--form 'key=""' \
+--form 'start=""' \
+--form 'length=""' \
+--form 'Search=""'
+200 OK
+Example Response
+Body
+Headers (13)
+View More
+{
+  "data": [
+    {
+      "ID": 18,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"United Arab Emirates\",\"network\":[{\"operatorName\":\"Etisalat\",\"networkType\":\"5G\"}]}]",
+      "countryCode": "AE",
+      "price": "0.40",
+      "dataInGb": 0.1,
+      "extendable": 2,
+      "name": "United Arab Emirates"
+    },
+    {
+      "ID": 731,
+      "speed": "3G/4G",
+      "network": "[{\"country\":\"Botswana\",\"network\":[{\"operatorName\":\"Orange\",\"networkType\":\"5G\"},{\"operatorName\":\"Mascom\",\"networkType\":\"5G\"}]},{\"country\":\"Burkina Faso\",\"network\":[{\"operatorName\":\"Orange\",\"networkType\":\"5G\"}]},{\"country\":\"Central African Republic\",\"network\":[{\"operatorName\":\"Orange\",\"networkType\":\"5G\"}]},{\"country\":\"Chad\",\"network\":[{\"operatorName\":\"Airtel\",\"networkType\":\"5G\"}]},{\"country\":\"Cote d'Ivoire\",\"network\":[{\"operatorName\":\"Orange\",\"networkType\":\"5G\"}]},{\"country\":\"Democratic Republic of the Congo\",\"network\":[{\"operatorName\":\"Airtel\",\"networkType\":\"5G\"},{\"operatorName\":\"Orange RDC\",\"networkType\":\"5G\"}]},{\"country\":\"Egypt\",\"network\":[{\"operatorName\":\"Orange\",\"networkType\":\"5G\"}]},{\"country\":\"Eswatini\",\"network\":[{\"operatorName\":\"Swazi Mobile\",\"networkType\":\"5G\"},{\"operatorName\":\"Swazi MTN\",\"networkType\":\"5G\"}]},{\"country\":\"Gabon\",\"network\":[{\"operatorName\":\"Airtel\",\"networkType\":\"5G\"}]},{\"country\":\"Ghana\",\"network\":[{\"operatorName\":\"Vodafone\",\"networkType\":\"5G\"},{\"operatorName\":\"AirtelTigo\",\"networkType\":\"5G\"},{\"operatorName\":\"MTN\",\"networkType\":\"5G\"}]},{\"country\":\"Guinea-Bissau\",\"network\":[{\"operatorName\":\"MTN Areeba\",\"networkType\":\"3G\"}]},{\"country\":\"Kenya\",\"network\":[{\"operatorName\":\"Airtel\",\"networkType\":\"5G\"}]},{\"country\":\"Liberia\",\"network\":[{\"operatorName\":\"Lonestar Cell MTN\",\"networkType\":\"5G\"},{\"operatorName\":\"Orange\",\"networkType\":\"5G\"}]},{\"country\":\"Madagascar\",\"network\":[{\"operatorName\":\"Airtel\",\"networkType\":\"5G\"}]},{\"country\":\"Malawi\",\"network\":[{\"operatorName\":\"Airtel\",\"networkType\":\"5G\"}]},{\"country\":\"Mali\",\"network\":[{\"operatorName\":\"Orange\",\"networkType\":\"5G\"}]},{\"country\":\"Morocco\",\"network\":[{\"operatorName\":\"IAM\",\"networkType\":\"4G\"},{\"operatorName\":\"INWI\",\"networkType\":\"4G\"},{\"operatorName\":\"Orange Morocco\",\"networkType\":\"4G\"}]},{\"country\":\"Niger\",\"network\":[{\"operatorName\":\"Orange\",\"networkType\":\"3G\"},{\"operatorName\":\"Airtel\",\"networkType\":\"3G\"}]},{\"country\":\"Nigeria\",\"network\":[{\"operatorName\":\"MTN\",\"networkType\":\"5G\"},{\"operatorName\":\"Airtel\",\"networkType\":\"5G\"}]},{\"country\":\"Republic of the Congo\",\"network\":[{\"operatorName\":\"Airtel\",\"networkType\":\"4G\"}]},{\"country\":\"Reunion\",\"network\":[{\"operatorName\":\"Orange\",\"networkType\":\"5G\"}]},{\"country\":\"Senegal\",\"network\":[{\"operatorName\":\"Orange\",\"networkType\":\"4G\"}]},{\"country\":\"Seychelles\",\"network\":[{\"operatorName\":\"Airtel\",\"networkType\":\"5G\"}]},{\"country\":\"South Africa\",\"network\":[{\"operatorName\":\"MTN\",\"networkType\":\"5G\"},{\"operatorName\":\"Vodacom\",\"networkType\":\"4G\"}]},{\"country\":\"Sudan\",\"network\":[{\"operatorName\":\"MTN\",\"networkType\":\"4G\"}]},{\"country\":\"Tanzania\",\"network\":[{\"operatorName\":\"Airtel\",\"networkType\":\"4G\"}]},{\"country\":\"Tunisia\",\"network\":[{\"operatorName\":\"Orange\",\"networkType\":\"4G\"},{\"operatorName\":\"OOREDOO TN\",\"networkType\":\"4G\"}]},{\"country\":\"Uganda\",\"network\":[{\"operatorName\":\"Airtel\",\"networkType\":\"5G\"},{\"operatorName\":\"MTN\",\"networkType\":\"5G\"}]},{\"country\":\"Zambia\",\"network\":[{\"operatorName\":\"Airtel\",\"networkType\":\"5G\"},{\"operatorName\":\"MTN\",\"networkType\":\"5G\"}]}]",
+      "countryCode": "AF",
+      "price": "3.60",
+      "dataInGb": 0.5,
+      "extendable": 2,
+      "name": "Afghanistan"
+    },
+    {
+      "ID": 418,
+      "speed": "3G/4G",
+      "network": "[{\"country\":\"Albania\",\"network\":[{\"operatorName\":\"Vodafone\",\"networkType\":\"4G\"}]}]",
+      "countryCode": "AL",
+      "price": "0.40",
+      "dataInGb": 0.1,
+      "extendable": 2,
+      "name": "Albania"
+    },
+    {
+      "ID": 17,
+      "speed": "3G/4G",
+      "network": "[{\"country\":\"Armenia\",\"network\":[{\"operatorName\":\"Ucom\",\"networkType\":\"4G\"},{\"operatorName\":\"Vivacell\",\"networkType\":\"4G\"}]}]",
+      "countryCode": "AM",
+      "price": "0.40",
+      "dataInGb": 0.1,
+      "extendable": 2,
+      "name": "Armenia"
+    },
+    {
+      "ID": 273,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"Argentina\",\"network\":[{\"operatorName\":\"Movistar\",\"networkType\":\"5G\"},{\"operatorName\":\"Claro\",\"networkType\":\"5G\"}]}]",
+      "countryCode": "AR",
+      "price": "0.60",
+      "dataInGb": 0.1,
+      "extendable": 2,
+      "name": "Argentina"
+    },
+    {
+      "ID": 734,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"Georgia\",\"network\":[]},{\"country\":\"Nepal\",\"network\":[]},{\"country\":\"Bhutan\",\"network\":[]},{\"country\":\"Bahrain\",\"network\":[]},{\"country\":\"Uzbekistan\",\"network\":[]},{\"country\":\"Kazakhstan\",\"network\":[]},{\"country\":\"Mongolia\",\"network\":[]},{\"country\":\"Australia\",\"network\":[]},{\"country\":\"Palestine\",\"network\":[]},{\"country\":\"China mainland\",\"network\":[]},{\"country\":\"Hong Kong (China)\",\"network\":[]},{\"country\":\"Taiwan (China)\",\"network\":[]},{\"country\":\"Macao (China)\",\"network\":[]},{\"country\":\"Malaysia\",\"network\":[]},{\"country\":\"Singapore\",\"network\":[]},{\"country\":\"Vietnam\",\"network\":[]},{\"country\":\"Indonesia\",\"network\":[]},{\"country\":\"Philippines\",\"network\":[]},{\"country\":\"Brunei Darussalam\",\"network\":[]},{\"country\":\"South Korea\",\"network\":[]},{\"country\":\"India\",\"network\":[]},{\"country\":\"Cambodia\",\"network\":[]},{\"country\":\"Pakistan\",\"network\":[]},{\"country\":\"Sri Lanka\",\"network\":[]},{\"country\":\"Japan\",\"network\":[]},{\"country\":\"Israel\",\"network\":[]},{\"country\":\"Jordan\",\"network\":[]},{\"country\":\"Kuwait\",\"network\":[]},{\"country\":\"Oman\",\"network\":[]},{\"country\":\"Bangladesh\",\"network\":[]},{\"country\":\"Qatar\",\"network\":[]},{\"country\":\"Guam\",\"network\":[]},{\"country\":\"Laos\",\"network\":[]}]",
+      "countryCode": "AS",
+      "price": "0.80",
+      "dataInGb": 0.5,
+      "extendable": 1,
+      "name": "Asia"
+    },
+    {
+      "ID": 23,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"Austria\",\"network\":[{\"operatorName\":\"Hutchison\",\"networkType\":\"5G\"}]}]",
+      "countryCode": "AT",
+      "price": "0.70",
+      "dataInGb": 0.5,
+      "extendable": 2,
+      "name": "Austria"
+    },
+    {
+      "ID": 95,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"Australia\",\"network\":[{\"operatorName\":\"Optus\",\"networkType\":\"5G\"},{\"operatorName\":\"Vodafone\",\"networkType\":\"5G\"}]}]",
+      "countryCode": "AU",
+      "price": "0.40",
+      "dataInGb": 0.1,
+      "extendable": 2,
+      "name": "Australia"
+    },
+    {
+      "ID": 52,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"Aland Islands\",\"network\":[{\"operatorName\":\"AMT\",\"networkType\":\"5G\"}]}]",
+      "countryCode": "AX",
+      "price": "1.30",
+      "dataInGb": 0.5,
+      "extendable": 2,
+      "name": "Aland Islands"
+    },
+    {
+      "ID": 19,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"Azerbaijan\",\"network\":[{\"operatorName\":\"Azercell\",\"networkType\":\"4G\"},{\"operatorName\":\"Bakcell\",\"networkType\":\"5G\"}]}]",
+      "countryCode": "AZ",
+      "price": "0.40",
+      "dataInGb": 0.1,
+      "extendable": 2,
+      "name": "Azerbaijan"
+    },
+    {
+      "ID": 425,
+      "speed": "3G/4G",
+      "network": "[{\"country\":\"Bosnia and Herzegovina\",\"network\":[{\"operatorName\":\"BH Mobile\",\"networkType\":\"4G\"},{\"operatorName\":\"m:tel BiH\",\"networkType\":\"4G\"}]}]",
+      "countryCode": "BA",
+      "price": "1.40",
+      "dataInGb": 0.5,
+      "extendable": 2,
+      "name": "Bosnia"
+    },
+    {
+      "ID": 1620,
+      "speed": "3G/4G",
+      "network": "[{\"country\":\"Barbados\",\"network\":[{\"operatorName\":\"FLOW\",\"networkType\":\"4G\"}]}]",
+      "countryCode": "BB",
+      "price": "4.90",
+      "dataInGb": 0.5,
+      "extendable": 2,
+      "name": "Barbados"
+    },
+    {
+      "ID": 407,
+      "speed": "3G/4G",
+      "network": "[{\"country\":\"Bangladesh\",\"network\":[{\"operatorName\":\"Grameenphone\",\"networkType\":\"4G\"}]}]",
+      "countryCode": "BD",
+      "price": "2.20",
+      "dataInGb": 0.5,
+      "extendable": 2,
+      "name": "Bangladesh"
+    },
+    {
+      "ID": 24,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"Belgium\",\"network\":[{\"operatorName\":\"Base\",\"networkType\":\"5G\"},{\"operatorName\":\"Orange\",\"networkType\":\"5G\"},{\"operatorName\":\"Proximus\",\"networkType\":\"5G\"}]}]",
+      "countryCode": "BE",
+      "price": "0.70",
+      "dataInGb": 0.5,
+      "extendable": 2,
+      "name": "Belgium"
+    },
+    {
+      "ID": 25,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"Bulgaria\",\"network\":[{\"operatorName\":\"Vivacom\",\"networkType\":\"5G\"},{\"operatorName\":\"Telenor\",\"networkType\":\"4G\"},{\"operatorName\":\"A1\",\"networkType\":\"4G\"}]}]",
+      "countryCode": "BG",
+      "price": "0.70",
+      "dataInGb": 0.5,
+      "extendable": 2,
+      "name": "Bulgaria"
+    },
+    {
+      "ID": 21,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"Bahrain\",\"network\":[{\"operatorName\":\"Zain\",\"networkType\":\"5G\"}]}]",
+      "countryCode": "BH",
+      "price": "2.10",
+      "dataInGb": 0.5,
+      "extendable": 2,
+      "name": "Bahrain"
+    },
+    {
+      "ID": 534,
+      "speed": "3G/4G",
+      "network": "[{\"country\":\"Brunei Darussalam\",\"network\":[{\"operatorName\":\"DST\",\"networkType\":\"4G\"}]}]",
+      "countryCode": "BN",
+      "price": "4.20",
+      "dataInGb": 0.5,
+      "extendable": 2,
+      "name": "Brunei"
+    },
+    {
+      "ID": 275,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"Bolivia\",\"network\":[{\"operatorName\":\"Tigo\",\"networkType\":\"5G\"}]}]",
+      "countryCode": "BO",
+      "price": "0.90",
+      "dataInGb": 0.1,
+      "extendable": 2,
+      "name": "Bolivia"
+    },
+    {
+      "ID": 277,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"Brazil\",\"network\":[{\"operatorName\":\"TIM\",\"networkType\":\"5G\"},{\"operatorName\":\"Claro\",\"networkType\":\"5G\"},{\"operatorName\":\"Vivo\",\"networkType\":\"5G\"}]}]",
+      "countryCode": "BR",
+      "price": "0.40",
+      "dataInGb": 0.1,
+      "extendable": 2,
+      "name": "Brazil"
+    },
+    {
+      "ID": 309,
+      "speed": "3G/4G/5G",
+      "network": "[{\"country\":\"Botswana\",\"network\":[{\"operatorName\":\"Orange\",\"networkType\":\"5G\"},{\"operatorName\":\"Mascom\",\"networkType\":\"5G\"}]}]",
+      "countryCode": "BW",
+      "price": "9.90",
+      "dataInGb": 1,
+      "extendable": 2,
+      "name": "Botswana"
+    }
+  ],
+  "rows": 126
+}
+POST
+View eSIM history
+https://api.smspool.net/esim/history
+AUTHORIZATION
+Bearer Token
+This request is using Bearer Token from collectionSMSPool API
+Body
+formdata
+key
+start
+Start page
+
+length
+Amount of rows per page
+
+search
+Alphanumeric search
+
+Example Request
+200
+curl
+curl --location 'https://api.smspool.net/esim/history' \
+--form 'key=""' \
+--form 'start=""' \
+--form 'length=""' \
+--form 'search=""'
+200 OK
+Example Response
+Body
+Headers (13)
+View More
+{
+  "data": [
+    {
+      "transactionId": "ABCDEFGHI123456",
+      "countryCode": "us",
+      "cost": "0.10",
+      "plan": 1,
+      "name": "United States",
+      "timestamp": "2025-07-21",
+      "expiration": "2025-10-05",
+      "dataInGb": 50,
+      "status": 2,
+      "label": "Labels"
+    }
+  ],
+  "rows": 1,
+  "page": 1,
+  "limit": 20
+}

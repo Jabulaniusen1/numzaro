@@ -74,7 +74,7 @@ const STATUS_TABS = {
 
 export default function MyNumbersPage() {
   const { toast } = useToast();
-  const { format: formatCurrency } = useCurrency();
+  const { format: formatCurrency, convert } = useCurrency();
   const [numbers, setNumbers] = useState<VirtualNumber[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"active" | "history">("active");
@@ -226,7 +226,7 @@ export default function MyNumbersPage() {
                 <span className="text-xl">{getFlag(activeNumber.country_code)}</span>
                 <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">{activeNumber.country_name}</span>
               </div>
-              <span className="font-bold text-gray-700 dark:text-gray-200">{formatCurrency(activeNumber.price)}</span>
+              <span className="font-bold text-gray-700 dark:text-gray-200">{formatCurrency(convert(activeNumber.price))}</span>
               <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-violet-50 dark:bg-violet-900/30 text-[#7C5CFC]">
                 &gt;1 SMS
               </span>

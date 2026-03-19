@@ -6,6 +6,12 @@ function extractCode(message: string): string | null {
   return match ? match[0] : null;
 }
 
+function parseTimestamp(value?: string): string {
+  if (!value) return new Date().toISOString();
+  const parsed = new Date(value.replace(" ", "T") + "Z");
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
 /**
  * Polls SMSPool for an OTP on a one-time activation number.
  * orderId = the order_id returned at purchase.
@@ -17,10 +23,8 @@ export async function syncSmsPoolActivation(
 ) {
   try {
     const result = await smsPoolClient.checkSMS(orderId);
-    // status 2 = received, 1 = waiting, 3 = cancelled
-    if (result.status !== 2 || !result.sms) return;
-
     const content = result.full_sms || result.sms;
+    if (!content) return;
     const code = extractCode(content);
 
     const { data: existing } = await supabase
@@ -102,7 +106,7 @@ export async function syncSmsPoolRental(
           body: content,
           is_otp: !!code,
           otp_code: code,
-          created_at: new Date().toISOString(),
+          created_at: parseTimestamp(msg.timestamp || msg.date),
         });
 
         if (code) {

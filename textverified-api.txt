@@ -1,0 +1,2712 @@
+API Overview v2
+This is where you can get started with automating your workflows and integrating your apps with our API.
+
+Use our official Python client for faster integration.
+
+For rentals (long term use of numbers), you'll need to check out the following links in order:
+
+Authenticate: Authentication
+Obtain a list of rental services: Service List
+Create a rental: Create New Rental
+Follow the location header returned to get the rental sale.
+From the sale, you'll be able to see the reservations and backorders.
+For verifications (single use of numbers), you'll need to check out the following links in order:
+
+Authenticate: Authentication
+Obtain a list of verification services: Service List
+Create a verification: Create Verification
+Follow the location header returned to get the newly created verification.
+Our API documentation has an embedded javascript client so that you can try out the API. You will need to setup your bearer token to be able to access secured endpoints.
+
+
+Paginated List Responses
+When you successfully get a list of data (generally, ordered by when the resource was created), for example List Billing Cycles, you will need to follow it's links results.
+Inside the links result, you will get current, previous, and next values. Inside these values, there will be href and method values.
+With these values, you can get more of your list by navigating through them.
+
+Example
+We get the result from List Billing Cycles, but we don't see what we need and need more billing cycles.
+The following code is whiteboarding code, use the language you are using for your integration with the API
+We will need to do the following:
+
+Get our api result data = getListBillingCyclesResult()
+Get the href = data['links']['next']['href']
+Get the method = data['links']['next']['method']
+Now you can get the next page: nextPage = fetch(href, {method=method})
+If we need the next page's result, we can repeat this process.
+Note that only renewable rentals will be associated with a billing cycle.
+
+ 
+API SERVER
+ https://www.textverified.com
+SELECTED: https://www.textverified.com
+
+AUTHENTICATION
+No API key applied
+HTTP Bearer
+This page functions only for the embedded JS client for testing purposes
+
+A valid bearer token will start with eyJh....
+To learn how to generate a bearer token, see Generate Bearer Token.
+
+
+Send Authorization in header containing the word Bearer followed by a space and a Token String.
+api-token
+ 
+Bearer Tokens
+Generate Bearer Token
+post /api/pub/v2/auth
+Generate a bearer token to start making requests to secured endpoints. You will need to supply the following headers:
+
+X-API-KEY (your primary API key)
+X-API-USERNAME (your username, which is the email you used to register)
+All secured endpoints will need your bearer token supplied to them.
+
+Because bearer tokens can expire due to having a limited lifespan, you will need to obtain a new bearer token by generating a new one periodically.
+
+You can view and manage your API keys on under API Settings.
+
+After successfully generating a bearer token eyJh..., you can use set the bearer token here and explore our secured API endpoints.
+
+REQUEST
+REQUEST HEADERS
+X-API-USERNAME
+string
+example@example.com
+Your username.
+
+Examples: example@example.com
+X-API-KEY
+string
+APIKey12345
+Your API key.
+
+Examples: APIKey12345
+API Server
+https://www.textverified.com
+Authentication
+Not Required
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+token*: string
+Bearer token
+
+expiresIn*: number
+Seconds remaining until bearer token expires
+
+expiresAt*: date-time
+Timestamp of when the token will expire
+
+}
+
+Account
+Get Account Details
+get /api/pub/v2/account/me
+Retrieves the details of the currently authenticated account. Returns the username and current balance (in account credits) of the user, or 401 Unauthorized if the user is not authenticated.
+
+REQUEST
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+username*: string
+The username of the account holder.
+
+currentBalance: number
+The current balance of the account.
+
+}
+
+Services
+Area Codes List
+get /api/pub/v2/area-codes
+Returns a list of our supported area codes.
+
+These supported area codes you get in the areaCode property from the response can be used for API calls where an areaCodeSelectOption is in the body or parameter.
+
+REQUEST
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+array
+Single line description
+[{
+areaCode*: string
+Area code. Optionally supply this value when an areaCodeSelectOption is in the request body or parameter.
+
+state*: string
+The US state associated with the area code.
+
+}]
+
+Services
+Service List
+get /api/pub/v2/services
+Returns a list of our supported services.
+
+These supported services you get in the serviceName property from the response will be used for API calls where a serviceName is required in the body or parameter.
+
+REQUEST
+QUERY-STRING PARAMETERS
+numberType
+enum
+mobile
+Allowed: mobile ┃ voip ┃ landline
+Examples: mobile
+reservationType
+enum
+renewable
+Allowed: renewable ┃ nonrenewable ┃ verification
+Required field
+
+Examples: renewable
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+array
+Single line description
+[{
+serviceName*: string
+Name of the service. Supply this value when a ServiceName is required.
+
+description: string┃null
+Human-readable display name for the service.
+
+capability*: enum
+Allowed: sms┃voice┃smsAndVoiceCombo
+}]
+
+Services
+Rental Pricing
+post /api/pub/v2/pricing/rentals
+Get rental prices for a specific service and option(s). The serviceName is required, and the list of supported service names can be found at Service List.
+
+Not all service and options are compatible with each other. This endpoint point will return a 400 Bad Request for unsupported service and option combinations.
+
+REQUEST
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+serviceName*: string
+Name of the service
+
+areaCode*: boolean
+Set to true if a specific area code will be requested when creating a rental, false if any area code can be used.
+
+numberType*: enum
+Allowed: mobile┃voip┃landline
+capability*: enum
+Allowed: sms┃voice┃smsAndVoiceCombo
+ alwaysOn: boolean┃null
+Deprecated. This value will always be true and should not be supplied.
+
+callForwarding: boolean┃null
+Not supported at this time.
+
+billingCycleIdToAssignTo: string┃null
+isRenewable*: boolean
+duration*: enum
+Allowed: oneDay┃threeDay┃sevenDay┃fourteenDay┃thirtyDay┃ninetyDay┃oneYear
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+serviceName*: string
+Name of the service.
+
+price*: number
+Total cost.
+
+}
+
+Services
+Verification Pricing
+post /api/pub/v2/pricing/verifications
+Clients can call this endpoint to check the verification price of a specific service and option(s). The list of supported services (serviceName) can be found here.
+
+Not all service and options are compatible with each other. This endpoint point will return a 400 Bad Request for unsupported service and option combinations.
+
+REQUEST
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+serviceName*: string
+areaCode*: boolean
+Set to true if a specific area code will be requested when creating a verification, false if any area code can be used.
+
+carrier*: boolean
+Set to true if a specific carrier will be requested when creating a verification, false if any carrier can be used.
+
+numberType*: enum
+Allowed: mobile┃voip┃landline
+capability*: enum
+Allowed: sms┃voice┃smsAndVoiceCombo
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+serviceName*: string
+Name of the service.
+
+price*: number
+Total cost.
+
+}
+
+Sales
+Get Reservation Sale Details
+get /api/pub/v2/sales/{id}
+Get the details on a reservation sale by ID.
+
+Note: This endpoint returns a paginated list of reservations and back ordered reservations (if applicable) associated with the provided sale ID, check the Paginated List Responses section of the overview page for more details if you are having problems.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the sale. If the sale ID does not exist, a 404 response will be returned.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+createdAt*: date-time
+id*: string
+backOrderReservations*: [{
+List of back ordered reservations that were not in stock at the time of purchase.
+
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+id*: string
+serviceName*: string
+Name of service
+
+status*: enum
+Allowed: created┃fulfilled┃canceled
+}]
+reservations*: [{
+List of reservations that associated with this sale. Any back ordered reservations that are fulfilled at a later time will also appear here.
+
+id*: string
+Id of the reservation
+
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+reservationType*: enum
+Allowed: renewable┃nonrenewable┃verification
+serviceName*: string
+Name of service
+
+}]
+state*: enum
+Allowed: created┃processing┃failed┃succeeded
+total*: number
+Total amount of the sale, in account credits.
+
+updatedAt*: date-time
+}
+
+Sales
+List Reservation Sales
+get /api/pub/v2/sales
+Get a paginated list of your reservation sales.
+
+Note: This endpoint returns a paginated result of the list, check the Paginated List Responses section of the overview page for more details if you are having problems.
+
+REQUEST
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+data*: [{
+createdAt*: date-time
+id*: string
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+state*: enum
+Allowed: created┃processing┃failed┃succeeded
+totalCost*: number
+updatedAt*: date-time
+}]
+hasNext*: boolean
+hasPrevious*: boolean
+count*: integer
+links*: {
+current*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+previous*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+next*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+}
+
+Billing Cycles
+Get Billing Cycle Details
+get /api/pub/v2/billing-cycles/{id}
+Get the details of a billing cycle by ID. A billing cycle can have one or many renewable rentals. Only renewable rentals are associated with a billing cycle.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the billing cycle. If the billing cycle ID does not exist, a 404 response will be returned.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+id*: string
+Id of the billing cycle
+
+renewedThrough*: date-time
+billingCycleEndsAt*: date-time
+nextAutoRenewAttempt*: date-time┃null
+emailNotificationsEnabled*: boolean
+state*: string
+rentals*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+invoices*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+
+Billing Cycles
+Updating a Billing Cycle
+post /api/pub/v2/billing-cycles/{id}
+Update a billing cycle by ID.
+
+What you can currently update are:
+
+nickname (Your custom string to identify the billing cycle)
+remindersEnabled (Email reminders)
+Not providing an update option will leave it unchanged. For example, not providing remindersEnabled but having "nickname": "aNickname" will only update the nickname.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the billing cycle.
+
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+Supplying a value of 'null' or not supplying a value for any nullable properties will cause the property to be ignored.
+
+{
+remindersEnabled: boolean┃null
+nickname: string┃null
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+Billing Cycles
+Get Billing Cycle Invoices
+get /api/pub/v2/billing-cycles/{id}/invoices
+Get a paginated invoice history of a billing cycle by it's ID.
+
+Note: This endpoint returns a paginated result of the list, check the Paginated List Responses section of the overview page for more details if you are having problems.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the billing cycle.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+data*: [{
+createdAt*: date-time
+id*: string
+excludedRentals*: [{
+number*: string
+rental*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+renewalCost*: number
+Renewal cost, in account credits.
+
+serviceName*: string
+alreadyRenewed*: boolean
+ includedAddOns*: [{
+ addOnId*: string
+ description*: string
+ renewalCost*: number
+ alreadyRenewed*: boolean
+}]
+ excludedAddOns*: [{
+ addOnId*: string
+ description*: string
+ renewalCost*: number
+ alreadyRenewed*: boolean
+}]
+}]
+includedRentals*: [{
+number*: string
+rental*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+renewalCost*: number
+Renewal cost, in account credits.
+
+serviceName*: string
+alreadyRenewed*: boolean
+ includedAddOns*: [{
+ addOnId*: string
+ description*: string
+ renewalCost*: number
+ alreadyRenewed*: boolean
+}]
+ excludedAddOns*: [{
+ addOnId*: string
+ description*: string
+ renewalCost*: number
+ alreadyRenewed*: boolean
+}]
+}]
+isPaidFor*: boolean
+totalCost*: number
+Total amount cost of the invoice, in account credits.
+
+}]
+hasNext*: boolean
+hasPrevious*: boolean
+count*: integer
+links*: {
+current*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+previous*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+next*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+}
+
+Billing Cycles
+List Billing Cycles
+get /api/pub/v2/billing-cycles
+Returns a paginated list of your billing cycles. A billing cycle can have one or many renewable rentals. Only renewable rentals are associated with a billing cycle.
+
+Note: This endpoint returns a paginated result of the list, check the Paginated List Responses section of the overview page for more details if you are having problems.
+
+REQUEST
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+data*: [{
+id*: string
+Id of the billing cycle
+
+billingCycleEndsAt*: date-time
+emailNotificationsEnabled*: boolean
+state*: string
+}]
+hasNext*: boolean
+hasPrevious*: boolean
+count*: integer
+links*: {
+current*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+previous*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+next*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+}
+
+Billing Cycles
+Preview Billing Cycle Invoice
+post /api/pub/v2/billing-cycles/{id}/next-invoice
+Get an invoice preview for your next billing cycle by it's ID.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the billing cycle.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+billingCycleId*: string
+renewalEstimate*: {
+createdAt*: date-time
+id*: string
+excludedRentals*: [{
+number*: string
+rental*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+renewalCost*: number
+Renewal cost, in account credits.
+
+serviceName*: string
+alreadyRenewed*: boolean
+ includedAddOns*: [{
+ addOnId*: string
+ description*: string
+ renewalCost*: number
+ alreadyRenewed*: boolean
+}]
+ excludedAddOns*: [{
+ addOnId*: string
+ description*: string
+ renewalCost*: number
+ alreadyRenewed*: boolean
+}]
+}]
+includedRentals*: [{
+number*: string
+rental*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+renewalCost*: number
+Renewal cost, in account credits.
+
+serviceName*: string
+alreadyRenewed*: boolean
+ includedAddOns*: [{
+ addOnId*: string
+ description*: string
+ renewalCost*: number
+ alreadyRenewed*: boolean
+}]
+ excludedAddOns*: [{
+ addOnId*: string
+ description*: string
+ renewalCost*: number
+ alreadyRenewed*: boolean
+}]
+}]
+isPaidFor*: boolean
+totalCost*: number
+Total amount cost of the invoice, in account credits.
+
+}
+}
+
+Billing Cycles
+Renew Billing Cycle
+post /api/pub/v2/billing-cycles/{id}/renew
+Renew the active rentals on your billing cycle by it's ID.
+
+This will not renew overdue rentals. To renew overdue rentals, you must explicitly renew them using the Renew Overdue Rental endpoint.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the billing cycle.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+createdAt*: date-time
+id*: string
+excludedRentals*: [{
+number*: string
+rental*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+renewalCost*: number
+Renewal cost, in account credits.
+
+serviceName*: string
+alreadyRenewed*: boolean
+ includedAddOns*: [{
+ addOnId*: string
+ description*: string
+ renewalCost*: number
+ alreadyRenewed*: boolean
+}]
+ excludedAddOns*: [{
+ addOnId*: string
+ description*: string
+ renewalCost*: number
+ alreadyRenewed*: boolean
+}]
+}]
+includedRentals*: [{
+number*: string
+rental*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+renewalCost*: number
+Renewal cost, in account credits.
+
+serviceName*: string
+alreadyRenewed*: boolean
+ includedAddOns*: [{
+ addOnId*: string
+ description*: string
+ renewalCost*: number
+ alreadyRenewed*: boolean
+}]
+ excludedAddOns*: [{
+ addOnId*: string
+ description*: string
+ renewalCost*: number
+ alreadyRenewed*: boolean
+}]
+}]
+isPaidFor*: boolean
+totalCost*: number
+Total amount cost of the invoice, in account credits.
+
+}
+
+Back Order Rental Reservations
+Get Back Order Reservation Detail
+get /api/pub/v2/backorders/{id}
+Get the details on a back order reservation by ID.
+
+Back order reservations are created if you have a parameter set when creating a new rental and there is no available stock. See Create New Rental for more info.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the back order reservation. If the reservation ID does not exist, a 404 response will be returned.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+id*: string
+serviceName*: string
+saleId*: string
+sale*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+reservation*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+reservationId*: string┃null
+Will be null if a reservation has not been assigned yet.
+
+status*: enum
+Allowed: created┃fulfilled┃canceled
+}
+
+Line Reservations
+Line Reservation Details
+get /api/pub/v2/reservations/{id}
+Get the details on a line reservation by ID.
+
+Successfully getting the details of the line reservation will require following the href link provided in the response.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the line reservation. If the reservation ID does not exist, a 404 response will be returned.
+
+QUERY-STRING PARAMETERS
+type
+enum
+Allowed: renewable ┃ nonrenewable ┃ verification
+Type of line reservation. If the type supplied does not match the reservation, a 404 response will be returned.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+
+Line Reservations
+Reservation Health Check
+get /api/pub/v2/reservations/{id}/health
+Gets the health of a reservation and its line number.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the line reservation. If the reservation ID does not exist or if the reservation is not 'active', a 404 response will be returned.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+lineNumber*: string
+Line number associated with the reservation.
+
+checkedAt*: date-time┃null
+Timestamp of when this line was last checked at.
+
+}
+
+Verifications
+List Verifications
+get /api/pub/v2/verifications
+Retrieves a paginated list of current verifications.
+
+Note: This endpoint returns a paginated result of the list, check the Paginated List Responses section of the overview page for more details if you are having problems.
+
+REQUEST
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+data*: [{
+createdAt*: date-time
+id*: string
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+serviceName*: string
+state*: enum
+Allowed: verificationPending┃verificationCompleted┃verificationCanceled┃verificationTimedOut┃verificationReported┃verificationRefunded┃verificationReused┃verificationReactivated┃renewableActive┃renewableOverdue┃renewableExpired┃renewableRefunded┃nonrenewableActive┃nonrenewableExpired┃nonrenewableRefunded
+totalCost*: number
+number*: string
+sms*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+calls*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}]
+hasNext*: boolean
+hasPrevious*: boolean
+count*: integer
+links*: {
+current*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+previous*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+next*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+}
+
+Verifications
+Verification Details
+get /api/pub/v2/verifications/{id}
+Retrieves the details of a verification. Also returns actions that can be performed on the verification, including the ability to cancel, report, reactivate, or reuse the verification.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+Id of the verification.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+number*: string
+sms*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+calls*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+createdAt*: date-time
+endsAt*: date-time
+id*: string
+cancel*: {
+canCancel*: boolean
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+reactivate*: {
+canReactivate*: boolean
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+report*: {
+canReport*: boolean
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+reuse*: {
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+reusableUntil*: date-time┃null
+If the verification is reusable, this value will be populated.
+
+}
+sale*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+serviceName*: string
+state*: enum
+Allowed: verificationPending┃verificationCompleted┃verificationCanceled┃verificationTimedOut┃verificationReported┃verificationRefunded┃verificationReused┃verificationReactivated┃renewableActive┃renewableOverdue┃renewableExpired┃renewableRefunded┃nonrenewableActive┃nonrenewableExpired┃nonrenewableRefunded
+totalCost*: number
+}
+
+Verifications
+Cancel Verification
+post /api/pub/v2/verifications/{id}/cancel
+Call this to attempt to cancel a verification by ID.
+
+Returns 400 Bad Request if the verification does not allow cancellation.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+Verifications
+Reactivate Verification
+post /api/pub/v2/verifications/{id}/reactivate
+Call this to attempt to reactivate a completed verification that can no longer be reused. This may not be possible due to a number of reasons - to check eligibility, use verification details.
+
+If successful, a 201 response will be returned with the location of the newly created verification ID in the http response 'location' header. If the verification is not eligible for reactivation, a 400 Bad Request will be returned with an error message.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+Created
+
+EXAMPLE
+SCHEMA
+
+text/plain
+object
+Single line description
+{
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+
+Verifications
+Report Verification
+post /api/pub/v2/verifications/{id}/report
+Call this to attempt to report a verification by ID for issues such as "number already in use", "verification failed", or "code not received".
+
+Returns 400 Bad Request if the verification does not allow reporting.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+Verifications
+Reuse Verification
+post /api/pub/v2/verifications/{id}/reuse
+Call this to attempt to reuse a verification by ID. This is usable only shortly after a verification has been completed successfully on this ID. To check eligibility, use verification details.
+
+If successful, a 201 response will be returned with the location of the newly created verification ID in the http response 'location' header. If the verification is not eligible for reuse, a 400 Bad Request will be returned with an error message.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+Created
+
+EXAMPLE
+SCHEMA
+
+text/plain
+object
+Single line description
+{
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+
+New Verification
+Create Verification
+post /api/pub/v2/verifications
+Create/purchase a new verification. The serviceName is required, and the list of supported service names can be found at Service List.
+
+If successful, a 201 response will be returned with the location of the newly created verification in the http response 'location' header. Some combinations of options are unavailable. Will return 400 Bad Request if the request is invalid. To validate without the risk of using credits, use the verification pricing endpoint.
+
+REQUEST
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+areaCodeSelectOption: [string]
+Clients can specify a area code when creating a reservation. If provided, our service will try to reserve a number with the specified area code.
+
+carrierSelectOption: [string]
+Clients can specify a carrier when creating a reservation. If provided, our service will try to reserve a number with the specified Carrier.
+
+serviceName*: string
+capability*: enum
+Allowed: sms┃voice┃smsAndVoiceCombo
+serviceNotListedName: string┃null
+Optional string to specify the service you are using with the "servicenotlisted" ServiceName
+
+maxPrice: number┃null
+Optional decimal to specify the maximum total price you are willing to pay for the requested reservation. If the price exceeds this amount, the request will be rejected and no reservation will be created.
+
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+Created
+
+EXAMPLE
+SCHEMA
+
+text/plain
+object
+Single line description
+{
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+
+New Rental
+Create New Rental
+post /api/pub/v2/reservations/rental
+Create/purchase a new rental. The serviceName is required, and the list of supported service names can be found at Service List.
+
+If allowBackOrderReservations is true in the request body, a rental back order will be created if the requested rental is out of stock.
+
+If successful, a 201 response will be returned with the location of the sale in the http response 'location' header. This sale will have details on the outcome of the rental purchase. Some combinations of options are unavailable. Will return 400 Bad Request if the request is invalid. To validate without the risk of using credits, use the rental pricing endpoint.
+
+REQUEST
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+allowBackOrderReservations*: boolean
+If set to true, a rental back order will be created if the requested rental is out of stock
+
+ alwaysOn: boolean┃null
+Deprecated. This value will always be true and should not be supplied.
+
+areaCodeSelectOption: [string]
+Optional array of area codes
+
+duration*: enum
+Allowed: oneDay┃threeDay┃sevenDay┃fourteenDay┃thirtyDay┃ninetyDay┃oneYear
+isRenewable*: boolean
+numberType*: enum
+Allowed: mobile┃voip┃landline
+billingCycleIdToAssignTo: string┃null
+Optional billing cycle to which the rental is assigned. If left empty, a new billing cycle will be created for the rental. Only renewable rentals can be assigned to a billing cycle.
+
+serviceName*: string
+Name of the service
+
+capability*: enum
+Allowed: sms┃voice┃smsAndVoiceCombo
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+Created
+
+EXAMPLE
+SCHEMA
+
+text/plain
+object
+Single line description
+{
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+
+Rentals
+Get a Rental's User Notes
+get /api/pub/v2/reservations/rental/{id}/user-notes
+Get the user notes of a rental by ID.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the line reservation. If the reservation ID does not exist, a 404 response will be returned.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+reservationId*: string
+userNotes*: string
+}
+
+Rentals
+Search Rental Tags
+post /api/pub/v2/reservations/rental/tags/search
+Returns a paginated list of rental tags for the supplied reservationIds. This is a read-only search operation.
+
+You may supply up to 500 reservationIds per request. Duplicates are ignored and the result order is not guaranteed.
+
+Note: This endpoint returns a paginated result of the list, check the Paginated List Responses section of the overview page for more details if you are having problems.
+
+REQUEST
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+reservationIds*: [string]
+Reservation IDs to get the tags of.
+
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+
+text/plain
+object
+Single line description
+{
+data*: [{
+reservationId*: string
+tags*: [string]
+}]
+hasNext*: boolean
+hasPrevious*: boolean
+count*: integer
+links*: {
+current*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+previous*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+next*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+}
+
+Rentals / Renewable Rentals
+Renewable Rental Details
+get /api/pub/v2/reservations/rental/renewable/{id}
+Get the details of a renewable rental by ID. Also returns relevant links to the billing cycle, calls, SMS, and sale information as well as a refund action if applicable.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the line reservation. If the reservation ID does not exist, a 404 response will be returned.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+sms*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+calls*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+createdAt*: date-time
+endsAt: date-time┃null
+id*: string
+refund*: {
+canRefund*: boolean
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+refundableUntil*: date-time┃null
+}
+sale*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+saleId*: string┃null
+Sale Id may not be available for older sales.
+
+serviceName*: string
+state*: enum
+Allowed: verificationPending┃verificationCompleted┃verificationCanceled┃verificationTimedOut┃verificationReported┃verificationRefunded┃verificationReused┃verificationReactivated┃renewableActive┃renewableOverdue┃renewableExpired┃renewableRefunded┃nonrenewableActive┃nonrenewableExpired┃nonrenewableRefunded
+billingCycle*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+billingCycleId*: string
+isIncludedForNextRenewal*: boolean
+number*: string
+alwaysOn*: boolean
+}
+
+Rentals / Renewable Rentals
+Update a Renewable Rental
+post /api/pub/v2/reservations/rental/renewable/{id}
+Update a renewable rental by ID.
+
+What you can currently update are:
+
+userNotes (Notes)
+includeForRenewal (Include/Exclude rental for renew)
+markAllSmsRead (Mark SMS as read)
+tags (Replace or clear tags)
+Not providing an update option will leave it unchanged. For example, not providing userNotes but having "includeForRenewal": true will only include the rental for renew.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the rental.
+
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+Supplying a value of 'null' or not supplying a value for any nullable properties will cause the property to be ignored.
+
+{
+userNotes: string┃null
+Update a renewable rental's notes. Supply an empty string value to clear the notes.
+
+includeForRenewal: boolean┃null
+Update a renewable rental's inclusion/exclusion for renewal.
+
+markAllSmsRead: boolean┃null
+Mark a renewable rental's SMS as read.
+
+tags: [string]
+Update a renewable rental’s tags. Omit the property or set it to null for no change. Provide an empty list to clear all tags, or a non-empty list to replace them.
+
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+Rentals / Renewable Rentals
+List Renewable Rentals
+get /api/pub/v2/reservations/rental/renewable
+Returns a paginated list of your renewable rentals.
+
+Optional Parameters:
+
+billingCycleId (Get renewable rentals under this billing cycle ID)
+To create a new rental, see Create New Rental.
+
+Note: This endpoint returns a paginated result of the list, check the Paginated List Responses section of the overview page for more details if you are having problems.
+
+REQUEST
+QUERY-STRING PARAMETERS
+billingCycleId
+string
+ID of the billing cycle.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+data*: [{
+createdAt*: date-time
+id*: string
+sale*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+saleId*: string┃null
+Sale Id may not be available for older sales.
+
+serviceName*: string
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+state*: enum
+Allowed: verificationPending┃verificationCompleted┃verificationCanceled┃verificationTimedOut┃verificationReported┃verificationRefunded┃verificationReused┃verificationReactivated┃renewableActive┃renewableOverdue┃renewableExpired┃renewableRefunded┃nonrenewableActive┃nonrenewableExpired┃nonrenewableRefunded
+billingCycle*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+billingCycleId*: string
+isIncludedForNextRenewal*: boolean
+number*: string
+alwaysOn*: boolean
+}]
+hasNext*: boolean
+hasPrevious*: boolean
+count*: integer
+links*: {
+current*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+previous*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+next*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+}
+
+Rentals / Renewable Rentals
+Refund Renewable Rental
+post /api/pub/v2/reservations/rental/renewable/{id}/refund
+Call this to attempt to refund a renewable rental by ID.
+
+This could fail if the rental is not refundable or the refund period has passsed. Will return 400 Bad Request if the request is invalid or refund is not possible.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the line reservation.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+Rentals / Renewable Rentals
+Renew Overdue Rental
+post /api/pub/v2/reservations/rental/renewable/{id}/renew
+Renew an overdue rental by its ID.
+
+Calling this method will automatically include the rental for renewal and perform the renewal. Only overdue rentals may be renewed this way.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the renewable rental.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+Rentals / Non-Renewable Rentals
+Non-Renewable Rental Details
+get /api/pub/v2/reservations/rental/nonrenewable/{id}
+Get the details of a non-renewable rental by ID. Also returns relevant links to the billing cycle, calls, SMS, and sale information as well as a refund action if applicable.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the line reservation. If the reservation ID does not exist, a 404 response will be returned.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+calls*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+createdAt*: date-time
+endsAt*: date-time
+id*: string
+refund*: {
+canRefund*: boolean
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+refundableUntil*: date-time┃null
+}
+sale*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+saleId*: string┃null
+Sale Id may not be available for older sales.
+
+serviceName*: string
+sms*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+state*: enum
+Allowed: verificationPending┃verificationCompleted┃verificationCanceled┃verificationTimedOut┃verificationReported┃verificationRefunded┃verificationReused┃verificationReactivated┃renewableActive┃renewableOverdue┃renewableExpired┃renewableRefunded┃nonrenewableActive┃nonrenewableExpired┃nonrenewableRefunded
+number*: string
+alwaysOn*: boolean
+}
+
+Rentals / Non-Renewable Rentals
+Update a Non-Renewable Rental
+post /api/pub/v2/reservations/rental/nonrenewable/{id}
+Update a non-renewable rental by ID.
+
+What you can currently update are:
+
+userNotes (Notes)
+markAllSmsRead (Mark SMS as read)
+tags (Replace or clear tags)
+Not providing an update option will leave it unchanged. For example, not providing userNotes but having "markAllSmsRead": true will only mark all SMS for that rental as read.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the line reservation.
+
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+Supplying a value of 'null' or not supplying a value for any nullable properties will cause the property to be ignored.
+
+{
+userNotes: string┃null
+Update a non-renewable rental's notes. Supply an empty string value to clear the notes.
+
+markAllSmsRead: boolean┃null
+Mark a non-renewable rental's SMS as read.
+
+tags: [string]
+Update a non-renewable rental’s tags. Omit the property or set it to null for no change. Provide an empty list to clear all tags, or a non-empty list to replace them.
+
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+Rentals / Non-Renewable Rentals
+List Non-Renewable Rentals
+get /api/pub/v2/reservations/rental/nonrenewable
+Returns a paginated list of your non-renewable rentals.
+
+To create a new rental, see Create New Rental.
+
+Note: This endpoint returns a paginated result of the list, check the Paginated List Responses section of the overview page for more details if you are having problems.
+
+REQUEST
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+data*: [{
+createdAt*: date-time
+id*: string
+link*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+sale*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+saleId*: string┃null
+Sale Id may not be available for older sales.
+
+serviceName*: string
+state*: enum
+Allowed: verificationPending┃verificationCompleted┃verificationCanceled┃verificationTimedOut┃verificationReported┃verificationRefunded┃verificationReused┃verificationReactivated┃renewableActive┃renewableOverdue┃renewableExpired┃renewableRefunded┃nonrenewableActive┃nonrenewableExpired┃nonrenewableRefunded
+number*: string
+alwaysOn*: boolean
+}]
+hasNext*: boolean
+hasPrevious*: boolean
+count*: integer
+links*: {
+current*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+previous*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+next*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+}
+
+Rentals / Non-Renewable Rentals
+Extend a Non-Renewable rental
+post /api/pub/v2/reservations/rentals/extensions
+Extensions are NOT refundable and cannot be undone.
+
+Attempt to extend the duration of a non-renewable rental by ID.
+
+REQUEST
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+extensionDuration*: enum
+Allowed: oneDay┃threeDay┃sevenDay┃fourteenDay┃thirtyDay┃ninetyDay┃oneYear
+rentalId*: string
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+Rentals / Non-Renewable Rentals
+Refund Non-Renewable Rental
+post /api/pub/v2/reservations/rental/nonrenewable/{id}/refund
+Call this to attempt to refund a non-renewable rental by ID.
+
+This could fail if the rental is not refundable or the refund period has passsed. Will return 400 Bad Request if the request is invalid or refund is not possible.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the line reservation.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+Sms
+List Sms
+get /api/pub/v2/sms
+Returns a paginated list of your latest sms.
+
+Optional Parameters:
+
+to (A phone number)
+reservationId (The reservation's ID)
+reservationType (The reservation's type)
+Note: This endpoint returns a paginated result of the list, check the Paginated List Responses section of the overview page for more details if you are having problems.
+
+REQUEST
+QUERY-STRING PARAMETERS
+to
+string
+If provided, will filter results to only include sms sent to the specified number.
+
+reservationId
+string
+If provided, will filter results to only include sms associated with the specified reservation.
+
+reservationType
+enum
+Allowed: renewable ┃ nonrenewable ┃ verification
+If provided, will filter results to only include sms associated with the specified reservation types.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+data*: [{
+⮕ [ Sms ]
+
+id*: string
+from*: string┃null
+to*: string
+createdAt*: date-time
+smsContent*: string┃null
+parsedCode*: string┃null
+encrypted*: boolean
+}]
+hasNext*: boolean
+hasPrevious*: boolean
+count*: integer
+links*: {
+current*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+previous*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+next*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+}
+
+Sms
+Reply to a Sms
+post /api/pub/v2/sms/reply
+Attempt to reply to a Sms by ID.
+
+REQUEST
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+replyToSmsId*: string
+The Sms Id to reply to. If a valid Sms does not exist or the Sms cannot be replied to, a 400 response will be returned.
+
+content*: string
+The Sms content to send. If the content is invalid, a 400 response will be returned.
+
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+Sms
+Send a Sms
+post /api/pub/v2/sms/send
+Attempt to send a Sms by reservation ID.
+
+REQUEST
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+reservationId*: string
+The reservation Id to send from. If a valid reservation does not exist or the reservation does not have sending capabilities, a 400 response will be returned.
+
+sendTo*: string
+The number to send to. If the number is invalid, a 400 response will be returned.
+
+content*: string
+The Sms content to send. If the content is invalid, a 400 response will be returned.
+
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+Calls And Voice - [ALPHA]
+List Calls
+get /api/pub/v2/calls
+Call this endpoint to obtain a list of calls associated with your account.
+
+REQUEST
+QUERY-STRING PARAMETERS
+to
+string
+If provided, will filter results to only include calls made to the specified number.
+
+reservationId
+string
+If provided, will filter results to only include calls associated with the specified reservation.
+
+reservationType
+enum
+Allowed: renewable ┃ nonrenewable ┃ verification
+If provided, will filter results to only include calls associated with the specified reservation type.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+data*: [{
+from*: string┃null
+to*: string
+createdAt*: date-time
+id*: string
+recordingUri*: string┃null
+}]
+hasNext*: boolean
+hasPrevious*: boolean
+count*: integer
+links*: {
+current*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+previous*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+next*: {
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+}
+}
+
+Calls And Voice - [ALPHA]
+Create Call Access Token
+post /api/pub/v2/calls/access-token
+Call this endpoint to create a call access token. This supports incoming calls only.
+
+Call sessions are established by:
+
+Creating a voice verification and getting the corresponding reservation id.
+Posting to this endpoint to obtain a short-lived Twilio access token associated with the reservation id.
+Using the access token with Twilio's integration to handle an incoming call.
+Warning: This is an advanced integration. No integration/implementation/debugging support will be provided for this endpoint. It is up to you to implement the appropriate provider's integration (connectivity, acceptance, termination, etc.) to successfully handle an incoming call.
+
+REQUEST
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+reservationId*: string
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+reservationId*: string
+Id of the verification that this call context is associated with.
+
+twilioContext*: {
+token*: string┃null
+Token used for establish a client call session.
+
+}
+}
+
+Wake Requests
+Get Wake Request
+get /api/pub/v2/wake-requests/{id}
+Get a wake request by ID.
+
+The details of a wake request include:
+
+isScheduled (Indicates if the wake request has been successfully created and enqueued.)
+usageWindowStart (The datetime when you can start using the reservation.)
+usageWindowEnd (The datetime when you will no longer be able to use the reservation.)
+Refer to the SCHEMA below for more details.
+
+To create a wake request, see Create Wake Request.
+
+REQUEST
+PATH PARAMETERS
+* id
+string
+ID of the wake request. If the wake request ID does not exist, a 404 response will be returned.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+id*: string
+The Id of this wake request.
+
+usageWindowStart*: date-time┃null
+The datetime after which the reservation will be woken up and ready for use. Your reservation will be active and receiving sms and calls after this datetime. This value will be 'null' if the wake request was not successfully scheduled.
+
+usageWindowEnd*: date-time┃null
+The datetime after which the wake request will end. Your line will become offline and no longer be receiving sms or calls after this datetime. You can then create another wake request to bring your reservation back online and being receiving sms and calls again. This value will be 'null' if the wake request was not successfully scheduled.
+
+isScheduled*: boolean
+Indicates whether or not the wake request was successfully scheduled. If a wake request fails to be scheduled, then you will have to submit a new wake request. Too many wake requests may result in wake request throttling.
+
+reservationId*: string┃null
+Id of the reservation that this wake request is associated with.
+
+}
+
+Wake Requests
+Create Wake Request
+post /api/pub/v2/wake-requests
+Create a wake request for a reservation. Some reservation types, including lines where alwaysOn=false, will require a wake request before the line reservation can be used.
+
+Creating a successful wake request will enqueue your request on that line reservation. To see the details of your wake request, see Get Wake Request.
+
+If successful, a 201 response will be returned with the location of the newly created wake request in the http response 'location' header.
+
+REQUEST
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+reservationId*: string
+The reservation Id to create a wake request for. If a valid reservation does not exist, a 400 response will be returned.
+
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+Created
+
+EXAMPLE
+SCHEMA
+
+text/plain
+object
+Single line description
+{
+method*: string┃null
+The HTTP method for this link.
+
+href*: string┃null
+The HTTP location of the resource.
+
+}
+
+Wake Requests
+Estimate Usage Window
+post /api/pub/v2/wake-requests/estimate
+Estimate the usage window for a reservation if you were to create a wake request now.
+
+Does NOT create a wake request. To create a wake request, see Create Wake Request.
+
+The details of an usage window estimate include:
+
+estimatedWindowStart (The estimated datetime when you can start using the reservation.)
+estimatedWindowEnd (The estimated datetime when you will no longer be able to use the reservation.)
+Refer to the SCHEMA below for more details.
+
+REQUEST
+REQUEST BODY
+application/json
+
+application/json
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+reservationId*: string
+The reservation Id to get the estimated usage window for. If a valid reservation does not exist, a 400 response will be returned.
+
+}
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+OK
+
+EXAMPLE
+SCHEMA
+application/json
+object
+Single line description
+{
+estimatedWindowStart*: date-time┃null
+The estimated datetime after which the reservation will be woken up and ready for use. Your reservation is estimated to be active and receiving sms and calls after this datetime. This value will be 'null' if the estimate was not successfully calculated.
+
+estimatedWindowEnd*: date-time┃null
+The estimated datetime after which a wake request will end. Your line is estimated to become offline and no longer be receiving sms or calls after this datetime. This value will be 'null' if the estimate was not successfully calculated.
+
+reservationId*: string
+Id of the reservation that this usage window estimate is associated with.
+
+}
+
+Webhooks
+List Webhook Events
+get /api/pub/v2/webhook-events
+Returns a list of webhook events that can be subscribed to. You will need to configure your API Webhook Settings and subscribe to events first.
+
+The schema of the webhook events are documented below. We serialize webhook event data using Json to the Data property. All of our webhooks are sent as a HTTP POST to the webhook uri configured on your account. We sign all of our webhooks with HMAC and SHA512 which should be validated by your server.
+
+Webhook validation:
+
+We sign all webhook requests using HMAC-SHA512 and your webhook secret (whsec_...). The signature HTTP Header is X-Webhook-Signature and the HTTP Value will be prefixed by the signing algorithm `HMAC-SHA512='. The signature after the prefix is BASE-64 encoded. The process for validating a signature is as follows:
+
+Extract the HTTP Header with the name X-Webhook-Signature.
+Remove the prefix HMAC-SHA512= from the HTTP Header value, which is obtained from step 1.
+This BASE-64 encoded value will be compared to the HTTP Request body hash later.
+Apply the HMAC-SHA512 hashing algorithm to the HTTP Request body to obtain a byte array.
+Apply BASE-64 encoding to the byte array (obtained from step 3).
+Compare the value from step 2 to the value from step 4 and verify that they are the same.
+Webhooks are automatically retried for a period of time with exponential back off. After multiple failed webhook send attempts, webhooks will be automatically disabled. If this happens, you will have to manually re-enable your webhooks again.
+
+REQUEST
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+CALLBACKS
+v2.rental.billingcycle.renewed
+⥄ post
+https://your.webhook-server.url/
+CALLBACK REQUEST
+REQUEST BODY
+application/json
+Triggers when a billing cycle on your account has renewed. Renewal of individual reservations on a billing cycle can occur independently.
+
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+attempt*: integer
+Send attempt count
+
+occurredAt*: date-time
+When the event occurred
+
+data*: {
+billingCycleId*: string
+Id of the billing cycle.
+
+}
+event*: string
+Name of the event
+
+id*: string
+Id of event
+
+}
+CALLBACK RESPONSE
+Your server implementation should return this HTTP status code if the data was received successfully.
+
+v2.rental.billingcycle.expired
+⥄ post
+https://your.webhook-server.url/
+CALLBACK REQUEST
+REQUEST BODY
+application/json
+Triggers when a billing cycle on your account has expired.
+
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+attempt*: integer
+Send attempt count
+
+occurredAt*: date-time
+When the event occurred
+
+data*: {
+billingCycleId*: string
+Id of the billing cycle.
+
+}
+event*: string
+Name of the event
+
+id*: string
+Id of event
+
+}
+CALLBACK RESPONSE
+Your server implementation should return this HTTP status code if the data was received successfully.
+
+v2.sms.received
+⥄ post
+https://your.webhook-server.url/
+CALLBACK REQUEST
+REQUEST BODY
+application/json
+Triggers when an sms is received and assigned to your account.
+
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+attempt*: integer
+Send attempt count
+
+occurredAt*: date-time
+When the event occurred
+
+data*: {
+from*: string┃null
+to*: string
+createdAt*: date-time
+smsContent*: string┃null
+parsedCode*: string┃null
+encrypted*: boolean
+True if the contents of the sms is encrypted at rest.
+
+reservationId*: string┃null
+The Id of the reservation that this sms was assigned to.
+
+}
+event*: string
+Name of the event
+
+id*: string
+Id of event
+
+}
+CALLBACK RESPONSE
+Your server implementation should return this HTTP status code if the data was received successfully.
+
+v2.rental.backorder.fulfilled
+⥄ post
+https://your.webhook-server.url/
+CALLBACK REQUEST
+REQUEST BODY
+application/json
+Triggers when a back order reservation is fulfilled.
+
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+attempt*: integer
+Send attempt count
+
+occurredAt*: date-time
+When the event occurred
+
+data*: {
+backOrderId*: string
+Id of the back order reservation.
+
+}
+event*: string
+Name of the event
+
+id*: string
+Id of event
+
+}
+CALLBACK RESPONSE
+Your server implementation should return this HTTP status code if the data was received successfully.
+
+v2.reservation.created
+⥄ post
+https://your.webhook-server.url/
+CALLBACK REQUEST
+REQUEST BODY
+application/json
+Triggers when a reservation is created.
+
+EXAMPLE
+SCHEMA
+object
+Single line description
+{
+attempt*: integer
+Send attempt count
+
+occurredAt*: date-time
+When the event occurred
+
+data*: {
+id*: string
+Id of the created reservation.
+
+type*: enum
+Allowed: verification┃rental
+}
+event*: string
+Name of the event
+
+id*: string
+Id of event
+
+}
+CALLBACK RESPONSE
+Your server implementation should return this HTTP status code if the data was received successfully.
+
+RESPONSE
+OK
+
+Legacy
+DEPRECATED
+Legacy Reservation Id Look Up
+get /api/pub/v2/legacy/reservation-id-lookup
+You can use this legacy endpoint for looking up the 'new' ID of a rental reservation (begins with the prefix 'lr_') by supplying a legacy ID (GUID/UUID format). This may be helpful when migration from our deprecated endpoints to our current endpoints. This endpoint will be removed in the future without notice.
+
+REQUEST
+QUERY-STRING PARAMETERS
+oldReservationId
+string
+The legacy reservation Id to look up which is formatted as a GUID/UUID. If the legacy ID supplied is invalid or not found, a 404 Not Found response will be returned.
+
+API Server
+https://www.textverified.com
+Authentication
+Required (None Applied)
+RESPONSE
+New ID of a reservation (begins with the prefix 'lr_')
+
+EXAMPLE
+SCHEMA
+text/plain
+Single line description
+: string

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useCurrency } from "@/lib/hooks/use-currency";
 import Link from "next/link";
 import { Users, Phone, Loader2 } from "lucide-react";
 
@@ -23,6 +24,7 @@ interface Stats {
 
 export default function AdminPage() {
   const { toast } = useToast();
+  const { format: formatCurrency, convert } = useCurrency();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [markup, setMarkup] = useState<number>(30);
@@ -32,10 +34,6 @@ export default function AdminPage() {
   const [phoneMarkupInput, setPhoneMarkupInput] = useState("400");
   const [updatingPhoneMarkup, setUpdatingPhoneMarkup] = useState(false);
   const [apiBalance, setApiBalance] = useState<string | null>(null);
-  const [apiBalanceOriginal, setApiBalanceOriginal] = useState<string | null>(null);
-  const [apiBalanceCurrency, setApiBalanceCurrency] = useState<string>("USD");
-  const [originalCurrency, setOriginalCurrency] = useState<string>("NGN");
-  const [displayCurrency, setDisplayCurrency] = useState<"USD" | "NGN">("USD");
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [syncingServices, setSyncingServices] = useState(false);
 
@@ -93,21 +91,12 @@ export default function AdminPage() {
       if (response.ok) {
         const data = await response.json();
         setApiBalance(data.balance || "0.00");
-        setApiBalanceOriginal(data.originalBalance || data.balance || "0.00");
-        setApiBalanceCurrency(data.currency || "USD");
-        setOriginalCurrency(data.originalCurrency || "NGN");
       } else {
         setApiBalance("0.00");
-        setApiBalanceOriginal("0.00");
-        setApiBalanceCurrency("USD");
-        setOriginalCurrency("NGN");
       }
     } catch (error) {
       console.error("Error fetching API balance:", error);
       setApiBalance("0.00");
-      setApiBalanceOriginal("0.00");
-      setApiBalanceCurrency("USD");
-      setOriginalCurrency("NGN");
     } finally {
       setBalanceLoading(false);
     }
@@ -266,38 +255,11 @@ export default function AdminPage() {
       {/* API Balance Card */}
       <Card className="rounded-2xl border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-900 shadow-sm">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-blue-900 dark:text-blue-100">API Account Balance</CardTitle>
-              <CardDescription className="text-blue-700 dark:text-blue-200">
-                Your therealowlet.com account balance
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-blue-700 dark:text-blue-200 font-medium">Currency:</span>
-              <div className="flex border border-blue-300/70 rounded-md overflow-hidden">
-                <button
-                  onClick={() => setDisplayCurrency("USD")}
-                  className={`px-3 py-1 text-sm font-medium transition-colors ${
-                    displayCurrency === "USD"
-                      ? "bg-blue-600 text-white"
-                      : "bg-white text-blue-700 hover:bg-blue-50 dark:bg-gray-900 dark:text-blue-200 dark:hover:bg-blue-900/30"
-                  }`}
-                >
-                  USD ($)
-                </button>
-                <button
-                  onClick={() => setDisplayCurrency("NGN")}
-                  className={`px-3 py-1 text-sm font-medium transition-colors border-l border-blue-300 ${
-                    displayCurrency === "NGN"
-                      ? "bg-blue-600 text-white"
-                      : "bg-white text-blue-700 hover:bg-blue-50 dark:bg-gray-900 dark:text-blue-200 dark:hover:bg-blue-900/30"
-                  }`}
-                >
-                  NGN (₦)
-                </button>
-              </div>
-            </div>
+          <div>
+            <CardTitle className="text-blue-900 dark:text-blue-100">API Account Balance</CardTitle>
+            <CardDescription className="text-blue-700 dark:text-blue-200">
+              Your therealowlet.com account balance in Naira
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -308,27 +270,8 @@ export default function AdminPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">
-                    {displayCurrency === "USD" ? "$" : "₦"}
-                    {displayCurrency === "USD"
-                      ? parseFloat(apiBalance || "0").toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })
-                      : parseFloat(apiBalanceOriginal || "0").toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                    {formatCurrency(convert(parseFloat(apiBalance || "0")))}
                   </p>
-                  {displayCurrency === "USD" && apiBalanceOriginal && (
-                    <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
-                      {parseFloat(apiBalanceOriginal || "0").toLocaleString()} {originalCurrency}
-                    </p>
-                  )}
-                  {displayCurrency === "NGN" && apiBalance && (
-                    <p className="text-sm text-blue-700 dark:text-blue-200 mt-1">
-                      ${parseFloat(apiBalance || "0").toFixed(2)} USD
-                    </p>
-                  )}
                 </div>
                 <Button onClick={fetchApiBalance} variant="outline" size="sm" className="bg-white/80 dark:bg-gray-900 border-blue-200/60">
                   Refresh
@@ -390,7 +333,7 @@ export default function AdminPage() {
                 <span className="text-gray-600">%</span>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Current markup: {markup}% | Example: $1.00 API cost = ${(1 * (1 + markup / 100)).toFixed(2)} customer price
+                Current markup: {markup}% | Example: {formatCurrency(convert(1))} API cost = {formatCurrency(convert(1 * (1 + markup / 100)))} customer price
               </p>
             </div>
             <Button onClick={handleUpdateMarkup} disabled={updatingMarkup} className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl">
@@ -423,7 +366,7 @@ export default function AdminPage() {
                 <span className="text-gray-600">%</span>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Current markup: {phoneMarkup}% | Example: $1.00 base cost = ${(1 * (1 + phoneMarkup / 100)).toFixed(2)} customer price
+                Current markup: {phoneMarkup}% | Example: {formatCurrency(convert(1))} base cost = {formatCurrency(convert(1 * (1 + phoneMarkup / 100)))} customer price
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-500">
                 Default: 400% (5x cost). This markup applies to monthly number rental fees.
@@ -443,7 +386,7 @@ export default function AdminPage() {
             <CardTitle className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-gray-800 dark:text-gray-100">${stats?.totalRevenue.toFixed(2) || "0.00"}</div>
+            <div className="text-3xl font-bold text-gray-800 dark:text-gray-100">{formatCurrency(convert(stats?.totalRevenue || 0))}</div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">All time</p>
           </CardContent>
         </Card>
@@ -454,7 +397,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-red-600">
-              ${stats?.totalCosts.toFixed(2) || "0.00"}
+              {formatCurrency(convert(stats?.totalCosts || 0))}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">API costs</p>
           </CardContent>
@@ -466,7 +409,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">
-              ${stats?.totalProfit.toFixed(2) || "0.00"}
+              {formatCurrency(convert(stats?.totalProfit || 0))}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Net profit</p>
           </CardContent>
@@ -499,12 +442,12 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">${stats?.thisMonthRevenue.toFixed(2) || "0.00"}</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">{formatCurrency(convert(stats?.thisMonthRevenue || 0))}</div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Revenue</p>
             </div>
             <div>
               <div className="text-2xl font-bold text-green-600">
-                ${stats?.thisMonthProfit.toFixed(2) || "0.00"}
+                {formatCurrency(convert(stats?.thisMonthProfit || 0))}
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Profit</p>
             </div>
@@ -517,12 +460,12 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">${stats?.lastMonthRevenue.toFixed(2) || "0.00"}</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">{formatCurrency(convert(stats?.lastMonthRevenue || 0))}</div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Revenue</p>
             </div>
             <div>
               <div className="text-2xl font-bold text-green-600">
-                ${stats?.lastMonthProfit.toFixed(2) || "0.00"}
+                {formatCurrency(convert(stats?.lastMonthProfit || 0))}
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Profit</p>
             </div>
@@ -564,13 +507,13 @@ export default function AdminPage() {
                       <div>
                         <p className="text-xs text-gray-400">Revenue</p>
                         <p className="font-semibold text-gray-800 dark:text-gray-100">
-                          ${parseFloat(order.customer_charge || order.charge || "0").toFixed(2)}
+                          {formatCurrency(convert(parseFloat(order.customer_charge || order.charge || "0")))}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-400">Profit</p>
                         <p className="font-medium text-green-600">
-                          ${parseFloat(order.profit || "0").toFixed(2)}
+                          {formatCurrency(convert(parseFloat(order.profit || "0")))}
                         </p>
                       </div>
                       <div>

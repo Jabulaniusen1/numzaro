@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
+import { textverifiedClient } from "@/lib/textverified/client";
 
 export async function GET() {
   try {
-    // Note: Textverified doesn't provide a balance API endpoint
-    // Balance tracking would need to be done through purchase history or manual entry
-    // Returning placeholder to prevent UI issues
+    const account = await textverifiedClient.getAccount();
     return NextResponse.json({
-      balance: "0.00",
+      balance: String(account.currentBalance ?? "0.00"),
       currency: "USD",
-      message: "Textverified provider balance not available via API"
+      username: account.username,
     });
   } catch (error) {
     console.error("Error in balance endpoint:", error);
@@ -19,4 +18,3 @@ export async function GET() {
     });
   }
 }
-

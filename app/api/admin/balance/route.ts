@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
+import { textverifiedClient } from "@/lib/textverified/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,12 +16,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Note: Textverified doesn't provide a balance API endpoint
-    // Balance tracking would need to be done through purchase history
+    const account = await textverifiedClient.getAccount();
     return NextResponse.json({
-      balance: "0.00",
+      balance: String(account.currentBalance ?? "0.00"),
       currency: "USD",
-      message: "Textverified provider balance not available via API",
+      username: account.username,
     });
   } catch (error) {
     console.error("Error fetching admin balance:", error);

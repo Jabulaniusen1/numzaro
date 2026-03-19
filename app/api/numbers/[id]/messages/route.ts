@@ -22,6 +22,18 @@ export async function GET(
       return NextResponse.json({ error: "Number not found" }, { status: 404 });
     }
 
+    // Sync messages from Textverified
+    if (number.provider === "textverified" && number.textverified_id) {
+      if (number.number_type === "rental") {
+        const { syncTextverifiedRental } = await import("@/lib/textverified/adapter");
+        const reservationType = number.product_code === "nonrenewable" ? "nonrenewable" : "renewable";
+        await syncTextverifiedRental(number.id, number.textverified_id, reservationType, supabase);
+      } else {
+        const { syncTextverifiedVerification } = await import("@/lib/textverified/adapter");
+        await syncTextverifiedVerification(number.id, number.textverified_id, supabase);
+      }
+    }
+
     // Sync messages from SMSPool
     if (number.provider === "smspool") {
       if (number.number_type === "rental" && number.rental_code) {

@@ -31,7 +31,7 @@ export function NumberPurchaseModal({
   onSuccess,
 }: NumberPurchaseModalProps) {
   const { toast } = useToast();
-  const { format, convert, currency, rate } = useCurrency();
+  const { format, convert } = useCurrency();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
@@ -52,7 +52,7 @@ export function NumberPurchaseModal({
         fetchOneTimePrice();
       }
     }
-  }, [open, number, currency, numberType, isIsrael]);
+  }, [open, number, numberType, isIsrael]);
 
   const fetchOneTimePrice = async () => {
     if (!number) return;
@@ -136,9 +136,8 @@ export function NumberPurchaseModal({
 
   if (!number) return null;
 
-  // Balance from API is always in NGN, convert to selected currency
-  const balanceInSelectedCurrency = walletBalance !== null
-    ? (currency === "USD" ? walletBalance / rate : walletBalance)
+  const balanceInNaira = walletBalance !== null
+    ? convert(walletBalance)
     : null;
 
   // Calculate actual cost based on number type
@@ -146,9 +145,8 @@ export function NumberPurchaseModal({
     ? (oneTimePrice || 0)
     : number.monthly_cost;
 
-  // Convert cost (USD) to selected currency for comparison
-  const costInSelectedCurrency = convert(actualCost);
-  const hasEnoughBalance = balanceInSelectedCurrency !== null && balanceInSelectedCurrency >= costInSelectedCurrency;
+  const costInNaira = convert(actualCost);
+  const hasEnoughBalance = balanceInNaira !== null && balanceInNaira >= costInNaira;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -215,13 +213,8 @@ export function NumberPurchaseModal({
             ) : (
               <>
                 <p className="text-2xl font-bold">
-                  {format(costInSelectedCurrency)} {currency}
+                  {format(costInNaira)}
                 </p>
-                {currency === "NGN" && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    ≈ ${actualCost.toFixed(2)} USD
-                  </p>
-                )}
                 {numberType === "subscription" && (
                   <p className="text-xs text-muted-foreground mt-1">
                     Additional charges apply per SMS received
@@ -239,16 +232,16 @@ export function NumberPurchaseModal({
           <div>
             <p className="text-sm text-muted-foreground">Wallet Balance</p>
             <p className="text-lg">
-              {balanceInSelectedCurrency === null
+              {balanceInNaira === null
                 ? "Loading..."
-                : format(balanceInSelectedCurrency)}
+                : format(balanceInNaira)}
             </p>
           </div>
 
-          {balanceInSelectedCurrency !== null && !hasEnoughBalance && (
+          {balanceInNaira !== null && !hasEnoughBalance && (
             <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-              Insufficient balance. You need {format(costInSelectedCurrency)} but have{" "}
-              {format(balanceInSelectedCurrency)}
+              Insufficient balance. You need {format(costInNaira)} but have{" "}
+              {format(balanceInNaira)}
             </div>
           )}
         </div>
@@ -272,7 +265,6 @@ export function NumberPurchaseModal({
     </Dialog>
   );
 }
-
 
 
 

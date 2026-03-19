@@ -23,6 +23,17 @@ export async function GET(
     }
 
     // Sync messages before returning OTPs
+    if (number.provider === "textverified" && number.textverified_id) {
+      if (number.number_type === "rental") {
+        const { syncTextverifiedRental } = await import("@/lib/textverified/adapter");
+        const reservationType = number.product_code === "nonrenewable" ? "nonrenewable" : "renewable";
+        await syncTextverifiedRental(number.id, number.textverified_id, reservationType, supabase);
+      } else {
+        const { syncTextverifiedVerification } = await import("@/lib/textverified/adapter");
+        await syncTextverifiedVerification(number.id, number.textverified_id, supabase);
+      }
+    }
+
     if (number.provider === "smspool") {
       if (number.number_type === "rental" && number.rental_code) {
         const { syncSmsPoolRental } = await import("@/lib/smspool/adapter");

@@ -100,10 +100,9 @@ export default function ServicesPage() {
   const [balance, setBalance]       = useState(0);
   const filterRef                   = useRef<HTMLDivElement>(null);
   const { toast }  = useToast();
-  const { format } = useCurrency();
+  const { format, convert } = useCurrency();
 
   useEffect(() => { fetchServices(); fetchBalance(); }, []);
-
   async function fetchServices() {
     try {
       setLoading(true); setError(null);
@@ -215,7 +214,7 @@ export default function ServicesPage() {
     if (charge > balance) {
       return toast({
         title: "Insufficient balance",
-        description: `Need ${format(charge)}, have ${format(balance)}`,
+        description: `Need ${format(convert(charge))}, have ${format(convert(balance))}`,
         variant: "destructive",
       });
     }
@@ -428,7 +427,7 @@ export default function ServicesPage() {
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{s.name}</p>
                                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                  <span className="text-xs text-gray-400">{format(s.rate)} / 1k</span>
+                                  <span className="text-xs text-gray-400">{format(convert(s.rate))} / 1k</span>
                                   {s.refill_allowed && (
                                     <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400">
                                       Refill
@@ -504,7 +503,7 @@ export default function ServicesPage() {
                   <div className="flex gap-5 mt-3">
                     <div>
                       <p className="text-[11px] opacity-60">Per 1,000</p>
-                      <p className="font-black text-base">{format(selectedService.rate)}</p>
+                      <p className="font-black text-base">{format(convert(selectedService.rate))}</p>
                     </div>
                     <div>
                       <p className="text-[11px] opacity-60">Range</p>
@@ -588,12 +587,12 @@ export default function ServicesPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-500">Total charge</span>
-                        <span className="text-xl font-black text-[#7C5CFC]">{format(charge)}</span>
+                        <span className="text-xl font-black text-[#7C5CFC]">{format(convert(charge))}</span>
                       </div>
                       <div className="pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-xs">
                         <span className="text-gray-400">Your balance</span>
                         <span className={cn("font-semibold", charge > balance ? "text-red-500" : "text-gray-500 dark:text-gray-400")}>
-                          {format(balance)}
+                          {format(convert(balance))}
                         </span>
                       </div>
                     </div>
@@ -606,7 +605,7 @@ export default function ServicesPage() {
                   >
                     {submitting
                       ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Placing Order…</>
-                      : <><ShoppingBag className="mr-2 h-4 w-4" />Place Order — {format(charge)}</>
+                      : <><ShoppingBag className="mr-2 h-4 w-4" />Place Order — {format(convert(charge))}</>
                     }
                   </Button>
                 </form>

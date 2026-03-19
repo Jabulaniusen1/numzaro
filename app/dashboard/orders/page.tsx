@@ -44,7 +44,7 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const { toast } = useToast();
-  const { format } = useCurrency();
+  const { format, convert } = useCurrency();
 
   useEffect(() => { fetchOrders(); }, [page, selectedStatus]);
 
@@ -181,7 +181,7 @@ export default function OrdersPage() {
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-right font-bold text-sm text-gray-800 dark:text-gray-100">
-                          {format(order.charge || 0)}
+                          {format(convert(order.charge || 0))}
                         </td>
                         <td className="py-3.5 px-5 text-right text-xs text-gray-400">
                           {new Date(order.created_at).toLocaleDateString()}
@@ -212,7 +212,7 @@ export default function OrdersPage() {
                     </a>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-400 text-xs">{order.quantity.toLocaleString()} items · {new Date(order.created_at).toLocaleDateString()}</span>
-                      <span className="font-black text-[#7C5CFC]">{format(order.charge || 0)}</span>
+                      <span className="font-black text-[#7C5CFC]">{format(convert(order.charge || 0))}</span>
                     </div>
                   </div>
                 ))}

@@ -37,6 +37,8 @@ export async function GET() {
     const data = countries.map((c) => ({
       code: String(c.ID),
       name: c.name,
+      shortCode: c.short_name,
+      dialCode: c.cc ?? null,
       flag: FLAG_MAP[c.name] ?? FLAG_MAP[c.short_name] ?? "🌍",
     }));
 

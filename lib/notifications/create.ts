@@ -13,6 +13,17 @@ interface NotificationData {
   [key: string]: any;
 }
 
+function formatNotificationAmount(amount: number, currency: string): string {
+  if (currency === "USD") {
+    const ngn = amount * 1500;
+    return `₦${ngn.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  if (currency === "NGN") {
+    return `₦${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return `${currency} ${amount.toFixed(2)}`;
+}
+
 /**
  * Create a notification
  */
@@ -62,20 +73,19 @@ export async function createTransactionNotification(
   };
 
   const messages: Record<string, (amount: number, currency: string) => string> = {
-    payment_received: (amount, currency) => `You received ${currency}${amount.toFixed(2)}`,
-    payment_sent: (amount, currency) => `You sent ${currency}${amount.toFixed(2)}`,
-    wallet_funded: (amount, currency) => `Your wallet was funded with ${currency}${amount.toFixed(2)}`,
-    order_placed: (amount, currency) => `Order placed for ${currency}${amount.toFixed(2)}`,
+    payment_received: (amount, currency) => `You received ${formatNotificationAmount(amount, currency)}`,
+    payment_sent: (amount, currency) => `You sent ${formatNotificationAmount(amount, currency)}`,
+    wallet_funded: (amount, currency) => `Your wallet was funded with ${formatNotificationAmount(amount, currency)}`,
+    order_placed: (amount, currency) => `Order placed for ${formatNotificationAmount(amount, currency)}`,
   };
 
   const currency = details.currency || "USD";
-  const symbol = currency === "USD" ? "$" : currency;
 
   await createNotification(
     userId,
     "transaction",
     titles[type] || "Transaction",
-    messages[type]?.(amount, symbol) || `${symbol}${amount.toFixed(2)} transaction`,
+    messages[type]?.(amount, currency) || `${formatNotificationAmount(amount, currency)} transaction`,
     {
       type,
       amount,
@@ -84,6 +94,5 @@ export async function createTransactionNotification(
     }
   );
 }
-
 
 
