@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import Link from "next/link";
-import { Search, RefreshCw, Info, Copy, Plus, Hourglass, Clock, Phone } from "lucide-react";
+import { Search, RefreshCw, Info, Copy, Plus, Hourglass, Clock, Phone, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrderTableRow } from "@/components/dashboard/OrderTableRow";
 import { cn, getFlag } from "@/lib/utils";
 import { format as dateFormat, differenceInSeconds, parseISO } from "date-fns";
 import { ServiceIcon, getServicePrettyName } from "@/components/dashboard/ServiceIcon";
+import { useRouter } from "next/navigation";
 
 function Countdown({ expiresAt }: { expiresAt: string | null }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -56,6 +57,7 @@ interface VirtualNumber {
   phone: string;
   operator: string;
   product: string;
+  product_code?: string;
   price: number;
   status: string;
   expires_at: string | null;
@@ -75,8 +77,10 @@ const STATUS_TABS = {
 export default function MyNumbersPage() {
   const { toast } = useToast();
   const { format: formatCurrency, convert } = useCurrency();
+  const router = useRouter();
   const [numbers, setNumbers] = useState<VirtualNumber[]>([]);
   const [loading, setLoading] = useState(true);
+  const [buyingAnother, setBuyingAnother] = useState(false);
   const [activeTab, setActiveTab] = useState<"active" | "history">("active");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -94,6 +98,7 @@ export default function MyNumbersPage() {
           phone: n.phone_number,
           operator: n.operator || "virtual",
           product: n.product || "activation",
+          product_code: n.product_code || undefined,
           price: n.monthly_cost || 0,
           status: n.status || "PENDING",
           expires_at: n.expires_at,
@@ -128,6 +133,93 @@ export default function MyNumbersPage() {
     }
   };
 
+  const findCountryIdForSmsPool = async (countryShortCode: string, countryName: string) => {
+    const res = await fetch("/api/smspool/countries", { cache: "no-store" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !Array.isArray(data)) {
+      throw new Error("Failed to resolve country for this number");
+    }
+
+    const normalizedShortCode = countryShortCode.trim().toUpperCase();
+    const byShortCode = data.find(
+      (country: any) => String(country?.shortCode || "").trim().toUpperCase() === normalizedShortCode
+    );
+    if (byShortCode?.code) return String(byShortCode.code);
+
+    const normalizedName = countryName.trim().toLowerCase();
+    const byName = data.find(
+      (country: any) => String(country?.name || "").trim().toLowerCase() === normalizedName
+    );
+    if (byName?.code) return String(byName.code);
+
+    return "";
+  };
+
+  const handleGetAnotherNumber = async () => {
+    if (buyingAnother) return;
+
+    if (!activeNumber) {
+      router.push("/dashboard/numbers");
+      return;
+    }
+
+    if (String(activeNumber.provider || "").toLowerCase() !== "smspool") {
+      router.push("/dashboard/numbers");
+      return;
+    }
+
+    const serviceCode = String(activeNumber.product_code || "").trim();
+    if (!serviceCode) {
+      toast({
+        title: "Cannot auto-generate yet",
+        description: "This number is missing service metadata. Please select service manually.",
+        variant: "destructive",
+      });
+      router.push("/dashboard/numbers");
+      return;
+    }
+
+    setBuyingAnother(true);
+    try {
+      const countryId = await findCountryIdForSmsPool(activeNumber.country_code, activeNumber.country_name);
+      if (!countryId) throw new Error("Could not resolve country for this number");
+
+      const purchaseRes = await fetch("/api/numbers/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceCode,
+          serviceName: activeNumber.product,
+          country: countryId,
+          countryName: activeNumber.country_name,
+          countryShortCode: activeNumber.country_code,
+        }),
+      });
+
+      const purchaseData = await purchaseRes.json().catch(() => null);
+      if (!purchaseRes.ok) {
+        throw new Error(purchaseData?.error || "Failed to generate another number");
+      }
+
+      toast({
+        title: "New number ready",
+        description: `${purchaseData?.number?.phone_number || "Your new number"} has been generated`,
+      });
+
+      setActiveTab("active");
+      setSearchQuery("");
+      await fetchNumbers();
+    } catch (err: any) {
+      toast({
+        title: "Get another number failed",
+        description: err?.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setBuyingAnother(false);
+    }
+  };
+
   const filtered = numbers.filter((n) => {
     const matchSearch = !searchQuery || n.phone.toLowerCase().includes(searchQuery.toLowerCase());
     const matchTab = STATUS_TABS[activeTab].includes(n.status.toUpperCase());
@@ -148,11 +240,15 @@ export default function MyNumbersPage() {
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Virtual numbers you've purchased</p>
           </div>
-          <Link href="/dashboard/numbers">
-            <Button size="sm" className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl gap-1.5">
-              <Phone className="h-3.5 w-3.5" /> Buy Number
-            </Button>
-          </Link>
+          <Button
+            size="sm"
+            onClick={handleGetAnotherNumber}
+            disabled={buyingAnother}
+            className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl gap-1.5"
+          >
+            {buyingAnother ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Phone className="h-3.5 w-3.5" />}
+            {buyingAnother ? "Generating..." : "Get another number"}
+          </Button>
         </div>
 
         {/* Tabs */}
@@ -311,7 +407,7 @@ export default function MyNumbersPage() {
               <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3">No numbers found</p>
               <Link href="/dashboard/numbers">
                 <Button size="sm" className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl">
-                  Buy a Number
+                  Get another number
                 </Button>
               </Link>
             </div>

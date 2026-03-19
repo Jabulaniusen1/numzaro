@@ -30,6 +30,7 @@ interface Pricing {
   price: number;
   rawPrice: number;
   available: number | null;
+  successRate: number | null;
 }
 type Step = "service" | "country" | "confirm";
 
@@ -203,6 +204,10 @@ export default function NumbersPage() {
 
   const currentPrice = pricing ? pricing.price : null;
   const currentAvailable = pricing ? pricing.available : null;
+  const currentSuccessRate =
+    pricing && typeof pricing.successRate === "number" && !Number.isNaN(pricing.successRate)
+      ? pricing.successRate
+      : null;
 
   return (
     <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
@@ -434,6 +439,23 @@ export default function NumbersPage() {
                         </span>
                       </div>
                     )}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Success rate</span>
+                      <span
+                        className={cn(
+                          "font-bold",
+                          currentSuccessRate === null
+                            ? "text-gray-400"
+                            : currentSuccessRate >= 85
+                              ? "text-green-600"
+                              : currentSuccessRate >= 70
+                                ? "text-amber-600"
+                                : "text-red-500"
+                        )}
+                      >
+                        {currentSuccessRate === null ? "Not available" : `${Math.round(currentSuccessRate)}%`}
+                      </span>
+                    </div>
                   </>
                 )}
 
@@ -448,24 +470,41 @@ export default function NumbersPage() {
               </div>
             </div>
 
-            <Button
-              onClick={handlePurchase}
-              disabled={
-                purchasing ||
-                loadingPricing ||
-                !pricing ||
-                currentAvailable === 0
-              }
-              className="w-full bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white h-14 text-base font-bold shadow-lg shadow-violet-200 dark:shadow-none rounded-2xl"
-            >
-              {purchasing ? (
-                <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Processing...</>
-              ) : currentPrice !== null ? (
-                `Buy ${selectedService.name} Number — ${formatCurrency(convert(currentPrice))}`
-              ) : (
-                "Select options above"
-              )}
-            </Button>
+            <div className="space-y-2">
+              <Button
+                onClick={handlePurchase}
+                disabled={
+                  purchasing ||
+                  loadingPricing ||
+                  !pricing ||
+                  currentAvailable === 0
+                }
+                className="w-full bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white h-14 text-base font-bold shadow-lg shadow-violet-200 dark:shadow-none rounded-2xl"
+              >
+                {purchasing ? (
+                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Processing...</>
+                ) : currentPrice !== null ? (
+                  <span className="block w-full truncate px-1 text-center">
+                    {`Buy ${selectedService.name} Number — ${formatCurrency(convert(currentPrice))}${currentSuccessRate !== null ? ` • ${Math.round(currentSuccessRate)}% success` : ""}`}
+                  </span>
+                ) : (
+                  "Select options above"
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={purchasing}
+                onClick={() => {
+                  setSelectedCountry(null);
+                  setPricing(null);
+                  setStep("country");
+                }}
+                className="w-full h-11 rounded-2xl border-gray-200 dark:border-gray-700"
+              >
+                Find another number
+              </Button>
+            </div>
           </div>
         )}
 

@@ -20,6 +20,11 @@ This file is the NEW changeset to apply on top of the original
    - Long-term rental = Textverified/Grizzly flow
 4. One-time purchase is forced to highest success-rate mode:
    - `pricing_option = 1` in SMSPool purchase call.
+5. One-time confirm screen now shows `successRate` clearly before purchase.
+6. "Find another number" UX was added:
+   - Before purchase: user can switch quickly to fetch another option.
+   - After purchase: user can tap "Get another number" for instant re-buy.
+7. Buy CTA text must truncate in UI if service names are long.
 
 ================================================================================
   2) DIRECT SUPABASE VS API ROUTES (UPDATED)
@@ -94,6 +99,14 @@ Step 3: get pricing for selected service+country
   - `rawPrice`
   - `successRate` (for display)
 
+Step 3 UI requirement:
+- Always show `successRate` near the buy CTA while user is about to purchase.
+- Suggested display:
+  - Green: `>= 85%`
+  - Amber: `70% - 84%`
+  - Red: `< 70%`
+  - Fallback label when missing: "Not available"
+
 Step 4: purchase
 - `POST /api/numbers/purchase` body:
   {
@@ -106,6 +119,31 @@ Step 4: purchase
 
 Highest success-rate guarantee:
 - Server purchase uses SMSPool `pricing_option=1` (highest success route).
+
+Step 5: "Get another number" (instant re-buy from active number screen)
+- Goal: Generate a fresh number immediately with one tap.
+- Use current active number metadata:
+  - `product_code` as `serviceCode`
+  - `product` as `serviceName`
+  - `country_code` + `country_name`
+- Resolve SMSPool `country` ID first:
+  - `GET /api/smspool/countries`
+  - match by `shortCode` (preferred), then by name fallback
+- Then call:
+  - `POST /api/numbers/purchase`
+  - body:
+    {
+      "serviceCode": "{active.product_code}",
+      "serviceName": "{active.product}",
+      "country": "{resolvedCountryId}",
+      "countryName": "{active.country_name}",
+      "countryShortCode": "{active.country_code}"
+    }
+- UX behavior:
+  - show loading state, e.g. "Generating..."
+  - on success: toast/snackbar + refresh active numbers list
+  - on failure: show API error and allow retry
+  - if metadata missing: route user to manual buy flow
 
 ================================================================================
   5) RENTAL FLOW (UPDATED)
@@ -182,6 +220,8 @@ Add/update helpers:
 - `fetchSmsPoolCountries()`
 - `fetchSmsPoolPricing(service, country)`
 - `purchaseOneTimeNumber(payload)`
+- `resolveSmsPoolCountryId(shortCode, countryName)`
+- `purchaseAnotherFromActiveNumber(activeNumber)`
 - `fetchRentalServices(page, limit, reservationType)`
 - `fetchRentalCountries()`
 - `fetchRentalPricing(service, country, isRenewable)`
@@ -196,6 +236,8 @@ Add/update helpers:
 - Ensure one-time purchase screen uses SMSPool activation endpoints only.
 - Keep showing NGN as primary currency in all cards/lists/modals.
 - Show success-rate badge when `successRate` exists in activation pricing response.
+- Add "Get another number" instant action in active-number screen.
+- Truncate buy button text so long service names do not overflow.
 - Test cancel/sync/finish flows for active numbers.
 - Test Korra unavailable scenario (fallback rates still return usable values).
 
@@ -210,6 +252,9 @@ Add/update helpers:
 5. Price labels across buy/rental/order screens are NGN.
 6. Payment verification still credits wallet (USD storage, NGN display).
 7. If Korra is unavailable, rates still resolve via fallback without app crash.
+8. Success rate is visible before user confirms one-time purchase.
+9. "Get another number" instantly buys a new number from active-number screen.
+10. Buy CTA text truncates correctly on small screens (no overflow).
 
 ================================================================================
   END OF V2 UPDATE FILE
