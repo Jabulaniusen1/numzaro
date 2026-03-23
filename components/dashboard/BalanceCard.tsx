@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,7 +54,7 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
         throw new Error(error.error || "Failed to initialize payment");
       }
 
-      const { access_code, reference, email: userEmail } = await response.json();
+      const { reference, email: userEmail } = await response.json();
       
       // Convert amount to smallest currency unit for Paystack (Naira uses kobo, 100 kobo = 1 Naira)
       const amountInSmallestUnit = Math.round(fundAmount * 100);
@@ -136,8 +135,8 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="w-full" variant="default">
-          Fund Wallet
+        <Button size="sm" className="h-6 px-2 text-xs bg-violet-500 hover:bg-violet-600 text-white rounded-lg shrink-0">
+          + Fund
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -212,9 +211,7 @@ export function BalanceCard() {
 
   useEffect(() => {
     fetchBalance();
-    // Refresh balance every 30 seconds
     const interval = setInterval(fetchBalance, 30000);
-    // Listen for custom event to refresh balance
     const handleRefresh = () => fetchBalance();
     window.addEventListener("wallet:refresh", handleRefresh);
     return () => {
@@ -224,27 +221,17 @@ export function BalanceCard() {
   }, []);
 
   return (
-    <Card className="border-2 border-primary/20 dark:border-primary/30 bg-gradient-to-br from-primary/10 via-secondary/10 to-purple-500/10 dark:from-primary/20 dark:via-secondary/20 dark:to-purple-500/20 shadow-lg">
-      <CardHeader>
-        <CardTitle className="text-primary dark:text-primary">Account Balance</CardTitle>
-        <CardDescription className="text-primary/70 dark:text-primary/70">Your current account balance</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {loading ? (
-          <Skeleton className="h-9 w-48 bg-primary/20" />
-        ) : (
-          <div className="flex items-center gap-2">
-            <div className="p-3 rounded-lg bg-gradient-to-br from-primary to-secondary">
-              <TrendingUp className="h-6 w-6 text-white" />
-            </div>
-            <p className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              {balance !== null ? format(balance) : format(0)}
-            </p>
-          </div>
-        )}
-        <FundWalletButton onFunded={fetchBalance} />
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 shadow-sm">
+      <TrendingUp className="h-4 w-4 text-violet-500 shrink-0" />
+      {loading ? (
+        <Skeleton className="h-4 w-20" />
+      ) : (
+        <span className="text-sm font-bold text-gray-800 dark:text-gray-100 whitespace-nowrap">
+          {balance !== null ? format(balance) : format(0)}
+        </span>
+      )}
+      <FundWalletButton onFunded={fetchBalance} />
+    </div>
   );
 }
 

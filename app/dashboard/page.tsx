@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { BalanceCard } from "@/components/dashboard/BalanceCard";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
-import { ShoppingBag, Phone, Package, Bell, ArrowRight, Loader2, RefreshCw, Calendar } from "lucide-react";
+import { ShoppingBag, Phone, Package, ArrowRight, Loader2, RefreshCw, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const QUICK_LINKS = [
@@ -39,13 +39,6 @@ const QUICK_LINKS = [
     label: "My Orders",
     description: "View and track your orders",
     gradient: "from-cyan-500 to-teal-500",
-  },
-  {
-    href: "/dashboard/notifications",
-    icon: Bell,
-    label: "Notifications",
-    description: "Alerts and updates",
-    gradient: "from-violet-500 to-purple-600",
   },
 ];
 
@@ -135,34 +128,34 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
       <div className="px-4 pt-4 pb-2 md:px-6 md:pt-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
-            Dashboard
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Welcome back, {profile?.full_name?.split(" ")[0] || "there"} 👋
-          </p>
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
+              Dashboard
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              Welcome back, {profile?.full_name?.split(" ")[0] || "there"} 👋
+            </p>
+          </div>
+          <div className="shrink-0 mt-1">
+            <BalanceCard />
+          </div>
         </div>
 
-        {/* Balance */}
-        <div className="mb-6">
-          <BalanceCard />
-        </div>
-
-        {/* Quick Links */}
+        {/* Quick Links — hero */}
         <div className="mb-6">
           <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-            Quick Access
+            What would you like to do?
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {QUICK_LINKS.map(({ href, icon: Icon, label, description, gradient }) => (
               <Link key={href} href={href}>
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 hover:border-[#7C5CFC] hover:shadow-md hover:shadow-violet-100 dark:hover:shadow-violet-900/20 transition-all group cursor-pointer">
-                  <div className={cn("w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center mb-3", gradient)}>
-                    <Icon className="h-5 w-5 text-white" />
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 hover:border-[#7C5CFC] hover:shadow-lg hover:shadow-violet-100 dark:hover:shadow-violet-900/20 transition-all group cursor-pointer h-full">
+                  <div className={cn("w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center mb-4", gradient)}>
+                    <Icon className="h-6 w-6 text-white" />
                   </div>
                   <p className="font-bold text-sm text-gray-800 dark:text-gray-100 group-hover:text-[#7C5CFC] transition-colors">{label}</p>
-                  <p className="text-xs text-gray-400 mt-0.5 leading-tight">{description}</p>
+                  <p className="text-xs text-gray-400 mt-1 leading-tight">{description}</p>
                 </div>
               </Link>
             ))}
