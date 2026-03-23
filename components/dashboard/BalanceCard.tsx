@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Eye, EyeOff } from "lucide-react";
 
 function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -193,6 +193,7 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
 export function BalanceCard() {
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hidden, setHidden] = useState(false);
   const { format } = useCurrency();
 
   const fetchBalance = async () => {
@@ -225,11 +226,20 @@ export function BalanceCard() {
       <TrendingUp className="h-4 w-4 text-violet-500 shrink-0" />
       {loading ? (
         <Skeleton className="h-4 w-20" />
+      ) : hidden ? (
+        <span className="text-sm font-bold text-gray-400 dark:text-gray-500 tracking-widest whitespace-nowrap">••••••</span>
       ) : (
         <span className="text-sm font-bold text-gray-800 dark:text-gray-100 whitespace-nowrap">
           {balance !== null ? format(balance) : format(0)}
         </span>
       )}
+      <button
+        onClick={() => setHidden((h) => !h)}
+        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+        aria-label={hidden ? "Show balance" : "Hide balance"}
+      >
+        {hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+      </button>
       <FundWalletButton onFunded={fetchBalance} />
     </div>
   );
