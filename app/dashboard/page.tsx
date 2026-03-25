@@ -34,7 +34,7 @@ const QUICK_LINKS = [
     gradient: "from-blue-500 to-cyan-500",
   },
   {
-    href: "/dashboard/eSim",
+    href: "/dashboard/esim",
     icon: Phone,
     label: "eSIM",
     description: "View and track your eSIM packages",
