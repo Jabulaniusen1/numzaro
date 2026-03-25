@@ -34,10 +34,10 @@ const QUICK_LINKS = [
     gradient: "from-blue-500 to-cyan-500",
   },
   {
-    href: "/dashboard/orders",
+    href: "/dashboard/eSim",
     icon: Package,
-    label: "My Orders",
-    description: "View and track your orders",
+    label: "eSIM",
+    description: "View and track your eSIM packages",
     gradient: "from-cyan-500 to-teal-500",
   },
 ];
