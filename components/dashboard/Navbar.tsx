@@ -21,6 +21,7 @@ const NAV_LINKS = [
   { href: "/dashboard/services",        label: "Boost Socials", icon: ShoppingBag     },
   { href: "/dashboard/numbers",         label: "Numbers",       icon: Phone           },
   { href: "/dashboard/orders",          label: "Orders",        icon: Package         },
+  { href: "/dashboard/esim",            label: "eSIM",          icon: Phone           },
   { href: "/dashboard/transactions",    label: "Transactions",  icon: Receipt         },
 ];
 
