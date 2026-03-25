@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { BalanceCard } from "@/components/dashboard/BalanceCard";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
-import { ShoppingBag, Phone, Package, ArrowRight, Loader2, RefreshCw, Calendar } from "lucide-react";
+import { ShoppingBag, Phone, ArrowRight, Loader2, RefreshCw, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const QUICK_LINKS = [
