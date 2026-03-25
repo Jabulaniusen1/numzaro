@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { BalanceCard } from "@/components/dashboard/BalanceCard";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
-import { ShoppingBag, Phone, ArrowRight, Loader2, RefreshCw, Calendar } from "lucide-react";
+import { ShoppingBag, Phone, Wifi, ArrowRight, Loader2, RefreshCw, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const QUICK_LINKS = [
@@ -35,7 +35,7 @@ const QUICK_LINKS = [
   },
   {
     href: "/dashboard/esim",
-    icon: Phone,
+    icon: Wifi,
     label: "eSIM",
     description: "View and track your eSIM packages",
     gradient: "from-cyan-500 to-teal-500",

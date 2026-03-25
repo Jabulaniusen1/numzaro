@@ -1,0 +1,378 @@
+================================================================================
+  MOBILE APP INSTRUCTIONS (V3) — eSIM Data Plans Integration
+  Base docs: mobile-app-instructions.txt + mobile-app-instructions-v2.txt
+================================================================================
+
+This file is the NEW changeset to apply on top of V1 and V2.
+It covers the eSIM data plan feature powered by the eSIM Access partner API.
+
+================================================================================
+  1) WHAT'S NEW (SUMMARY)
+================================================================================
+
+1. New feature: users can buy eSIM data plans directly in the app.
+2. Provider: eSIM Access (https://esimaccess.com) — partner API.
+3. New DB table: `esim_orders` (stores purchased eSIMs + QR codes).
+4. Markup: server applies a configurable markup (default 30%) on top of
+   provider cost. Mobile should ALWAYS use the `chargedUsd` price from API.
+5. Pricing unit: provider returns price as integer (10000 = $1.00).
+   All prices returned to mobile are already converted to USD (chargedUsd).
+6. Real-time status updates come via webhooks — DB is always the source of truth.
+7. Data usage is updated by provider every 2–3 hours (not real-time).
+
+================================================================================
+  2) NEW API ROUTES
+================================================================================
+
+All routes require auth (Bearer token or session cookie, same as other routes).
+
+─── Packages ───────────────────────────────────────────────────────────────────
+
+POST /api/esim/packages
+  Body (all optional):
+    { "locationCode": "JP" }   // Alpha-2 ISO country code or region code
+                               // e.g. "JP", "US", "EU-42", "!GL" (global), "!RG" (regional)
+  Response:
+    {
+      "packages": [
+        {
+          "packageCode": "JC016",
+          "slug": "AU_1_7",
+          "name": "Japan 1GB 30 Days",
+          "price": 10000,            // raw provider units (ignore this)
+          "currencyCode": "USD",
+          "volume": 1073741824,      // bytes (raw)
+          "duration": 30,
+          "durationUnit": "DAY",
+          "location": "JP",
+          "priceUsd": 1.00,          // provider cost in USD (before markup)
+          "chargedUsd": 1.30,        // USE THIS — what user is charged (markup applied)
+          "dataFormatted": "1.0 GB"  // human-readable data volume
+        },
+        ...
+      ]
+    }
+
+  Notes:
+  - Send empty body `{}` to get all available packages.
+  - Filter by locationCode to narrow results (recommended for UX).
+  - Response can be large (200+ plans) — paginate on the mobile side.
+
+─── Purchase ────────────────────────────────────────────────────────────────────
+
+POST /api/esim/order
+  Body:
+    {
+      "packageCode": "JC016",              // from packages list
+      "packageName": "Japan 1GB 30 Days", // for display / DB record
+      "location": "JP",                   // location code
+      "duration": "30 DAY",               // duration string for display
+      "dataVolume": "1.0 GB",             // dataFormatted from package
+      "providerPrice": 10000              // raw `price` field from packages list
+    }
+  Response (success):
+    {
+      "success": true,
+      "order": {
+        "id": "uuid",
+        "package_name": "Japan 1GB 30 Days",
+        "location": "JP",
+        "duration": "30 DAY",
+        "data_volume": "1.0 GB",
+        "order_no": "B23072016497499",
+        "esim_tran_no": "25031120490003",
+        "iccid": "89852246280001113119",
+        "qr_code_url": "https://...",
+        "ac": "LPA:1$...",              // activation code
+        "smdp_address": "rsp.truphone.com",
+        "status": "got_resource",
+        "esim_status": "GOT_RESOURCE",
+        "provider_cost": 1.00,
+        "charged_amount": 1.30,
+        "created_at": "2025-03-25T..."
+      }
+    }
+  Response (error):
+    { "error": "Insufficient balance. Required: $1.30, Available: $0.50" }
+
+  Notes:
+  - Wallet is debited immediately on purchase.
+  - A push notification is sent on success.
+  - If eSIM is not immediately ready, status may be "pending" — it will
+    update via webhook to "got_resource" when the QR code is available.
+
+─── List User's eSIMs ───────────────────────────────────────────────────────────
+
+GET /api/esim/orders?page=1&limit=20
+  Response:
+    {
+      "orders": [ { ...esim_order fields... } ],
+      "pagination": {
+        "page": 1,
+        "limit": 20,
+        "total": 42,
+        "totalPages": 3
+      }
+    }
+
+─── Data Usage ──────────────────────────────────────────────────────────────────
+
+POST /api/esim/usage
+  Body (one of):
+    { "orderId": "uuid" }           // preferred — looks up esimTranNo from DB
+    { "esimTranNo": "25031120..." } // or supply directly
+  Response:
+    {
+      "usage": {
+        "esimTranNo": "25031120490003",
+        "dataUsedBytes": 1453344832,
+        "totalDataBytes": 5368709120,
+        "dataUsedFormatted": "1.4 GB",
+        "totalDataFormatted": "5.0 GB",
+        "remainingBytes": 3915364288,
+        "remainingFormatted": "3.6 GB",
+        "percentUsed": 27.1,
+        "lastUpdateTime": "2025-03-19T18:00:00+0000"
+      }
+    }
+
+  Notes:
+  - Usage is updated by provider every 2–3 hours. Show lastUpdateTime to user.
+  - Only relevant when status is "got_resource", "in_use", or "used_up".
+
+================================================================================
+  3) esim_orders TABLE SCHEMA (Supabase)
+================================================================================
+
+Table: esim_orders
+RLS: users can SELECT their own rows (user_id = auth.uid()).
+     All writes go through API routes (service role).
+
+Column            Type      Notes
+─────────────────────────────────────────────────────────────────────────────
+id                uuid      Primary key
+user_id           uuid      FK → users.id
+package_code      text      eSIM Access package code (e.g. "JC016")
+package_name      text      Human-readable plan name
+location          text      Country/region code (e.g. "JP", "EU-42")
+duration          text      e.g. "30 DAY"
+data_volume       text      e.g. "1.0 GB"
+order_no          text      eSIM Access orderNo (e.g. "B23072016497499")
+esim_tran_no      text      eSIM Access transaction number
+iccid             text      SIM card identifier
+qr_code_url       text      URL to QR code image
+ac                text      Activation code (LPA:1$...)
+smdp_address      text      SM-DP+ server address
+transaction_id    text      Our unique ID sent to provider (for idempotency)
+status            text      Local status (see status values below)
+esim_status       text      Raw status string from eSIM Access
+smdp_status       text      SM-DP+ server status
+provider_cost     numeric   Provider cost in USD
+charged_amount    numeric   Amount deducted from user wallet (USD with markup)
+created_at        timestamptz
+updated_at        timestamptz
+
+Status values (local `status` field):
+  pending          Order placed, waiting for eSIM to be provisioned
+  got_resource     eSIM ready — QR code available for installation
+  in_use           User has installed and activated eSIM on a device
+  used_up          Data fully consumed
+  used_expired     Data used up AND plan expired
+  unused_expired   Plan expired with data remaining
+  cancelled        eSIM cancelled/refunded
+  failed           Purchase failed
+
+================================================================================
+  4) eSIM PURCHASE FLOW (SCREEN BY SCREEN)
+================================================================================
+
+Screen 1: eSIM Plans List
+─────────────────────────
+- Call: POST /api/esim/packages (body: {} or { locationCode })
+- Show packages in a paginated list/grid (recommend 12–20 per page, client-side).
+- Each card shows: plan name, location, data (dataFormatted), validity (duration + durationUnit), price (chargedUsd in USD or convert to NGN).
+- Provide a country/region filter input (Alpha-2 code: "JP", "US", "GB", etc.)
+  or common region chips: "Global", "Europe", "Asia", "Americas", "Africa".
+- Common region codes:
+    !GL = Global
+    !RG = Regional
+    EU-42 = Europe (40+ countries)
+    AS-31 = Asia (30+ countries)
+    NA-3  = North America (US, CA, MX)
+    AF-29 = Africa (25+ countries)
+    ME-13 = Middle East
+    GL-144 = Global (140+ countries)
+
+Screen 2: Plan Details / Confirm Purchase Modal
+────────────────────────────────────────────────
+- Show: plan name, location, data, validity, total price (chargedUsd).
+- Check wallet balance before showing confirm button.
+  - If balance insufficient: show "Top Up Wallet" button instead.
+- On confirm: POST /api/esim/order (with packageCode, packageName, location,
+  duration, dataVolume, providerPrice — use raw `price` from packages response).
+- Show loading state during purchase ("Purchasing eSIM...").
+- On success: navigate to eSIM detail screen showing QR code.
+- On error: show error message, allow retry.
+
+Screen 3: My eSIMs (List)
+──────────────────────────
+- Call: GET /api/esim/orders?page=1&limit=20
+- Show status badge, plan name, location, data, price, date.
+- Tap row → go to eSIM Detail screen.
+- Paginate with page controls.
+
+Screen 4: eSIM Detail Screen
+─────────────────────────────
+- Show all order fields.
+- QR Code section:
+  - Display qr_code_url as an image (large, scannable).
+  - If qr_code_url is null: show "QR code not yet available. Please wait."
+  - Add a "Save QR Code" button to download/share the image.
+- Manual Installation section (show if ac or smdp_address is available):
+  - SM-DP+ Address: smdp_address (tap to copy)
+  - Activation Code: ac (tap to copy)
+  - ICCID: iccid (tap to copy)
+- Data Usage section (show if status is got_resource, in_use, or used_up):
+  - Call POST /api/esim/usage { orderId }
+  - Show: progress bar (percentUsed), used/total, remaining, lastUpdateTime.
+  - Add "Refresh Usage" button.
+  - Show note: "Usage data updates every 2–3 hours."
+- Installation Instructions:
+  - "Go to Settings → Cellular → Add eSIM → Use QR Code"
+  - (or manual: enter SM-DP+ Address + Activation Code)
+
+================================================================================
+  5) STATUS DISPLAY GUIDE
+================================================================================
+
+status            Label           Color
+────────────────────────────────────────────────
+pending           Pending         Purple
+got_resource      Ready           Blue
+in_use            Active          Green
+used_up           Used Up         Gray
+used_expired      Expired         Amber
+unused_expired    Expired         Amber
+cancelled         Cancelled       Red
+failed            Failed          Red
+
+================================================================================
+  6) REAL-TIME STATUS VIA WEBHOOKS (NOTIFICATIONS)
+================================================================================
+
+Users receive push notifications when:
+  - eSIM status changes to "in_use"  → "Your eSIM is now active and in use."
+  - eSIM status changes to "used_up" → "Your eSIM data has been fully consumed."
+  - eSIM is cancelled                → "Your eSIM has been cancelled."
+  - Data usage hits 50%, 20%, 10%   → "Only X% of your data remaining."
+  - eSIM expires in 1 day           → "{Plan name} expires in 1 day."
+
+These arrive via the existing notifications system (notifications table).
+No extra mobile work needed — handle them the same way as other notifications.
+
+When a notification is tapped:
+- type = "esim_purchased" → open eSIM detail screen for esim_order_id
+- type = "esim_status_update" → open eSIM detail screen for esim_order_id
+- type = "esim_data_usage" → open eSIM detail screen for esim_order_id
+- type = "esim_expiring" → open eSIM detail screen for esim_order_id
+
+================================================================================
+  7) DIRECT SUPABASE vs API ROUTES
+================================================================================
+
+DIRECT SUPABASE (safe, RLS protected):
+  - Read esim_orders for current user (list + detail)
+  - Read notifications
+
+MUST USE API ROUTES:
+  - POST /api/esim/packages  (fetches from provider + applies markup)
+  - POST /api/esim/order     (purchase — deducts wallet, calls provider)
+  - POST /api/esim/usage     (calls provider for real-time usage data)
+
+================================================================================
+  8) BALANCE CHECK BEFORE PURCHASE
+================================================================================
+
+Before letting user confirm an eSIM purchase:
+1. Fetch wallet balance (existing: GET /api/user/balance → returns NGN).
+2. Convert chargedUsd to NGN using current rate (GET /api/currency/rate?from=USD&to=NGN).
+3. If balance < required amount: show "Insufficient balance" and a "Top Up" button.
+4. If balance is sufficient: show "Confirm Purchase" button with total in NGN.
+
+The server also enforces this check — on insufficient balance, /api/esim/order
+returns HTTP 402 with an error message.
+
+================================================================================
+  9) ENVIRONMENT VARIABLES (NEW)
+================================================================================
+
+Server-side (Next.js) — do NOT expose to mobile:
+  ESIMACCESS_ACCESS_CODE=your_access_code_from_esimaccess
+
+Optional:
+  ESIMACCESS_ENFORCE_IP_WHITELIST=true   // Enables IP validation on webhook
+
+Mobile env: no new variables needed.
+
+================================================================================
+  10) API CLIENT HELPERS TO ADD (lib/api.ts or equivalent)
+================================================================================
+
+// Fetch available eSIM packages (with optional country filter)
+fetchEsimPackages(locationCode?: string) -> POST /api/esim/packages
+
+// Purchase an eSIM plan
+purchaseEsim(payload: {
+  packageCode: string,
+  packageName: string,
+  location: string,
+  duration: string,
+  dataVolume: string,
+  providerPrice: number   // raw `price` from package
+}) -> POST /api/esim/order
+
+// List user's purchased eSIMs
+fetchEsimOrders(page: number, limit: number) -> GET /api/esim/orders
+
+// Check data usage for an eSIM
+fetchEsimUsage(orderId: string) -> POST /api/esim/usage
+
+================================================================================
+  11) MIGRATION CHECKLIST FOR MOBILE TEAM
+================================================================================
+
+- [ ] Add eSIM Plans screen (packages list with country/region filter + pagination).
+- [ ] Add Purchase Confirm modal (show plan summary + chargedUsd price + wallet balance check).
+- [ ] Add My eSIMs screen (list from /api/esim/orders, paginated).
+- [ ] Add eSIM Detail screen (QR image, copy fields, usage bar, status badge).
+- [ ] Handle all status values with correct label + color.
+- [ ] Show usage section only for got_resource / in_use / used_up statuses.
+- [ ] Hook notification deep links to eSIM detail screen (via esim_order_id).
+- [ ] Show "Save/Share QR Code" option on detail screen.
+- [ ] Show "Refresh Usage" button with lastUpdateTime note (2–3 hour delay).
+- [ ] Show "Insufficient balance" UI with Top Up CTA before purchase.
+- [ ] Add eSIM tab/section to dashboard navigation.
+- [ ] Add "Top Up" navigation from eSIM purchase screen when balance is low.
+
+================================================================================
+  12) TEST SCENARIOS (MUST PASS)
+================================================================================
+
+1. Packages load for all locations (empty body) and for a specific country (e.g. "JP").
+2. Package cards show correct name, data (dataFormatted), duration, price (chargedUsd).
+3. Purchase deducts chargedUsd from wallet and creates an esim_order record.
+4. Purchase fails gracefully with correct error if wallet is insufficient.
+5. After purchase, QR code image loads correctly from qr_code_url.
+6. Tap-to-copy works for SM-DP+ address, activation code, and ICCID.
+7. Data usage bar + percentage shows for active eSIMs.
+8. "Refresh Usage" fetches fresh data from provider.
+9. Status badge colours match the guide (Green=Active, Blue=Ready, Red=Cancelled, etc.).
+10. Notification tap for type "esim_purchased" opens correct eSIM detail screen.
+11. Low-data notifications (50%, 20%, 10%) arrive and deep-link correctly.
+12. Pagination controls work on both the packages list and My eSIMs list.
+13. Fetching packages with no results shows empty state (not a crash).
+14. Purchase on low-balance returns 402 and displays the error message cleanly.
+
+================================================================================
+  END OF V3 UPDATE FILE
+================================================================================
