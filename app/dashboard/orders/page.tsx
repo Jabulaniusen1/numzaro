@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/lib/hooks/use-toast";
-import { useCurrency } from "@/lib/hooks/use-currency";
 import { RefreshCw, ChevronLeft, ChevronRight, Package, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -44,7 +43,7 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const { toast } = useToast();
-  const { format, convert } = useCurrency();
+  const ngn = (n: number) => `₦${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   useEffect(() => { fetchOrders(); }, [page, selectedStatus]);
 
@@ -181,7 +180,7 @@ export default function OrdersPage() {
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-right font-bold text-sm text-gray-800 dark:text-gray-100">
-                          {format(convert(order.charge || 0))}
+                          {ngn(order.charge || 0)}
                         </td>
                         <td className="py-3.5 px-5 text-right text-xs text-gray-400">
                           {new Date(order.created_at).toLocaleDateString()}
@@ -212,7 +211,7 @@ export default function OrdersPage() {
                     </a>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-400 text-xs">{order.quantity.toLocaleString()} items · {new Date(order.created_at).toLocaleDateString()}</span>
-                      <span className="font-black text-[#7C5CFC]">{format(convert(order.charge || 0))}</span>
+                      <span className="font-black text-[#7C5CFC]">{ngn(order.charge || 0)}</span>
                     </div>
                   </div>
                 ))}

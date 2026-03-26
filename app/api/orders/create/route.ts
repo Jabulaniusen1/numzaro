@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
-import { createOrder } from "@/lib/api/socialboost";
+import { createOrder, getServices } from "@/lib/api/socialboost";
+import { getLiveFxRate } from "@/lib/currency/rates";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,12 +30,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch service from database
-    const { data: service, error: serviceError } = await supabase
-      .from("services")
-      .select("*")
-      .eq("id", service_id)
-      .single();
+    // Fetch service and live markup in parallel
+    const [{ data: service, error: serviceError }, { data: markupSetting }, apiServices] =
+      await Promise.all([
+        supabase
+          .from("services")
+          .select("id, service_id, name, cost_rate, min_quantity, max_quantity")
+          .eq("id", service_id)
+          .single(),
+        supabase
+          .from("admin_settings")
+          .select("value")
+          .eq("key", "default_markup_percentage")
+          .single(),
+        getServices().catch(() => null),
+      ]);
 
     if (serviceError || !service) {
       return NextResponse.json(
@@ -51,10 +61,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate charge (rate is per 1000)
-    const charge = (quantityNum / 1000) * parseFloat(service.rate);
+    // Prefer live API rate over potentially-stale DB cost_rate
+    const liveApiService = Array.isArray(apiServices)
+      ? apiServices.find((s: any) => String(s.service) === String(service.service_id))
+      : null;
+    const costRate = liveApiService
+      ? parseFloat(liveApiService.rate) || parseFloat(service.cost_rate) || 0
+      : parseFloat(service.cost_rate) || 0;
 
-    // Check user wallet balance
+    // API rates are in NGN per 1000. Apply admin markup.
+    const rawMarkup = markupSetting ? parseFloat(markupSetting.value) : 30.0;
+    const markupPercentage = Number.isFinite(rawMarkup) && rawMarkup >= 0 ? Math.min(rawMarkup, 10000) : 30.0;
+    const sellingRateNGN = costRate * (1 + markupPercentage / 100);
+    const chargeNGN = (quantityNum / 1000) * sellingRateNGN;
+
+    // Wallet is stored in USD — convert NGN charge to USD for deduction
+    const usdNgnRate = await getLiveFxRate("USD", "NGN");
+    const chargeUSD = chargeNGN / usdNgnRate;
+
+    // Check user wallet balance (stored in USD)
     const { data: userProfile } = await supabase
       .from("users")
       .select("wallet_balance")
@@ -63,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     const balance = parseFloat(userProfile?.wallet_balance || "0.00");
 
-    if (charge > balance) {
+    if (chargeUSD > balance) {
       return NextResponse.json(
         { error: "Insufficient balance. Please fund your wallet." },
         { status: 400 }
@@ -89,31 +114,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Deduct charge from user wallet balance
-    const newBalance = balance - charge;
+    // Deduct USD charge from wallet (wallet is stored in USD)
+    const newBalance = balance - chargeUSD;
 
     const { error: balanceError } = await supabase
       .from("users")
-      .update({ wallet_balance: newBalance.toFixed(2) })
+      .update({ wallet_balance: newBalance.toFixed(6) })
       .eq("id", user.id);
 
     if (balanceError) {
       console.error("Error updating wallet balance:", balanceError);
-      // Note: Order was already created in SHOPRIME API, but we couldn't deduct balance
-      // This is a critical error - order exists but payment wasn't recorded
       return NextResponse.json(
         { error: "Order created but failed to deduct balance. Please contact support." },
         { status: 500 }
       );
     }
 
-    // Create wallet transaction record
+    // Create wallet transaction record (amounts in USD to match wallet)
     const { error: transactionError } = await supabase
       .from("wallet_transactions")
       .insert({
         user_id: user.id,
         type: "debit",
-        amount: charge,
+        amount: chargeUSD,
         description: `Order for ${service.name}`,
         balance_before: balance,
         balance_after: newBalance,
@@ -134,8 +157,8 @@ export async function POST(request: NextRequest) {
         link: link.trim(),
         quantity: quantityNum,
         status: "Pending",
-        charge: charge,
-        currency: "USD",
+        charge: chargeNGN,
+        currency: "NGN",
       })
       .select()
       .single();

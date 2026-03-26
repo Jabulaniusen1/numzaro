@@ -7,7 +7,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { BalanceCard } from "@/components/dashboard/BalanceCard";
 import { useToast } from "@/lib/hooks/use-toast";
-import { useCurrency } from "@/lib/hooks/use-currency";
 import { ShoppingBag, Phone, Wifi, ArrowRight, Loader2, RefreshCw, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,7 +53,7 @@ function statusColor(status: string) {
 export default function DashboardPage() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { format, convert } = useCurrency();
+  const ngn = (n: number) => `₦${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const [profile, setProfile] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -211,7 +210,7 @@ export default function DashboardPage() {
                       {order.status}
                     </span>
                     <span className="text-sm font-bold text-gray-700 dark:text-gray-200">
-                      {format(convert(order.charge || 0))}
+                      {ngn(order.charge || 0)}
                     </span>
                   </div>
                 </div>

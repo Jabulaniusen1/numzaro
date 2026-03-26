@@ -52,9 +52,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { markupPercentage } = body;
 
-    if (typeof markupPercentage !== "number" || markupPercentage < 0) {
+    if (typeof markupPercentage !== "number" || markupPercentage < 0 || markupPercentage > 10000) {
       return NextResponse.json(
-        { error: "Invalid markup percentage" },
+        { error: "Markup percentage must be between 0 and 10000" },
         { status: 400 }
       );
     }
@@ -80,26 +80,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update all services with new markup
-    const { data: services } = await supabase
-      .from("services")
-      .select("id, cost_rate");
-
-    if (services) {
-      for (const service of services) {
-        if (service.cost_rate) {
-          const newRate = service.cost_rate * (1 + markupPercentage / 100);
-          await supabase
-            .from("services")
-            .update({
-              rate: newRate,
-              markup_percentage: markupPercentage,
-            })
-            .eq("id", service.id);
-        }
-      }
-    }
-
+    // No need to update individual service rates — they are computed live from
+    // cost_rate + this markup setting at request time.
     return NextResponse.json({ success: true, markupPercentage });
   } catch (error) {
     console.error("Error updating markup:", error);
