@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
         supabase
           .from("services")
           .select("service_id, id, name, category, type, cost_rate, min_quantity, max_quantity, refill_allowed, cancel_allowed")
+          .eq("is_hidden", false)
           .order("name", { ascending: true }),
         getServices().catch(() => null),
       ]);

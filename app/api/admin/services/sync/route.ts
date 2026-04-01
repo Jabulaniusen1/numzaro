@@ -2,6 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServices } from "@/lib/api/socialboost";
 import { authenticateRequest } from "@/lib/supabase/server";
 
+// GET /api/admin/services/sync — returns distinct categories + total count from the API
+export async function GET(request: NextRequest) {
+  try {
+    const { user } = await authenticateRequest(request);
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim()) || [];
+    if (!adminEmails.includes(user.email || ""))
+      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
+
+    const apiServices = await getServices();
+    if (!apiServices || apiServices.length === 0) {
+      return NextResponse.json({ categories: [], total: 0 });
+    }
+
+    const categorySet = new Set<string>();
+    for (const s of apiServices) {
+      if (s.category) categorySet.add(s.category);
+    }
+    const categories = Array.from(categorySet).sort();
+
+    return NextResponse.json({ categories, total: apiServices.length });
+  } catch (error: any) {
+    console.error("Admin sync GET error:", error);
+    return NextResponse.json({ error: "Internal server error", details: error.message }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { user, supabase } = await authenticateRequest(request);
@@ -27,29 +54,62 @@ export async function POST(request: NextRequest) {
       ? parseFloat(markupSetting.value) 
       : 30.00; // Default 30% markup
 
-    console.log("Admin sync: Fetching services from SHOPRIME API...");
+    // Parse optional filters from request body
+    let selectedCategories: string[] = [];
+    let limitFilter = 0;
+    try {
+      const body = await request.json().catch(() => ({}));
+      if (Array.isArray(body?.categories)) {
+        selectedCategories = body.categories.filter((c: unknown) => typeof c === "string" && c.trim());
+      }
+      limitFilter = typeof body?.limit === "number" && body.limit > 0 ? Math.floor(body.limit) : 0;
+    } catch {
+      // No body — proceed with no filters
+    }
 
-    // Fetch services from SHOPRIME API
+    console.log("Admin sync: Fetching services from SMMFollows API...");
+
+    // Fetch services from SMMFollows API
     let apiServices;
     try {
       apiServices = await getServices();
-      console.log(`Admin sync: Fetched ${apiServices?.length || 0} services from SHOPRIME API`);
+      console.log(`Admin sync: Fetched ${apiServices?.length || 0} services from SMMFollows API`);
     } catch (apiError: any) {
-      console.error("Admin sync: Error fetching services from SHOPRIME API:", apiError);
+      console.error("Admin sync: Error fetching services from SMMFollows API:", apiError);
       return NextResponse.json(
-        { error: "Failed to fetch services from SHOPRIME API", details: apiError.message },
+        { error: "Failed to fetch services from SMMFollows API", details: apiError.message },
         { status: 500 }
       );
     }
 
     if (!apiServices || apiServices.length === 0) {
       return NextResponse.json(
-        { error: "No services received from SHOPRIME API" },
+        { error: "No services received from SMMFollows API" },
         { status: 500 }
       );
     }
 
-    // Prepare all services for batch upsert
+    // Apply category filter (exact match against selected set)
+    if (selectedCategories.length > 0) {
+      const categorySet = new Set(selectedCategories);
+      apiServices = apiServices.filter((s) => categorySet.has(s.category || ""));
+      console.log(`Admin sync: After category filter (${selectedCategories.length} selected): ${apiServices.length} services`);
+    }
+
+    // Apply limit
+    if (limitFilter > 0 && apiServices.length > limitFilter) {
+      apiServices = apiServices.slice(0, limitFilter);
+      console.log(`Admin sync: After limit ${limitFilter}: ${apiServices.length} services`);
+    }
+
+    if (apiServices.length === 0) {
+      return NextResponse.json(
+        { error: "No services matched the selected filters" },
+        { status: 400 }
+      );
+    }
+
+    // Prepare services for batch upsert
     console.log(`Admin sync: Preparing ${apiServices.length} services for database sync...`);
     
     const servicesToUpsert = apiServices.map((service) => {
@@ -106,4 +166,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

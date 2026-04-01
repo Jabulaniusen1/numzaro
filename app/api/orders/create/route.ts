@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
           .from("services")
           .select("id, service_id, name, cost_rate, min_quantity, max_quantity")
           .eq("id", service_id)
+          .eq("is_hidden", false)
           .single(),
         supabase
           .from("admin_settings")
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     if (serviceError || !service) {
       return NextResponse.json(
-        { error: "Service not found" },
+        { error: "Service not found or currently unavailable" },
         { status: 404 }
       );
     }
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create order in SHOPRIME API
+    // Create order in SMMFollows API
     let exosupplierOrderId: number;
     try {
       exosupplierOrderId = await createOrder(
@@ -107,9 +108,9 @@ export async function POST(request: NextRequest) {
         comments || undefined // comments
       );
     } catch (apiError: any) {
-      console.error("Error creating order in SHOPRIME API:", apiError);
+      console.error("Error creating order in SMMFollows API:", apiError);
       return NextResponse.json(
-        { error: apiError.message || "Failed to create order in SHOPRIME API" },
+        { error: apiError.message || "Failed to create order in SMMFollows API" },
         { status: 500 }
       );
     }

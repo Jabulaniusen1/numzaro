@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import {
   Loader2, Clock, ChevronRight, ShoppingBag, X,
   Users, Heart, Eye, MessageCircle, Share2, Play, Star, Zap, Search,
+  ArrowLeft, ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -31,24 +32,22 @@ interface Service {
   cancel_allowed: boolean;
 }
 
-// ─── Platforms ───────────────────────────────────────────────────────────────
 const PLATFORMS = [
-  { id: "instagram", name: "Instagram",  Icon: FaInstagram,    bg: "bg-gradient-to-br from-[#f09433] via-[#e6683c] to-[#bc1888]", color: "#e6683c", keywords: ["instagram"] },
-  { id: "tiktok",    name: "TikTok",     Icon: FaTiktok,       bg: "bg-gradient-to-br from-[#010101] to-[#69C9D0]",               color: "#69C9D0", keywords: ["tiktok"] },
-  { id: "facebook",  name: "Facebook",   Icon: FaFacebook,     bg: "bg-gradient-to-br from-[#1877F2] to-[#0d5bc8]",               color: "#1877F2", keywords: ["facebook", "fb "] },
-  { id: "youtube",   name: "YouTube",    Icon: FaYoutube,      bg: "bg-gradient-to-br from-[#FF0000] to-[#cc0000]",               color: "#FF0000", keywords: ["youtube", "yt "] },
-  { id: "twitter",   name: "Twitter / X",Icon: FaTwitter,      bg: "bg-gradient-to-br from-[#1DA1F2] to-[#0c85d0]",               color: "#1DA1F2", keywords: ["twitter", "tweet", " x "] },
-  { id: "telegram",  name: "Telegram",   Icon: FaTelegram,     bg: "bg-gradient-to-br from-[#0088cc] to-[#005b8c]",               color: "#0088cc", keywords: ["telegram"] },
-  { id: "discord",   name: "Discord",    Icon: FaDiscord,      bg: "bg-gradient-to-br from-[#5865F2] to-[#3d4bc8]",               color: "#5865F2", keywords: ["discord"] },
-  { id: "spotify",   name: "Spotify",    Icon: FaSpotify,      bg: "bg-gradient-to-br from-[#1DB954] to-[#157d3b]",               color: "#1DB954", keywords: ["spotify"] },
-  { id: "whatsapp",  name: "WhatsApp",   Icon: FaWhatsapp,     bg: "bg-gradient-to-br from-[#25D366] to-[#128C7E]",               color: "#25D366", keywords: ["whatsapp"] },
-  { id: "linkedin",  name: "LinkedIn",   Icon: FaLinkedin,     bg: "bg-gradient-to-br from-[#0A66C2] to-[#004182]",               color: "#0A66C2", keywords: ["linkedin"] },
-  { id: "pinterest", name: "Pinterest",  Icon: FaPinterest,    bg: "bg-gradient-to-br from-[#E60023] to-[#a3001a]",               color: "#E60023", keywords: ["pinterest"] },
-  { id: "snapchat",  name: "Snapchat",   Icon: FaSnapchatGhost,bg: "bg-gradient-to-br from-[#FFFC00] to-[#f5d800]",               color: "#FFFC00", keywords: ["snapchat"] },
-  { id: "twitch",    name: "Twitch",     Icon: FaTwitch,       bg: "bg-gradient-to-br from-[#9146FF] to-[#6c2cd6]",               color: "#9146FF", keywords: ["twitch"] },
+  { id: "instagram", name: "Instagram",   Icon: FaInstagram,     bg: "bg-gradient-to-br from-[#f09433] via-[#e6683c] to-[#bc1888]", color: "#e6683c", keywords: ["instagram"] },
+  { id: "tiktok",   name: "TikTok",       Icon: FaTiktok,        bg: "bg-gradient-to-br from-[#010101] to-[#69C9D0]",               color: "#69C9D0", keywords: ["tiktok"] },
+  { id: "facebook", name: "Facebook",     Icon: FaFacebook,      bg: "bg-gradient-to-br from-[#1877F2] to-[#0d5bc8]",               color: "#1877F2", keywords: ["facebook", "fb "] },
+  { id: "youtube",  name: "YouTube",      Icon: FaYoutube,       bg: "bg-gradient-to-br from-[#FF0000] to-[#cc0000]",               color: "#FF0000", keywords: ["youtube", "yt "] },
+  { id: "twitter",  name: "Twitter / X",  Icon: FaTwitter,       bg: "bg-gradient-to-br from-[#1DA1F2] to-[#0c85d0]",               color: "#1DA1F2", keywords: ["twitter", "tweet", " x "] },
+  { id: "telegram", name: "Telegram",     Icon: FaTelegram,      bg: "bg-gradient-to-br from-[#0088cc] to-[#005b8c]",               color: "#0088cc", keywords: ["telegram"] },
+  { id: "discord",  name: "Discord",      Icon: FaDiscord,       bg: "bg-gradient-to-br from-[#5865F2] to-[#3d4bc8]",               color: "#5865F2", keywords: ["discord"] },
+  { id: "spotify",  name: "Spotify",      Icon: FaSpotify,       bg: "bg-gradient-to-br from-[#1DB954] to-[#157d3b]",               color: "#1DB954", keywords: ["spotify"] },
+  { id: "whatsapp", name: "WhatsApp",     Icon: FaWhatsapp,      bg: "bg-gradient-to-br from-[#25D366] to-[#128C7E]",               color: "#25D366", keywords: ["whatsapp"] },
+  { id: "linkedin", name: "LinkedIn",     Icon: FaLinkedin,      bg: "bg-gradient-to-br from-[#0A66C2] to-[#004182]",               color: "#0A66C2", keywords: ["linkedin"] },
+  { id: "pinterest",name: "Pinterest",    Icon: FaPinterest,     bg: "bg-gradient-to-br from-[#E60023] to-[#a3001a]",               color: "#E60023", keywords: ["pinterest"] },
+  { id: "snapchat", name: "Snapchat",     Icon: FaSnapchatGhost, bg: "bg-gradient-to-br from-[#FFFC00] to-[#f5d800]",               color: "#FFFC00", keywords: ["snapchat"] },
+  { id: "twitch",   name: "Twitch",       Icon: FaTwitch,        bg: "bg-gradient-to-br from-[#9146FF] to-[#6c2cd6]",               color: "#9146FF", keywords: ["twitch"] },
 ];
 
-// ─── Service type metadata ────────────────────────────────────────────────────
 const TYPE_META: Record<string, { Icon: React.ElementType; label: string }> = {
   followers:   { Icon: Users,         label: "Followers"   },
   subscribers: { Icon: Users,         label: "Subscribers" },
@@ -71,37 +70,95 @@ function detectPlatform(category: string) {
 
 function detectType(name: string, type: string) {
   const n = (name + " " + type).toLowerCase();
-  if (n.includes("follower"))                          return "followers";
-  if (n.includes("subscriber"))                        return "subscribers";
-  if (n.includes("like"))                              return "likes";
-  if (n.includes("view") || n.includes("watch"))       return "views";
-  if (n.includes("comment"))                           return "comments";
-  if (n.includes("share") || n.includes("retweet"))    return "shares";
-  if (n.includes("play") || n.includes("stream"))      return "plays";
-  if (n.includes("member"))                            return "members";
-  if (n.includes("save"))                              return "saves";
+  if (n.includes("follower"))                         return "followers";
+  if (n.includes("subscriber"))                       return "subscribers";
+  if (n.includes("like"))                             return "likes";
+  if (n.includes("view") || n.includes("watch"))      return "views";
+  if (n.includes("comment"))                          return "comments";
+  if (n.includes("share") || n.includes("retweet"))   return "shares";
+  if (n.includes("play") || n.includes("stream"))     return "plays";
+  if (n.includes("member"))                           return "members";
+  if (n.includes("save"))                             return "saves";
   return "other";
+}
+
+const SERVICES_PER_PAGE = 20;
+
+// ─── Skeleton components ──────────────────────────────────────────────────────
+function PlatformGridSkeleton() {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {Array.from({ length: 9 }).map((_, i) => (
+        <div key={i} className="rounded-2xl p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex flex-col items-center gap-3">
+          <Skeleton className="w-12 h-12 rounded-2xl" />
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-3 w-10 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CategoryListSkeleton() {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 7 }).map((_, i) => (
+        <div key={i} className="rounded-2xl p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center gap-3">
+          <Skeleton className="w-9 h-9 rounded-xl flex-shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3 w-3/4" />
+            <Skeleton className="h-2.5 w-1/4" />
+          </div>
+          <Skeleton className="w-4 h-4 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ServiceListSkeleton() {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="rounded-2xl p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center gap-3">
+          <Skeleton className="w-10 h-10 rounded-xl flex-shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3 w-2/3" />
+            <Skeleton className="h-2.5 w-1/4" />
+          </div>
+          <Skeleton className="w-4 h-4 rounded" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ServicesPage() {
-  const [services, setServices]     = useState<Service[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
-  const [activePlatform, setActivePlatform] = useState("all");
+  const [services, setServices]           = useState<Service[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
+
+  // Navigation state
+  const [activePlatform, setActivePlatform] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [servicePage, setServicePage]       = useState(1);
+  const [searchTerm, setSearchTerm]         = useState("");
+
+  // Order state
   const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [link, setLink]             = useState("");
-  const [quantity, setQuantity]     = useState("");
-  const [comments, setComments]     = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [link, setLink]       = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [comments, setComments] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [balance, setBalance]       = useState(0);
-  const filterRef                   = useRef<HTMLDivElement>(null);
-  const { toast }  = useToast();
-  const ngn = (n: number) => `₦${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const [balance, setBalance] = useState(0);
+
+  const { toast } = useToast();
+  const ngn = (n: number) =>
+    `₦${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   useEffect(() => { fetchServices(); fetchBalance(); }, []);
+
   async function fetchServices() {
     try {
       setLoading(true); setError(null);
@@ -126,7 +183,9 @@ export default function ServicesPage() {
     } catch {}
   }
 
-  // Group services by platform
+  // ── Derived data ────────────────────────────────────────────────────────────
+
+  // Group all services by platform
   const byPlatform = useMemo(() => {
     const map: Record<string, Service[]> = {};
     for (const s of services) {
@@ -136,40 +195,52 @@ export default function ServicesPage() {
     return map;
   }, [services]);
 
+  // Platforms that have at least one service
   const availablePlatforms = useMemo(
     () => PLATFORMS.filter((p) => (byPlatform[p.id]?.length ?? 0) > 0),
     [byPlatform]
   );
 
-  // Services visible under the active platform filter
-  const visibleServices = useMemo(() => {
-    if (activePlatform === "all") return services;
-    return byPlatform[activePlatform] ?? [];
-  }, [services, byPlatform, activePlatform]);
-
-  const filteredServices = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
-    if (!q) return visibleServices;
-    return visibleServices.filter((s) => {
-      return (
-        s.name.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q) ||
-        s.type.toLowerCase().includes(q)
-      );
-    });
-  }, [visibleServices, searchTerm]);
-
-  // Group visible services by their category string (for section headers)
-  const groupedByCategory = useMemo(() => {
+  // Categories for the active platform, grouped
+  const categoriesForPlatform = useMemo(() => {
+    if (!activePlatform) return {};
     const map: Record<string, Service[]> = {};
-    for (const s of filteredServices) {
+    for (const s of byPlatform[activePlatform] ?? []) {
       (map[s.category] ??= []).push(s);
     }
     return map;
-  }, [filteredServices]);
+  }, [byPlatform, activePlatform]);
 
-  const currentPlatformDef = PLATFORMS.find((p) => p.id === activePlatform);
+  // Filtered category entries (search within category names)
+  const filteredCategories = useMemo(() => {
+    const entries = Object.entries(categoriesForPlatform);
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter(([cat]) => cat.toLowerCase().includes(q));
+  }, [categoriesForPlatform, searchTerm]);
 
+  // Services in the active category, with search + pagination
+  const servicesInCategory = useMemo(() => {
+    if (!activeCategory) return [];
+    const all = categoriesForPlatform[activeCategory] ?? [];
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.type.toLowerCase().includes(q)
+    );
+  }, [categoriesForPlatform, activeCategory, searchTerm]);
+
+  const totalPages   = Math.max(1, Math.ceil(servicesInCategory.length / SERVICES_PER_PAGE));
+  const pagedServices = servicesInCategory.slice(
+    (servicePage - 1) * SERVICES_PER_PAGE,
+    servicePage * SERVICES_PER_PAGE
+  );
+
+  const activePlatformDef = PLATFORMS.find((p) => p.id === activePlatform);
+
+  // ── Charge calc ─────────────────────────────────────────────────────────────
   const charge = useMemo(() => {
     if (!selectedService || !quantity) return 0;
     const qty = parseInt(quantity, 10);
@@ -177,8 +248,42 @@ export default function ServicesPage() {
   }, [selectedService, quantity]);
 
   const isComment = () =>
-    selectedService ? detectType(selectedService.name, selectedService.type) === "comments" : false;
+    selectedService
+      ? detectType(selectedService.name, selectedService.type) === "comments"
+      : false;
 
+  // ── Navigation helpers ───────────────────────────────────────────────────────
+  function selectPlatform(id: string) {
+    setActivePlatform(id);
+    setActiveCategory(null);
+    setServicePage(1);
+    setSearchTerm("");
+    closeOrder();
+  }
+
+  function selectCategory(cat: string) {
+    setActiveCategory(cat);
+    setServicePage(1);
+    setSearchTerm("");
+    closeOrder();
+  }
+
+  function goBackToPlatforms() {
+    setActivePlatform(null);
+    setActiveCategory(null);
+    setServicePage(1);
+    setSearchTerm("");
+    closeOrder();
+  }
+
+  function goBackToCategories() {
+    setActiveCategory(null);
+    setServicePage(1);
+    setSearchTerm("");
+    closeOrder();
+  }
+
+  // ── Order helpers ────────────────────────────────────────────────────────────
   function openService(s: Service) {
     setSelectedService(s);
     setQuantity(String(s.min_quantity));
@@ -189,13 +294,6 @@ export default function ServicesPage() {
   function closeOrder() {
     setSelectedService(null);
     setLink(""); setQuantity(""); setComments("");
-  }
-
-  function toggleCategory(category: string) {
-    setCollapsedCategories((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -242,44 +340,42 @@ export default function ServicesPage() {
     }
   }
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
       <div className="px-4 pt-4 pb-32 md:px-6 md:pt-6 max-w-2xl mx-auto">
 
-        {/* Header */}
+        {/* ── Header ────────────────────────────────────────────────────────── */}
         <div className="mb-5">
+          {/* Breadcrumb back button */}
+          {activePlatform && (
+            <button
+              type="button"
+              onClick={activeCategory ? goBackToCategories : goBackToPlatforms}
+              className="flex items-center gap-1.5 text-xs font-semibold text-[#7C5CFC] mb-3 hover:opacity-75 transition-opacity"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              {activeCategory ? activePlatformDef?.name ?? "Back" : "All Platforms"}
+            </button>
+          )}
+
           <h1 className="text-2xl font-extrabold bg-gradient-to-r from-violet-600 to-indigo-500 bg-clip-text text-transparent leading-tight">
-            Boost Socials
+            {activeCategory
+              ? activeCategory
+              : activePlatformDef
+              ? activePlatformDef.name
+              : "Boost Socials"}
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            Select a platform then choose your service
+            {activeCategory
+              ? `${servicesInCategory.length} service${servicesInCategory.length !== 1 ? "s" : ""}`
+              : activePlatformDef
+              ? `${Object.keys(categoriesForPlatform).length} categories`
+              : "Select a platform then choose your service"}
           </p>
         </div>
 
-        {/* Search */}
-        <div className="mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search services..."
-              className="h-11 rounded-full pl-9 pr-10 border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
-                aria-label="Clear search"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-
+        {/* ── Error ─────────────────────────────────────────────────────────── */}
         {error && (
           <div className="mb-4 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300 flex items-center justify-between">
             {error}
@@ -287,191 +383,202 @@ export default function ServicesPage() {
           </div>
         )}
 
-        {/* ── Platform filter bar ──────────────────────────────────────────────── */}
-        <div
-          ref={filterRef}
-          className="flex gap-2 overflow-x-auto pb-1 mb-5 scrollbar-hide -mx-4 px-4 md:-mx-6 md:px-6"
-          style={{ scrollbarWidth: "none" }}
-        >
-          {/* All tab */}
-          <button
-            onClick={() => setActivePlatform("all")}
-            className={cn(
-              "flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all",
-              activePlatform === "all"
-                ? "bg-[#7C5CFC] text-white shadow-md shadow-violet-300/40"
-                : "bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
-            )}
-          >
-            <Zap className="h-3 w-3" />
-            All
-          </button>
+        {/* ── Search (shown on category & service levels) ────────────────────── */}
+        {activePlatform && (
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setServicePage(1);
+                }}
+                placeholder={activeCategory ? "Search services…" : "Search categories…"}
+                className="h-11 rounded-full pl-9 pr-10 border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchTerm(""); setServicePage(1); }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
-          {loading
-            ? Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="flex-shrink-0 h-8 w-24 rounded-full" />
-              ))
-            : availablePlatforms.map((p) => (
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {/* LEVEL 0 — Platform grid                                            */}
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {!activePlatform && (
+          loading ? (
+            <PlatformGridSkeleton />
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {availablePlatforms.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => setActivePlatform(p.id)}
-                  className={cn(
-                    "flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all",
-                    activePlatform === p.id
-                      ? "text-white shadow-md"
-                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-gray-300"
-                  )}
-                  style={
-                    activePlatform === p.id
-                      ? { background: `linear-gradient(135deg, ${p.color}cc, ${p.color})` }
-                      : {}
-                  }
+                  onClick={() => selectPlatform(p.id)}
+                  className="group rounded-2xl p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700 hover:shadow-md transition-all flex flex-col items-center gap-3 text-center"
                 >
-                  <p.Icon className="h-3 w-3" />
-                  {p.name}
-                </button>
-              ))
-          }
-        </div>
-
-        {/* ── Services list ────────────────────────────────────────────────────── */}
-        {loading ? (
-          <div className="space-y-5">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-6 w-6 rounded-lg" />
-                  <Skeleton className="h-3 w-40" />
-                  <Skeleton className="h-4 w-6 rounded-full" />
-                </div>
-                <div className="space-y-2">
-                  {Array.from({ length: 3 }).map((__, j) => (
-                    <Skeleton key={j} className="h-16 rounded-2xl" />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredServices.length === 0 ? (
-          <div className="text-center py-16 text-gray-400 text-sm">
-            {searchTerm.trim() ? "No services match your search." : "No services available for this platform."}
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {Object.entries(groupedByCategory).map(([category, items]) => {
-              const platId = detectPlatform(category);
-              const platDef = PLATFORMS.find((p) => p.id === platId);
-
-              return (
-                <div key={category}>
-                  {/* Category section header */}
-                  <button
-                    type="button"
-                    onClick={() => toggleCategory(category)}
-                    className="w-full flex items-center gap-2 mb-2 text-left group"
-                    aria-expanded={!collapsedCategories[category]}
-                  >
-                    {platDef && (
-                      <div className={cn("w-6 h-6 rounded-lg flex items-center justify-center text-white flex-shrink-0", platDef.bg)}>
-                        <platDef.Icon className="h-3 w-3" />
-                      </div>
-                    )}
-                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide truncate">
-                      {category}
-                    </p>
-                    <span className="text-[10px] font-semibold px-1.5 py-px rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 flex-shrink-0">
-                      {items.length}
-                    </span>
-                    <ChevronRight
-                      className={cn(
-                        "ml-auto h-4 w-4 text-gray-300 transition-transform group-hover:text-gray-400",
-                        collapsedCategories[category] ? "" : "rotate-90"
-                      )}
-                    />
-                  </button>
-
-                  {/* Service cards */}
-                  <div
-                    className={cn(
-                      "grid transition-all duration-300 ease-in-out",
-                      collapsedCategories[category] ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"
-                    )}
-                  >
-                    <div className="overflow-hidden">
-                      <div className="space-y-2">
-                        {items.map((s) => {
-                          const t    = detectType(s.name, s.type);
-                          const meta = TYPE_META[t];
-                          const isSelected = selectedService?.id === s.id;
-
-                          return (
-                            <button
-                              key={s.id}
-                              onClick={() => isSelected ? closeOrder() : openService(s)}
-                              className={cn(
-                                "w-full group bg-white dark:bg-gray-800 rounded-2xl border p-4 flex items-center gap-3 text-left transition-all",
-                                isSelected
-                                  ? "border-[#7C5CFC] shadow-md shadow-violet-100 dark:shadow-none"
-                                  : "border-gray-100 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700 hover:shadow-sm"
-                              )}
-                            >
-                              {/* Icon bubble */}
-                              <div className={cn(
-                                "w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center text-white shadow-sm",
-                                platDef ? platDef.bg : "bg-[#7C5CFC]"
-                              )}>
-                                {meta ? <meta.Icon className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-                              </div>
-
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{s.name}</p>
-                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                  <span className="text-xs text-gray-400">{ngn(s.rate)} / 1k</span>
-                                  {s.refill_allowed && (
-                                    <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400">
-                                      Refill
-                                    </span>
-                                  )}
-                                  {s.cancel_allowed && (
-                                    <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
-                                      Cancel
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              <ChevronRight className={cn(
-                                "h-4 w-4 flex-shrink-0 transition-all",
-                                isSelected ? "text-[#7C5CFC] rotate-90" : "text-gray-300 group-hover:text-[#7C5CFC]"
-                              )} />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                  <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform", p.bg)}>
+                    <p.Icon className="h-6 w-6" />
                   </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{p.name}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      {(byPlatform[p.id]?.length ?? 0).toLocaleString()} services
+                    </p>
+                  </div>
+                  <ChevronRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-[#7C5CFC] transition-colors" />
+                </button>
+              ))}
+            </div>
+          )
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {/* LEVEL 1 — Category list                                            */}
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {activePlatform && !activeCategory && (
+          loading ? (
+            <CategoryListSkeleton />
+          ) : filteredCategories.length === 0 ? (
+            <div className="text-center py-16 text-gray-400 text-sm">
+              {searchTerm.trim() ? "No categories match your search." : "No categories available."}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredCategories.map(([cat, items]) => (
+                <button
+                  key={cat}
+                  onClick={() => selectCategory(cat)}
+                  className="w-full group rounded-2xl p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700 hover:shadow-sm transition-all flex items-center gap-3 text-left"
+                >
+                  {activePlatformDef && (
+                    <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0", activePlatformDef.bg)}>
+                      <activePlatformDef.Icon className="h-4 w-4" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{cat}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">{items.length} service{items.length !== 1 ? "s" : ""}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-[#7C5CFC] flex-shrink-0 transition-colors" />
+                </button>
+              ))}
+            </div>
+          )
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {/* LEVEL 2 — Service list (paginated)                                 */}
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {activePlatform && activeCategory && (
+          loading ? (
+            <ServiceListSkeleton />
+          ) : servicesInCategory.length === 0 ? (
+            <div className="text-center py-16 text-gray-400 text-sm">
+              {searchTerm.trim() ? "No services match your search." : "No services available."}
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {pagedServices.map((s) => {
+                  const t      = detectType(s.name, s.type);
+                  const meta   = TYPE_META[t];
+                  const isSelected = selectedService?.id === s.id;
+
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => isSelected ? closeOrder() : openService(s)}
+                      className={cn(
+                        "w-full group bg-white dark:bg-gray-800 rounded-2xl border p-4 flex items-center gap-3 text-left transition-all",
+                        isSelected
+                          ? "border-[#7C5CFC] shadow-md shadow-violet-100 dark:shadow-none"
+                          : "border-gray-100 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700 hover:shadow-sm"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center text-white shadow-sm",
+                        activePlatformDef ? activePlatformDef.bg : "bg-[#7C5CFC]"
+                      )}>
+                        {meta ? <meta.Icon className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{s.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-xs text-gray-400">{ngn(s.rate)} / 1k</span>
+                          {s.refill_allowed && (
+                            <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400">
+                              Refill
+                            </span>
+                          )}
+                          {s.cancel_allowed && (
+                            <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
+                              Cancel
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <ChevronRight className={cn(
+                        "h-4 w-4 flex-shrink-0 transition-all",
+                        isSelected ? "text-[#7C5CFC] rotate-90" : "text-gray-300 group-hover:text-[#7C5CFC]"
+                      )} />
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={servicePage <= 1}
+                    onClick={() => { setServicePage((p) => p - 1); closeOrder(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                    className="rounded-xl gap-1.5"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                  </Button>
+
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Page {servicePage} of {totalPages}
+                  </span>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={servicePage >= totalPages}
+                    onClick={() => { setServicePage((p) => p + 1); closeOrder(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                    className="rounded-xl gap-1.5"
+                  >
+                    Next <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </>
+          )
         )}
       </div>
 
       {/* ── Order form — bottom sheet ──────────────────────────────────────────── */}
       {selectedService && (() => {
-        const platId  = detectPlatform(selectedService.category);
-        const platDef = PLATFORMS.find((p) => p.id === platId);
+        const platDef = activePlatformDef;
         return (
           <div className="fixed inset-0 z-40 flex flex-col justify-end pointer-events-none">
-            {/* Backdrop */}
             <div
               className="absolute inset-0 bg-black/30 backdrop-blur-sm pointer-events-auto"
               onClick={closeOrder}
             />
-
-            {/* Sheet */}
             <div className="relative pointer-events-auto bg-white dark:bg-gray-900 rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
-              {/* Handle */}
               <div className="flex justify-center pt-3 pb-1">
                 <div className="w-10 h-1 rounded-full bg-gray-200 dark:bg-gray-700" />
               </div>
@@ -554,7 +661,7 @@ export default function ServicesPage() {
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Custom Comments</Label>
                       <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                        Enter one comment per line. The service sends comments as newline-separated values.
+                        Enter one comment per line.
                       </p>
                       <Textarea
                         placeholder="One comment per line..."
