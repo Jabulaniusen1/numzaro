@@ -79,11 +79,9 @@ return (
         <div className="w-full max-w-sm mx-auto space-y-7">
 
           {/* Logo */}
-          <Link href="/" className="inline-block">
-            <div className="h-12 w-[170px]">
-              <Image src="/logo%20c%26b.png" alt="Numzaro" width={170} height={52} className="h-full w-full object-cover dark:hidden" priority />
-              <Image src="/logo%20w%26c.png" alt="Numzaro" width={170} height={52} className="hidden h-full w-full object-cover dark:block" priority />
-            </div>
+          <Link href="/" className="inline-flex items-center">
+            <Image src="/logo%20c%26b.png" alt="Numzaro" width={156} height={48} className="dark:hidden" priority />
+            <Image src="/logo%20w%26c.png" alt="Numzaro" width={156} height={48} className="hidden dark:block" priority />
           </Link>
 
           {/* Heading */}

@@ -14,25 +14,23 @@ export function Navbar() {
       <div className="container mx-auto px-4 py-4">
         {/* Desktop Navigation */}
         <div className="hidden md:flex justify-between items-center">
-          <Link href="/" className="flex items-center">
-            <div className="h-16 w-[220px]">
+          <Link href="/" className="inline-flex items-center">
               <Image
                 src="/logo%20c%26b.png"
                 alt="Numzaro"
-                width={220}
-                height={74}
-                className="h-full w-full object-cover dark:hidden"
+                width={200}
+                height={67}
+                className="dark:hidden"
                 priority
               />
               <Image
                 src="/logo%20w%26c.png"
                 alt="Numzaro"
-                width={220}
-                height={74}
-                className="hidden h-full w-full object-cover dark:block"
+                width={200}
+                height={67}
+                className="hidden dark:block"
                 priority
               />
-            </div>
           </Link>
 
           <div className="flex items-center space-x-2">
@@ -73,25 +71,23 @@ export function Navbar() {
           </button>
 
           {/* Logo - Center */}
-          <Link href="/" className="flex items-center absolute left-1/2 transform -translate-x-1/2">
-            <div className="h-12 w-[150px]">
-              <Image
-                src="/logo%20c%26b.png"
-                alt="Numzaro"
-                width={150}
-                height={44}
-                className="h-full w-full object-cover dark:hidden"
-                priority
-              />
-              <Image
-                src="/logo%20w%26c.png"
-                alt="Numzaro"
-                width={150}
-                height={44}
-                className="hidden h-full w-full object-cover dark:block"
-                priority
-              />
-            </div>
+          <Link href="/" className="inline-flex items-center absolute left-1/2 transform -translate-x-1/2">
+            <Image
+              src="/logo%20c%26b.png"
+              alt="Numzaro"
+              width={138}
+              height={40}
+              className="dark:hidden"
+              priority
+            />
+            <Image
+              src="/logo%20w%26c.png"
+              alt="Numzaro"
+              width={138}
+              height={40}
+              className="hidden dark:block"
+              priority
+            />
           </Link>
 
           {/* Actions - Right */}

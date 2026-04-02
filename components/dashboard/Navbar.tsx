@@ -44,11 +44,9 @@ export function Navbar({ onSignOut }: NavbarProps) {
         <div className="flex items-center h-14 px-4 md:px-6 gap-4">
 
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center flex-shrink-0 mr-2">
-            <div className="h-12 w-[170px]">
-              <Image src="/logo%20c%26b.png" alt="Numzaro" width={170} height={52} className="h-full w-full object-cover dark:hidden" priority />
-              <Image src="/logo%20w%26c.png" alt="Numzaro" width={170} height={52} className="hidden h-full w-full object-cover dark:block" priority />
-            </div>
+          <Link href="/dashboard" className="inline-flex items-center flex-shrink-0 mr-2">
+            <Image src="/logo%20c%26b.png" alt="Numzaro" width={156} height={48} className="dark:hidden" priority />
+            <Image src="/logo%20w%26c.png" alt="Numzaro" width={156} height={48} className="hidden dark:block" priority />
           </Link>
 
           {/* Desktop nav links */}
