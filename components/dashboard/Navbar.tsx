@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, ShoppingBag, Phone, Package, Receipt,
-  Bell, LogOut, X, MoreHorizontal, ChevronRight,
+  Bell, LogOut, X, MoreHorizontal, ChevronRight, Settings,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationsIcon } from "@/components/dashboard/NotificationsIcon";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 interface NavbarProps {
   onSignOut: () => void | Promise<void>;
+  isAdmin?: boolean;
 }
 
 const NAV_LINKS = [
@@ -33,7 +34,7 @@ function isActive(href: string, pathname: string) {
   return pathname.startsWith(href);
 }
 
-export function Navbar({ onSignOut }: NavbarProps) {
+export function Navbar({ onSignOut, isAdmin }: NavbarProps) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -68,6 +69,21 @@ export function Navbar({ onSignOut }: NavbarProps) {
               );
             })}
           </div>
+
+          {/* Admin link (desktop) */}
+          {isAdmin && (
+            <Link href="/dashboard/admin" className="ml-1">
+              <span className={cn(
+                "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all",
+                isActive("/dashboard/admin", pathname)
+                  ? "bg-violet-50 dark:bg-violet-900/30 text-[#7C5CFC]"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800"
+              )}>
+                <Settings className="h-4 w-4" />
+                Admin
+              </span>
+            </Link>
+          )}
 
           {/* Right actions */}
           <div className="flex items-center gap-1.5 ml-auto">
@@ -148,6 +164,19 @@ export function Navbar({ onSignOut }: NavbarProps) {
             </div>
 
             <div className="px-4 pb-6 space-y-1.5">
+              {isAdmin && (
+                <Link href="/dashboard/admin" onClick={() => setMoreOpen(false)}>
+                  <div className="flex items-center justify-between px-4 py-3.5 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
+                        <Settings className="h-4 w-4 text-[#7C5CFC]" />
+                      </div>
+                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Admin Settings</span>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gray-400" />
+                  </div>
+                </Link>
+              )}
               <Link href="/dashboard/transactions" onClick={() => setMoreOpen(false)}>
                 <div className="flex items-center justify-between px-4 py-3.5 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group">
                   <div className="flex items-center gap-3">

@@ -96,6 +96,65 @@ export interface SMSPoolPurchaseSMSOptions {
   phoneNumber?: string;
 }
 
+export interface SMSPoolEsimPlan {
+  ID: number;
+  extendable?: number;
+  dataInGb?: number;
+  network?: string;
+  duration?: number;
+  price: string;
+  speed?: string;
+  ip?: string;
+  countryCode?: string;
+  name?: string;
+}
+
+export interface SMSPoolEsimPricingResponse {
+  data: SMSPoolEsimPlan[];
+  rows: number;
+}
+
+export interface SMSPoolEsimPurchaseResponse {
+  success: number;
+  message?: string;
+  transactionId?: string;
+}
+
+export interface SMSPoolEsimProfileResponse {
+  success?: number;
+  transactionId?: string;
+  countryCode?: string;
+  ac?: string;
+  smdp?: string;
+  activationCode?: string;
+  remainingData?: string;
+  totalData?: string;
+  activated?: number;
+  plan?: number;
+  label?: string | null;
+  message?: string;
+}
+
+export interface SMSPoolEsimHistoryEntry {
+  transactionId: string;
+  countryCode?: string;
+  cost?: string;
+  plan?: number;
+  name?: string;
+  timestamp?: string;
+  expiration?: string;
+  dataInGb?: number;
+  status?: number;
+  label?: string;
+}
+
+export interface SMSPoolEsimHistoryResponse {
+  data: SMSPoolEsimHistoryEntry[];
+  rows: number;
+  page?: number;
+  limit?: number;
+}
+
 // ─── Client ─────────────────────────────────────────────────────────────────
 
 class SMSPoolClient {
@@ -236,6 +295,56 @@ class SMSPoolClient {
 
   refundRental(rental_code: string): Promise<{ success: number; message: string }> {
     return this.post("/rental/refund", { rental_code });
+  }
+
+  // ── Suggestions ───────────────────────────────────────────────────────────
+
+  getSuggestedCountries(
+    service: string
+  ): Promise<Array<{ pool: number; country_id: number; name: string; short_name: string; price: string }>> {
+    return this.post("/request/suggested_countries", { service });
+  }
+
+  // ── eSIM ──────────────────────────────────────────────────────────────────
+
+  getEsimCountries(options: {
+    start?: number;
+    length?: number;
+    search?: string;
+  } = {}): Promise<SMSPoolEsimPricingResponse> {
+    const params: Record<string, string> = {};
+    if (typeof options.start === "number") params.start = String(options.start);
+    if (typeof options.length === "number") params.length = String(options.length);
+    if (options.search) params.Search = options.search;
+    return this.post("/esim/pricing", params);
+  }
+
+  getEsimPlans(countryCode: string): Promise<SMSPoolEsimPlan[]> {
+    return this.post("/esim/plans", { country: countryCode });
+  }
+
+  purchaseEsim(plan: number | string): Promise<SMSPoolEsimPurchaseResponse> {
+    return this.post("/esim/purchase", { plan: String(plan) });
+  }
+
+  getEsimProfile(transactionId: string): Promise<SMSPoolEsimProfileResponse> {
+    return this.post("/esim/profile", { transactionId });
+  }
+
+  getEsimHistory(options: {
+    start?: number;
+    length?: number;
+    search?: string;
+  } = {}): Promise<SMSPoolEsimHistoryResponse> {
+    const params: Record<string, string> = {};
+    if (typeof options.start === "number") params.start = String(options.start);
+    if (typeof options.length === "number") params.length = String(options.length);
+    if (options.search) params.search = options.search;
+    return this.post("/esim/history", params);
+  }
+
+  deleteEsim(transactionId: string): Promise<{ success: number; message?: string }> {
+    return this.post("/esim/delete", { transactionId });
   }
 }
 

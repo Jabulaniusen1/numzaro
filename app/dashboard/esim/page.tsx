@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/lib/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
-  Search, Globe, RefreshCw, ChevronLeft, ChevronRight,
+  Search, RefreshCw, ChevronLeft, ChevronRight,
   Wifi, Clock, QrCode, BarChart3, X, AlertCircle,
 } from "lucide-react";
 
@@ -25,6 +25,13 @@ interface ESimPackage {
   priceUsd: number;
   chargedUsd: number;
   dataFormatted: string;
+}
+
+interface ESimCountry {
+  code: string;
+  name: string;
+  flag: string;
+  startingChargedUsd: number;
 }
 
 interface ESimOrder {
@@ -80,6 +87,16 @@ function statusLabel(status: string) {
     failed:         "Failed",
   };
   return map[status] ?? status;
+}
+
+function flagFromIso2(iso2?: string) {
+  if (!iso2 || iso2.length !== 2) return "🌍";
+  const code = iso2.toUpperCase();
+  const base = 0x1f1e6;
+  const cp1 = base + (code.charCodeAt(0) - 65);
+  const cp2 = base + (code.charCodeAt(1) - 65);
+  if (cp1 < base || cp2 < base) return "🌍";
+  return String.fromCodePoint(cp1, cp2);
 }
 
 // ─── Buy Modal ────────────────────────────────────────────────────────────────
@@ -318,19 +335,22 @@ function OrderDetailModal({ order, onClose }: { order: ESimOrder; onClose: () =>
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 type Tab = "browse" | "my-esims";
+type BrowseStep = "country" | "plans";
 
 export default function ESimPage() {
   const [tab, setTab] = useState<Tab>("browse");
 
   // Browse state
+  const [browseStep, setBrowseStep] = useState<BrowseStep>("country");
+  const [countries, setCountries] = useState<ESimCountry[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState<ESimCountry | null>(null);
+  const [loadingCountries, setLoadingCountries] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
   const [packages, setPackages] = useState<ESimPackage[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [pkgError, setPkgError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
+  const [dropdownPkg, setDropdownPkg] = useState<ESimPackage | null>(null);
   const [selectedPkg, setSelectedPkg] = useState<ESimPackage | null>(null);
-  const [pkgPage, setPkgPage] = useState(1);
-  const PKG_PER_PAGE = 12;
 
   // Orders state
   const [orders, setOrders] = useState<ESimOrder[]>([]);
@@ -341,24 +361,49 @@ export default function ESimPage() {
 
   const { toast } = useToast();
 
-  const fetchPackages = useCallback(async () => {
+  const fetchCountries = useCallback(async () => {
+    setLoadingCountries(true);
+    setPkgError(null);
+    try {
+      const res = await fetch("/api/esim/countries");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load countries");
+      setCountries(
+        (data.countries || []).map((c: any) => ({
+          code: String(c.code || "").toUpperCase(),
+          name: String(c.name || c.code || "Country"),
+          flag: c.flag || flagFromIso2(String(c.code || "").toUpperCase()),
+          startingChargedUsd: Number(c.startingChargedUsd || 0),
+        }))
+      );
+    } catch (err: any) {
+      setPkgError(err.message);
+    } finally {
+      setLoadingCountries(false);
+    }
+  }, []);
+
+  const fetchPackages = useCallback(async (countryCode?: string) => {
+    const code = String(countryCode || selectedCountry?.code || "").trim().toUpperCase();
+    if (!code) return;
     setLoadingPackages(true); setPkgError(null);
     try {
       const res = await fetch("/api/esim/packages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locationCode: locationFilter || undefined }),
+        body: JSON.stringify({ locationCode: code }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load packages");
       setPackages(data.packages || []);
-      setPkgPage(1);
+      setDropdownPkg(null);
+      setBrowseStep("plans");
     } catch (err: any) {
       setPkgError(err.message);
     } finally {
       setLoadingPackages(false);
     }
-  }, [locationFilter]);
+  }, [selectedCountry?.code]);
 
   const fetchOrders = useCallback(async () => {
     setLoadingOrders(true);
@@ -375,14 +420,21 @@ export default function ESimPage() {
     }
   }, [ordersPage]);
 
-  useEffect(() => { if (tab === "browse") fetchPackages(); }, [tab, fetchPackages]);
+  useEffect(() => {
+    if (tab !== "browse") return;
+    setBrowseStep("country");
+    setSelectedCountry(null);
+    setPackages([]);
+    setDropdownPkg(null);
+    fetchCountries();
+  }, [tab, fetchCountries]);
   useEffect(() => { if (tab === "my-esims") fetchOrders(); }, [tab, fetchOrders]);
 
-  const filteredPackages = packages.filter((p) =>
-    !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.location.toLowerCase().includes(search.toLowerCase())
-  );
-  const pkgTotalPages = Math.max(1, Math.ceil(filteredPackages.length / PKG_PER_PAGE));
-  const pagedPackages = filteredPackages.slice((pkgPage - 1) * PKG_PER_PAGE, pkgPage * PKG_PER_PAGE);
+  const filteredCountries = countries.filter((c) => {
+    const q = countrySearch.trim().toLowerCase();
+    if (!q) return true;
+    return c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q);
+  });
 
   return (
     <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
@@ -419,122 +471,183 @@ export default function ESimPage() {
         {/* ── Browse Tab ── */}
         {tab === "browse" && (
           <>
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-5">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search plans..."
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPkgPage(1); }}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/30"
-                />
-              </div>
-              <div className="relative">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Country code (e.g. JP)"
-                  value={locationFilter}
-                  onChange={(e) => setLocationFilter(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && fetchPackages()}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/30 sm:w-44"
-                />
-              </div>
-              <button
-                onClick={fetchPackages}
-                disabled={loadingPackages}
-                className="flex items-center gap-1.5 text-sm font-semibold text-[#7C5CFC] border border-[#7C5CFC]/30 px-4 py-2.5 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
-              >
-                <RefreshCw className={cn("h-4 w-4", loadingPackages && "animate-spin")} />
-                Search
-              </button>
-            </div>
-
             {pkgError && (
               <div className="mb-4 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300 flex items-center justify-between">
                 {pkgError}
-                <button onClick={fetchPackages} className="text-xs font-semibold underline">Retry</button>
+                <button
+                  onClick={() => (browseStep === "country" ? fetchCountries() : fetchPackages())}
+                  className="text-xs font-semibold underline"
+                >
+                  Retry
+                </button>
               </div>
             )}
 
-            {/* Package Grid */}
-            {loadingPackages ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}
-              </div>
-            ) : filteredPackages.length === 0 ? (
-              <div className="py-16 text-center bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
-                <div className="w-14 h-14 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center mx-auto mb-3">
-                  <Wifi className="h-7 w-7 text-[#7C5CFC]" />
+            {browseStep === "country" ? (
+              <>
+                <div className="relative mb-5">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search country..."
+                    value={countrySearch}
+                    onChange={(e) => setCountrySearch(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/30"
+                  />
                 </div>
-                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-                  {packages.length === 0 ? "No plans loaded. Click Search to load." : "No plans match your search."}
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {pagedPackages.map((pkg) => (
-                  <div
-                    key={pkg.packageCode}
-                    className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col hover:border-[#7C5CFC]/50 hover:shadow-md transition-all"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-gray-800 dark:text-gray-100 leading-tight">{pkg.name}</p>
-                        <p className="text-xs text-gray-400 mt-0.5 truncate">{pkg.location}</p>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                        <Wifi className="h-3.5 w-3.5 text-[#7C5CFC]" />
-                        <span className="font-semibold text-gray-700 dark:text-gray-200">{pkg.dataFormatted}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                        <Clock className="h-3.5 w-3.5 text-[#7C5CFC]" />
-                        <span className="font-semibold text-gray-700 dark:text-gray-200">{pkg.duration} {pkg.durationUnit}</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-auto flex items-center justify-between">
-                      <span className="text-lg font-black text-[#7C5CFC]">${pkg.chargedUsd.toFixed(2)}</span>
-                      <Button
-                        size="sm"
-                        className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl text-xs px-4"
-                        onClick={() => setSelectedPkg(pkg)}
+                {loadingCountries ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {[...Array(12)].map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+                  </div>
+                ) : filteredCountries.length === 0 ? (
+                  <div className="py-16 text-center bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
+                    <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                      No countries found.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {filteredCountries.map((country) => (
+                      <button
+                        key={country.code}
+                        onClick={() => {
+                          setSelectedCountry(country);
+                          setDropdownPkg(null);
+                          fetchPackages(country.code);
+                        }}
+                        className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 text-left hover:border-[#7C5CFC]/60 hover:shadow-md transition-all"
                       >
-                        Buy
-                      </Button>
+                        <div className="text-3xl mb-2">{country.flag}</div>
+                        <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{country.name}</p>
+                        <p className="text-xs text-gray-400 mt-1">{country.code}</p>
+                        <p className="text-xs text-[#7C5CFC] font-semibold mt-2">
+                          From ${country.startingChargedUsd.toFixed(2)}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <Button
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={() => {
+                      setBrowseStep("country");
+                      setPackages([]);
+                      setDropdownPkg(null);
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Change Country
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{selectedCountry?.flag || "🌍"}</span>
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Selected Country</p>
+                      <p className="text-sm font-bold text-gray-800 dark:text-gray-100">
+                        {selectedCountry?.name || selectedCountry?.code || "Unknown"}
+                      </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
 
-            {/* Packages Pagination */}
-            {pkgTotalPages > 1 && !loadingPackages && (
-              <div className="flex items-center justify-center gap-3 mt-5">
-                <button
-                  onClick={() => setPkgPage((p) => Math.max(1, p - 1))}
-                  disabled={pkgPage === 1}
-                  className="p-1.5 rounded-xl border border-gray-200 dark:border-gray-700 disabled:opacity-30 hover:bg-white dark:hover:bg-gray-800 transition-colors"
-                >
-                  <ChevronLeft className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                </button>
-                <span className="text-xs text-gray-500 font-semibold">
-                  Page {pkgPage} of {pkgTotalPages}
-                  <span className="text-gray-400 font-normal ml-1">({filteredPackages.length} plans)</span>
-                </span>
-                <button
-                  onClick={() => setPkgPage((p) => Math.min(pkgTotalPages, p + 1))}
-                  disabled={pkgPage === pkgTotalPages}
-                  className="p-1.5 rounded-xl border border-gray-200 dark:border-gray-700 disabled:opacity-30 hover:bg-white dark:hover:bg-gray-800 transition-colors"
-                >
-                  <ChevronRight className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                </button>
-              </div>
+                <div className="mb-5 rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-900/20 p-4 space-y-2">
+                  <p className="text-sm font-bold text-indigo-800 dark:text-indigo-200">
+                    {selectedCountry?.name}
+                  </p>
+                  <p className="text-xs text-indigo-700 dark:text-indigo-300">
+                    You are purchasing an eSIM, please make sure that eSIMs are supported on your device and that the eSIM is activated within 180 days. After purchase, you will be redirected to your eSIMs page and you can activate it instantly.
+                  </p>
+                  <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-200">Important:</p>
+                  <p className="text-xs text-indigo-700 dark:text-indigo-300">
+                    eSIMs are non-refundable and non-transferable, please keep in mind that these are data-only SIMs. The eSIM can only be redeemed in the country of the eSIM, as we require roaming the eSIM IP might not always match the country.
+                  </p>
+                  <p className="text-xs text-indigo-700 dark:text-indigo-300">
+                    We cannot refund your eSIM in case your device does not support eSIM, please make sure to check if your device supports it before purchasing.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end mb-4">
+                  <button
+                    onClick={() => fetchPackages()}
+                    disabled={loadingPackages}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-[#7C5CFC] border border-[#7C5CFC]/30 px-4 py-2.5 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+                  >
+                    <RefreshCw className={cn("h-4 w-4", loadingPackages && "animate-spin")} />
+                    Refresh Plans
+                  </button>
+                </div>
+
+                {loadingPackages ? (
+                  <Skeleton className="h-12 rounded-xl w-full mb-4" />
+                ) : packages.length === 0 ? (
+                  <div className="py-16 text-center bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
+                    <div className="w-14 h-14 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center mx-auto mb-3">
+                      <Wifi className="h-7 w-7 text-[#7C5CFC]" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                      No plans found for this country.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-5">
+                      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
+                        Select a Plan
+                      </label>
+                      <select
+                        value={dropdownPkg?.packageCode ?? ""}
+                        onChange={(e) => {
+                          const pkg = packages.find((p) => p.packageCode === e.target.value) ?? null;
+                          setDropdownPkg(pkg);
+                        }}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/30 appearance-none cursor-pointer"
+                      >
+                        <option value="">— Choose a plan —</option>
+                        {packages.map((pkg) => (
+                          <option key={pkg.packageCode} value={pkg.packageCode}>
+                            {pkg.dataFormatted} · {pkg.duration} {pkg.durationUnit} — ${pkg.chargedUsd.toFixed(2)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {dropdownPkg && (
+                      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-[#7C5CFC]/40 p-5 shadow-sm">
+                        <p className="text-sm font-bold text-gray-800 dark:text-gray-100 mb-1">{dropdownPkg.name}</p>
+                        <p className="text-xs text-gray-400 mb-4">{dropdownPkg.location}</p>
+                        <div className="grid grid-cols-3 gap-3 mb-5">
+                          <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl">
+                            <Wifi className="h-4 w-4 text-[#7C5CFC] mb-1" />
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Data</span>
+                            <span className="text-sm font-bold text-gray-800 dark:text-gray-100 mt-0.5">{dropdownPkg.dataFormatted}</span>
+                          </div>
+                          <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl">
+                            <Clock className="h-4 w-4 text-[#7C5CFC] mb-1" />
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Validity</span>
+                            <span className="text-sm font-bold text-gray-800 dark:text-gray-100 mt-0.5">{dropdownPkg.duration} {dropdownPkg.durationUnit}</span>
+                          </div>
+                          <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl">
+                            <BarChart3 className="h-4 w-4 text-[#7C5CFC] mb-1" />
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Price</span>
+                            <span className="text-sm font-bold text-[#7C5CFC] mt-0.5">${dropdownPkg.chargedUsd.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <Button
+                          className="w-full bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl"
+                          onClick={() => setSelectedPkg(dropdownPkg)}
+                        >
+                          Buy This Plan
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
             )}
           </>
         )}
@@ -630,7 +743,7 @@ export default function ESimPage() {
         <BuyModal
           pkg={selectedPkg}
           onClose={() => setSelectedPkg(null)}
-          onSuccess={() => { setSelectedPkg(null); setTab("my-esims"); fetchOrders(); }}
+          onSuccess={() => { setSelectedPkg(null); setDropdownPkg(null); setTab("my-esims"); fetchOrders(); }}
         />
       )}
       {selectedOrder && (

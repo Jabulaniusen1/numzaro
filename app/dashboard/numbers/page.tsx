@@ -47,17 +47,18 @@ const SERVICE_ICONS: Record<string, IconType> = {
   ebay:      FaEbay,
 };
 
-interface PlatfoneService {
+interface SmsPoolService {
   code: string;
   name: string;
-  color: string;
+  color?: string;
   totalAvailable: number;
   priority: number;
 }
 
-interface PlatfoneCountry {
+interface SmsPoolCountry {
   code: string;
   name: string;
+  shortCode?: string;
   flag: string;
   available: number;
   sellPrice: number;
@@ -96,7 +97,12 @@ function CountryGridSkeleton() {
 
 // ─── Service icon — react-icons with brand color, letter fallback ─────────────
 function ServiceIcon({ code, name, color }: { code: string; name: string; color: string }) {
-  const Icon = SERVICE_ICONS[code.toLowerCase()];
+  const lowerCode = code.toLowerCase();
+  const lowerName = name.toLowerCase();
+  const matchedKey = Object.keys(SERVICE_ICONS).find(
+    (key) => lowerCode === key || lowerName.includes(key)
+  );
+  const Icon = matchedKey ? SERVICE_ICONS[matchedKey] : undefined;
   // Snapchat has a yellow bg — use dark icon; most others need white
   const iconColor = color === "#FFFC00" || color === "#FAE100" ? "#000" : "#fff";
 
@@ -120,10 +126,10 @@ export default function NumbersPage() {
   const router     = useRouter();
 
   const [balance, setBalance]         = useState<number | null>(null);
-  const [services, setServices]       = useState<PlatfoneService[]>([]);
-  const [countries, setCountries]     = useState<PlatfoneCountry[]>([]);
-  const [selectedService, setSelectedService] = useState<PlatfoneService | null>(null);
-  const [selectedCountry, setSelectedCountry] = useState<PlatfoneCountry | null>(null);
+  const [services, setServices]       = useState<SmsPoolService[]>([]);
+  const [countries, setCountries]     = useState<SmsPoolCountry[]>([]);
+  const [selectedService, setSelectedService] = useState<SmsPoolService | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<SmsPoolCountry | null>(null);
   const [step, setStep]               = useState<Step>("service");
   const [serviceSearch, setServiceSearch] = useState("");
   const [countrySearch, setCountrySearch] = useState("");
@@ -146,10 +152,32 @@ export default function NumbersPage() {
   async function fetchServices() {
     setLoadingServices(true);
     try {
-      const res  = await fetch("/api/platfone/services");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `${res.status}`);
-      setServices(data.services ?? []);
+      const limit = 100;
+      const firstRes  = await fetch(`/api/smspool/services?mode=activation&limit=${limit}&page=1`);
+      const firstData = await firstRes.json();
+      if (!firstRes.ok) throw new Error(firstData?.error || `${firstRes.status}`);
+
+      let allServices = [...(firstData.services || [])];
+      const totalPages = Number(firstData.totalPages || 1);
+      if (totalPages > 1) {
+        for (let page = 2; page <= totalPages; page++) {
+          const res = await fetch(`/api/smspool/services?mode=activation&limit=${limit}&page=${page}`);
+          const data = await res.json();
+          if (res.ok && Array.isArray(data.services)) {
+            allServices = allServices.concat(data.services);
+          }
+        }
+      }
+
+      setServices(
+        allServices.map((s: any) => ({
+          code: String(s.code),
+          name: String(s.name || s.code),
+          color: "#7C5CFC",
+          totalAvailable: Number(s.available ?? 1),
+          priority: Number(s.priority ?? 999),
+        }))
+      );
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Failed to load services", variant: "destructive" });
     } finally {
@@ -161,7 +189,7 @@ export default function NumbersPage() {
     setLoadingCountries(true);
     setCountries([]);
     try {
-      const res  = await fetch(`/api/platfone/countries?service=${encodeURIComponent(serviceCode)}`);
+      const res  = await fetch(`/api/smspool/suggested-countries?service=${encodeURIComponent(serviceCode)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `${res.status}`);
       setCountries(data.countries ?? []);
@@ -172,14 +200,14 @@ export default function NumbersPage() {
     }
   }
 
-  function selectService(service: PlatfoneService) {
+  function selectService(service: SmsPoolService) {
     setSelectedService(service);
     setSelectedCountry(null);
     setStep("country");
     fetchCountries(service.code);
   }
 
-  function selectCountry(country: PlatfoneCountry) {
+  function selectCountry(country: SmsPoolCountry) {
     setSelectedCountry(country);
     setStep("confirm");
   }
@@ -193,11 +221,11 @@ export default function NumbersPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider:    "platfone",
-          service:     selectedService.code,
+          serviceCode: selectedService.code,
           country:     selectedCountry.code,
           serviceName: selectedService.name,
           countryName: selectedCountry.name,
+          countryShortCode: selectedCountry.shortCode || undefined,
         }),
       });
 
@@ -229,7 +257,7 @@ export default function NumbersPage() {
     c.name.toLowerCase().includes(countrySearch.toLowerCase())
   );
 
-  // Price shown to user — backend applies our markup on top of Platfone's price
+  // Price shown to user — backend applies our configured markup on top of SMSPool pricing
   const userPrice = selectedCountry?.sellPrice ?? null;
 
   return (
@@ -322,7 +350,7 @@ export default function NumbersPage() {
                     onClick={() => selectService(service)}
                     className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-gray-100 dark:border-gray-700 hover:border-[#7C5CFC] hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all group"
                   >
-                    <ServiceIcon code={service.code} name={service.name} color={service.color} />
+                    <ServiceIcon code={service.code} name={service.name} color={service.color || "#7C5CFC"} />
                     <span className="text-xs font-bold text-gray-700 dark:text-gray-200 text-center leading-tight line-clamp-2">
                       {service.name}
                     </span>
@@ -341,7 +369,7 @@ export default function NumbersPage() {
           <div className="space-y-4">
             {/* Selected service summary */}
             <div className="flex items-center gap-3 bg-violet-50 dark:bg-violet-900/20 border border-[#7C5CFC]/30 rounded-xl px-4 py-3">
-              <ServiceIcon code={selectedService.code} name={selectedService.name} color={selectedService.color} />
+              <ServiceIcon code={selectedService.code} name={selectedService.name} color={selectedService.color || "#7C5CFC"} />
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Selected service</p>
                 <p className="font-bold text-gray-800 dark:text-gray-100">{selectedService.name}</p>
@@ -400,7 +428,7 @@ export default function NumbersPage() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <ServiceIcon code={selectedService.code} name={selectedService.name} color={selectedService.color} />
+                  <ServiceIcon code={selectedService.code} name={selectedService.name} color={selectedService.color || "#7C5CFC"} />
                   <span className="font-bold text-gray-800 dark:text-gray-100">{selectedService.name}</span>
                 </div>
                 <button onClick={() => setStep("service")} className="text-xs text-[#7C5CFC] font-semibold hover:underline">Change</button>

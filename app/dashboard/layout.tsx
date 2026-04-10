@@ -16,6 +16,9 @@ export default async function DashboardLayout({
     redirect("/auth/login");
   }
 
+  const adminEmails = process.env.ADMIN_EMAILS?.split(",") || [];
+  const isAdmin = adminEmails.includes(user.email || "");
+
   const handleSignOut = async () => {
     "use server";
     const supabase = await createClient();
@@ -25,7 +28,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
-      <Navbar onSignOut={handleSignOut} />
+      <Navbar onSignOut={handleSignOut} isAdmin={isAdmin} />
       <main className="md:max-w-7xl md:mx-auto md:px-6">{children}</main>
     </div>
   );

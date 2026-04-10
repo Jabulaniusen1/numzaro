@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
-import { esimAccessClient, ESimAccessClient } from "@/lib/esimaccess/client";
+import { smsPoolClient } from "@/lib/smspool/client";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { randomUUID } from "crypto";
 
@@ -30,14 +30,14 @@ export async function POST(request: NextRequest) {
     const location = String(body?.location || "").trim();
     const duration = String(body?.duration || "").trim();
     const dataVolume = String(body?.dataVolume || "").trim();
-    const providerPrice = Number(body?.providerPrice); // raw provider units (10000 = $1)
+    const providerPrice = Number(body?.providerPrice); // SMSPool USD price
 
     if (!packageCode || !packageName || !providerPrice) {
       return NextResponse.json({ error: "packageCode, packageName, and providerPrice are required" }, { status: 400 });
     }
 
     const markupMultiplier = await getMarkupMultiplier();
-    const providerCostUsd = ESimAccessClient.priceToUsd(providerPrice);
+    const providerCostUsd = providerPrice;
     const chargedUsd = parseFloat((providerCostUsd * markupMultiplier).toFixed(4));
 
     // Check wallet balance
@@ -55,20 +55,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const transactionId = `esim-${randomUUID()}`;
+    const internalTransactionId = `esim-${randomUUID()}`;
 
-    // Place order with eSIM Access
-    const orderResult = await esimAccessClient.orderEsim({
-      packageCode,
-      count: 1,
-      price: providerPrice,
-      transactionId,
-    });
-
-    const esimItem = orderResult.esimList?.[0];
-    if (!esimItem) {
-      throw new Error("Order placed but no eSIM returned");
+    // Place order with SMSPool
+    const purchase = await smsPoolClient.purchaseEsim(packageCode);
+    if (!purchase.success || !purchase.transactionId) {
+      throw new Error(purchase.message || "SMSPool eSIM purchase failed");
     }
+    const providerTransactionId = purchase.transactionId;
+
+    // Fetch profile for activation details
+    const profile = await smsPoolClient.getEsimProfile(providerTransactionId).catch(() => null);
 
     const supabaseAdmin = createServiceRoleClient();
 
@@ -82,25 +79,26 @@ export async function POST(request: NextRequest) {
         location,
         duration,
         data_volume: dataVolume,
-        order_no: orderResult.orderNo,
-        esim_tran_no: esimItem.esimTranNo,
-        iccid: esimItem.iccid || null,
-        qr_code_url: esimItem.qrCodeUrl || null,
-        ac: esimItem.ac || null,
-        smdp_address: esimItem.smdpAddress || null,
-        transaction_id: transactionId,
-        status: "got_resource",
+        order_no: null,
+        esim_tran_no: providerTransactionId,
+        iccid: null,
+        qr_code_url: null,
+        ac: profile?.ac || null,
+        smdp_address: profile?.smdp || null,
+        transaction_id: internalTransactionId,
+        status: Number(profile?.activated || 0) === 1 ? "in_use" : "got_resource",
         provider_cost: providerCostUsd,
         charged_amount: chargedUsd,
+        esim_status: profile ? String(profile.activated ?? "") : null,
       })
       .select()
       .single();
 
     if (dbError) {
       console.error("[esim/order] DB insert error:", dbError);
-      // Attempt cancel to refund to provider balance
+      // Attempt provider cleanup
       try {
-        await esimAccessClient.cancelEsim({ esimTranNo: esimItem.esimTranNo });
+        await smsPoolClient.deleteEsim(providerTransactionId);
       } catch (cancelErr) {
         console.error("[esim/order] cancel after DB error failed:", cancelErr);
       }
