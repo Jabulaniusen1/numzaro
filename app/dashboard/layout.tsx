@@ -29,8 +29,7 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
       <Navbar onSignOut={handleSignOut} isAdmin={isAdmin} />
-      <main className="md:max-w-7xl md:mx-auto md:px-6">{children}</main>
+      <main className="pb-24 md:pb-0 md:max-w-7xl md:mx-auto md:px-6">{children}</main>
     </div>
   );
 }
-

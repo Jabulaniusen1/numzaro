@@ -438,7 +438,7 @@ export default function ESimPage() {
 
   return (
     <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
-      <div className="px-4 pt-4 pb-6 md:px-6 md:pt-6 max-w-5xl mx-auto">
+      <div className="px-4 pt-4 pb-24 md:pb-6 md:px-6 md:pt-6 max-w-5xl mx-auto">
 
         {/* Header */}
         <div className="mb-6">
