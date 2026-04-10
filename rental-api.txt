@@ -1,0 +1,2341 @@
+Platfone Retail API (1.0.0)
+Download OpenAPI specification:Download
+
+E-mail: support@platfone.com
+URL: https://platfone.com
+License: Apache 2.0
+Terms of Service
+About this API
+Retail API allows you to create and manage activations for your users without the need of building complex backend. You can use this API to automate SMS verification for your users. Billing applies only to successfully received SMS messages. We manage user balance and activations storage for you, so you can focus on your app.
+
+This API was designed with focus on mobile or web apps developers who want to create apps that allows their users to register in their apps, pay them and make activations with minimal backend.
+
+What should you implement?
+
+Users registration and authentication
+Accept payments from users and send the payment amount together with unique user identifier to Retail API
+Use Retail API to get phone number and receive sms, while sending unique user identifier to Retail API
+What we provide? Simple API to create and manage activations on behalf of your users, icluding:
+
+phone number for SMS verification (activation) backed by numerous suppliers and complex algorithms to ensure high success rate
+storage of activations history
+balance billing for your users for successfully received SMS messages
+How it works?
+
+Each activation is associated with your user. You send unique user identifier with each activation request. You can use id of your user form users DB table for example or any other unique user identifier. We will store this identifier with each activation, so you can later match activations with your users.
+
+We will manage balance of your users for you. We will reserve balance, while waiting for activation, release or bill when SMS received. On each purchase send us:
+
+unique user identifier
+amount of funds to be added or deducted to/from user balance
+unique transaction identifier to prevent double billing
+You can get balance of your user at any time.
+
+That's it! You can now focus on your app and let us handle the rest.
+
+How to start?
+
+Register an account at https://platfone.com
+Switch to test mode in order to test the API without billing
+Check our sample app code at
+Need help? Contact us via Support system or send us an email at support@platfone.com
+How to use
+Register an account at https://platfone.com
+Add balance to your account
+Get your API key from https://platfone.com/app/api
+API key
+All requests must include an API key in the X-Api-Key header. You can get your API key from https://platfone.com/app/api
+
+API base URL
+All requests must be made to the following URL:
+
+https://temp-number-api.com/api/v1/retail/
+Customer
+Customer - is your customer. You can create customers and manage their balance and activations. Each customer has its own balance and activations history.
+
+Standard application flow
+Usually, the application flow is as follows:
+
+Your customer registers in your app -> You create a customer for him POST retail/m/customer
+Your customer tops up the balance in your app -> You add funds to the customer balance POST retail/m/customer/<customer_id>/transaction
+Your customer wants to activate a service -> You create an activation for the customer POST retail/a/<customer_id>/activation and notice the activation_id and phone number.
+You show the phone number to your customer and ask him to send SMS to this number.
+You poll the Retail API to get using the activation_id at 10-second intervals to receive SMS. Continue this process until the either expire_at timestamp is exceeded or sms_status = smsReceived. If the status is smsReceived, show the code and message from the response and stop polling. If supported you can request one more SMS message from the same number, using retry activation endpoint.
+You customer checks his balance -> You get the balance of the customer GET retail/a/customer/<customer_id>/balance
+API endpoints
+Endpoint types
+There are two types of endpoints (going after the base URL /api/v1/retail/):
+
+/m/ - Management. E.g. create customer, get various information and statistics about their usage.
+/a/ - Application. Operations that customer do in your application. E.g. get balance, create activation, get activation history for specific customer. This endpoint requires customer id to be included in the URL.
+Management endpoints
+This endpoint is used to manage customers. You can create, update, delete customers and get various information and statistics about their usage. These endpoints has prefix /m/.
+
+POST retail/m/customer - create new customer
+PUT retail/m/customer/<customer_id> - change status of customer
+POST retail/m/customer/<customer_id>/transaction - add or deduct credits from customer's balance
+GET retail/m/customers - list customers and their balance
+GET retail/m/customers/activation/history - list activation history of customers
+GET retail/m/customers/transactions - list customers finanicial transactions
+Application endpoints
+This endpoint is used to run application operation for single customer. E.g. create and manage activation for customer, get balance, transactions, etc. These endpoints has prefix /a/. These endpoints require customer_id to be included in the URL.
+
+POST retail/a/customer/<customer_id>/activation - create new activation
+GET retail/a/customer/<customer_id>/activations - list active activations of customer
+GET retail/a/customer/<customer_id>/activation/<activation_id> - get activation details
+PUT retail/a/customer/<customer_id>/activation/{activation_id}/retry - request one more SMS message from the same phone number
+PUT retail/a/customer/<customer_id>/activation/{activation_id}/cancel - cancel activation
+GET retail/a/customer/<customer_id>/activation/history - list activation history of customer
+GET retail/a/customer/<customer_id>/balance - get customer balance
+GET retail/a/customer/<customer_id>/transactions - list customer financial transactions
+Catalog
+
+Get countries - Get a list of countries where mobile phone numbers are provided.
+Get services - Get a list of services eligible for activation.
+Prices
+
+Get prices by service - Get a price list organized by service.
+Get prices by country - Get a price list organized by country.
+Get price for service in country - Get a price for specific service and country.
+Balance
+
+Get balance - Get your account balance.
+Activation flow
+Request number for specific service and country. In response you will get activation id and phone.
+Ask service to send SMS to phone.
+Poll the Platfone API using the activation id at 10-second intervals to receive SMS. Continue this process until the either expire_at timestamp is exceeded or sms_status = smsReceived. If the status is smsReceived, you can use the code and message from the response and stop polling. If supported you can request one more SMS message from the same number, using retry activation endpoint.
+image
+
+Rate limits
+There are three different types of rate limits you should be aware of:
+
+minimum success rate
+maximum active activations
+API endpoints maximum requests per time period
+In the event of a block, you will receive a 429 error code, along with information on when your account will be unblocked.
+
+Minimum success rate
+To prevent the scanning of phone numbers, a minimum success rate for receiving SMS messages is required to be maintained. If your success rate falls below 7%, your account will be subjected to a 24-hour block.
+
+The success rate is calculated within a 24-hour window as follows:
+
+image
+
+Note: The calculation of the success rate starts after the 10th number has been ordered.
+
+You have the option to unblock your account from within your dashboard 3 times in 24 hours.
+
+Maximum active activations
+To prevent abuse, the maximum number of active activations is limited to 20. If you reach this limit, you will receive a 429 error code. You can cancel an active activation to free up space for a new one. If you need more than 20 active activations, please contact us.
+
+API methods (rate limiting)
+To ensure optimal performance, the following API methods are subject to these rate limits:
+
+Method	Path	Limit
+GET	user/balance	300 requests per 1 minute
+POST	activation	300 requests per 1 minute
+PUT	activation/:id/retry	50 requests per 1 minute
+PUT	activation/:id/cancel	50 requests per 1 minute
+GET	activation/history	6 requests per 1 minute
+GET	activation/:id	300 requests per 1 minute
+GET	activation/countries	15 requests per 1 minute
+GET	activation/services	15 requests per 1 minute
+GET	activation/prices/countries	6 requests per 1 minute
+GET	activation/prices/services	6 requests per 1 minute
+GET	activation/prices/services/:service_id/countries/:country_id	60 requests per 1 minute
+Versioning
+The API is subject to change without notice. We will try to keep the API backwards compatible, but we cannot guarantee it. If we make backwards incompatible changes, we will release a new version of the API. The version will be included in the URL. For example, if the current version is v1, the URL will be https://temp-number-api.com/api/v1. If we release a new version, the URL will be https://temp-number-api.com/api/v2.
+
+Management endpoints
+This section includes endpoints for managing customers and get general information about retail service usage. E.g. create customer, disable customer, get customers list, get activation history of all customers, get all transactions, etc. Endpoints have prefix retail/m/.
+
+Create new customer
+Create new customer and set initial balance.
+
+Authorizations:
+apikey_auth
+Request Body schema: application/json
+customer_id
+required
+string <^[a-zA-Z0-9]+$> [ 1 .. 80 ] characters
+ID of customer. Must be unique.
+
+balance	
+integer [ 0 .. 100000 ]
+Initial customer balance in USD cents. If it is greater than zero, financial transaction will be added with purchase_id = initial to customer transactions.
+
+Responses
+200 Success response
+400 Invalid request parameters
+401 Unauthorized to access this resource
+403 User account on hold status
+409 Customer already exists
+429 Rate limit exceeded error
+500 Unexpected Error
+503 Service unavailable
+
+post
+/m/customer
+Request samples
+PayloadCLI
+Content type
+application/json
+
+Copy
+{
+"customer_id": "xDWxt7dd6efro3yWL4qfuEWjvAz1",
+"balance": 90
+}
+Response samples
+200400401403409429500503
+Content type
+application/json
+
+Copy
+{
+"result": "success"
+}
+Change customer
+Change customer status.
+
+Available statuses:
+
+disabled - customer is disabled. All customers operations are restricted.
+active - customer is active. All customers operations are allowed.
+paused - customer is paused. New activations are restricted.
+markedForDeletion - customer is marked for deletion. All customers operations are restricted.
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string <^[a-zA-Z0-9]+$> [ 1 .. 80 ] characters
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+Request Body schema: application/json
+status
+required
+string
+Enum: "disabled" "active" "paused" "markedForDeletion"
+New customer status. Can be disabled, active, paused, markedForDeletion.
+
+Responses
+200 Success response
+202 Request accepted and the customer is marked for deletion; deletion is not immediate.
+400 Invalid request parameters
+401 Unauthorized to access this resource
+403 User account on hold status
+404 Customer not found exception
+409 Resource in a bad state
+429 Too Many Requests
+500 Unexpected Error
+503 Service unavailable
+
+put
+/m/customer/{customer_id}
+Request samples
+PayloadCLI
+Content type
+application/json
+
+Copy
+{
+"status": "paused"
+}
+Response samples
+200400401403404409429500503
+Content type
+application/json
+
+Copy
+{
+"result": "success"
+}
+Get customers
+Get customers list with their statuses and balances. Filter by status, customer_id and creation date.
+
+Authorizations:
+apikey_auth
+query Parameters
+customer_id	
+string [ 1 .. 80 ] characters ^[a-zA-Z0-9]+$
+Example: customer_id=xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer to get single customer.
+
+status	
+Array of strings
+Items Enum: "disabled" "active" "paused" "markedForDeletion"
+Example: status=disabled,active
+Array of customer statuses to filter. If empty, all customers will be returned.
+
+created_from_timestamp	
+integer
+Example: created_from_timestamp=1632400000
+Unix timestamp in seconds. If provided, only customers created after this timestamp will be returned.
+
+created_to_timestamp	
+integer
+Example: created_to_timestamp=1632486400
+Unix timestamp in seconds. If provided, only customers created before this timestamp will be returned.
+
+page	
+integer >= 1
+Default: 1
+Example: page=3
+Selected page number. Default is 1.
+
+limit	
+integer [ 1 .. 1000 ]
+Default: 100
+Example: limit=10
+Maximum number of customers to return. Default is 100. If not provided, 100 customers will be returned.
+
+Responses
+200 Customers list
+400 Invalid request parameters
+401 Unauthorized to access this resource
+403 User account on hold status
+429 Rate limit exceeded error
+500 Unexpected Error
+503 Service unavailable
+
+get
+/m/customers
+Request samples
+CLI
+
+Copy
+curl -X GET ${server_base_path}/api/v1/retail/m/customers?customer_id=${customer_id}&status=${status}&created_from_timestamp=${created_from_timestamp}&created_to_timestamp=${created_to_timestamp}&page=${page}&limit=${limit}" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401403429500503
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"customers": [
+{}
+],
+"page": 1,
+"limit": 10,
+"pages": 5,
+"total": 48
+}
+Get customers activation history
+Get customers activation history. Filter by customer_id, status and creation date.
+
+Authorizations:
+apikey_auth
+query Parameters
+customer_id	
+string [ 1 .. 80 ] characters ^[a-zA-Z0-9]+$
+Example: customer_id=xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer to get single customer.
+
+sms_status	
+Array of strings
+Items Enum: "smsRequested" "smsReceived" "retryRequested" "retryReceived" "retryReceived"
+Example: sms_status=smsRequested,smsReceived
+Array of sms_status to filter. Empty array will return all activations.
+
+activation_status	
+Array of strings
+Items Enum: "active" "finalized" "expired" "canceled"
+Example: activation_status=expired,canceled
+Array of activation_status to filter. Empty array will return all activations.
+
+billing_status	
+Array of strings
+Items Enum: "reserved" "released" "billed" "refunded"
+Example: billing_status=released,refunded
+Array of billing_status to filter. Empty array will return all activations.
+
+created_from_timestamp	
+integer
+Example: created_from_timestamp=1632400000
+Unix timestamp in seconds. If provided, only activations created after this timestamp will be returned.
+
+created_to_timestamp	
+integer
+Example: created_to_timestamp=1632486400
+Unix timestamp in seconds. If provided, only activations created before this timestamp will be returned.
+
+page	
+integer >= 1
+Default: 1
+Example: page=3
+Selected page number. Default is 1.
+
+limit	
+integer [ 1 .. 1000 ]
+Default: 100
+Example: limit=10
+Maximum number of customers to return per page. Default is 100. If not provided, 100 customers will be returned.
+
+Responses
+200 Customers activation history
+400 Invalid request parameters
+401 Unauthorized to access this resource
+403 User account on hold status
+429 Rate limit exceeded error
+500 Unexpected Error
+503 Service unavailable
+
+get
+/m/customers/activation/history
+Request samples
+CLI
+
+Copy
+curl -X GET ${server_base_path}/api/v1/retail/m/customers/activation/history?customer_id=${customer_id}&status=${status}&created_from_timestamp=${created_from_timestamp}&created_to_timestamp=${created_to_timestamp}&page=${page}&limit=${limit}"
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401403429500503
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"activations": [
+{}
+],
+"page": 1,
+"limit": 10,
+"pages": 5,
+"total": 48
+}
+Get customers transactions
+Get customers transactions list. Filter by purchase_id, customer_id and creation date.
+
+Authorizations:
+apikey_auth
+query Parameters
+customer_id	
+string [ 1 .. 80 ] characters ^[a-zA-Z0-9]+$
+Example: customer_id=xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer to get single customer.
+
+transaction_id	
+string [ 1 .. 80 ] characters ^[a-zA-Z0-9_]+$
+Example: transaction_id=63f4d0dab040a865d80da08a
+ID of transaction to get single transaction.
+
+created_from_timestamp	
+integer
+Example: created_from_timestamp=1632400000
+Unix timestamp in seconds. If provided, only transactions created after this timestamp will be returned.
+
+created_to_timestamp	
+integer
+Example: created_to_timestamp=1632486400
+Unix timestamp in seconds. If provided, only transactions created before this timestamp will be returned.
+
+page	
+integer >= 1
+Default: 1
+Example: page=3
+Selected page number. Default is 1.
+
+limit	
+integer [ 1 .. 1000 ]
+Default: 100
+Example: limit=10
+Maximum number of transactions to return. Default is 100. If not provided, 100 customers will be returned.
+
+Responses
+200 Customers transactions
+400 Invalid request parameters
+401 Unauthorized to access this resource
+403 User account on hold status
+429 Rate limit exceeded error
+500 Unexpected Error
+503 Service unavailable
+
+get
+/m/customers/transactions
+Request samples
+CLI
+
+Copy
+curl -X GET ${server_base_path}/api/v1/retail/m/customers?customer_id=${customer_id}&transaction_id=${transaction_id}&created_from_timestamp=${created_from_timestamp}&created_to_timestamp=${created_to_timestamp}&page=${page}&limit=${limit}" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401403429500503
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"transactions": [
+{}
+],
+"page": 1,
+"limit": 10,
+"pages": 5,
+"total": 48
+}
+Create customer transaction
+Create new financial transaction for customer.
+
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string <^[a-zA-Z0-9]+$> [ 1 .. 80 ] characters
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+Request Body schema: application/json
+transaction_id
+required
+string <^[a-zA-Z0-9]+$> [ 1 .. 80 ] characters
+ID of financial transaction. Must be unique. If it is not unique, the transaction will be rejected.
+
+amount
+required
+integer [ -100000 .. 100000 ]
+Amount in USD cents to add or deduct to/from customer balance. If amount is positive, it will be added to customer balance. If amount is negative, it will be deducted from customer balance. Note: Customer balance may be negative.
+
+gateway	
+string [ 1 .. 50 ] characters
+Payment gateway used for transaction.
+
+Responses
+200 Success response
+400 Invalid request parameters
+401 Unauthorized to access this resource
+403 User account on hold status
+404 Customer not found exception
+409 Customer transaction already exists
+429 Rate limit exceeded error
+500 Unexpected Error
+503 Service unavailable
+
+post
+/m/customer/{customer_id}/transaction
+Request samples
+PayloadCLI
+Content type
+application/json
+
+Copy
+{
+"transaction_id": "xDWxt7dd6efro3yWL4qfuEWjvAz1",
+"amount": -350,
+"gateway": "stripe"
+}
+Response samples
+200400401403404409429500503
+Content type
+application/json
+
+Copy
+{
+"result": "success"
+}
+Add firebase project url
+Add firebase project url
+
+Authorizations:
+apikey_auth
+Request Body schema: application/json
+url	
+string
+Responses
+200 Success response
+400 Invalid request parameters
+401 Unauthorized to access this resource
+429 Too Many Requests
+500 Unexpected Error
+
+put
+/m/firebase/project_url
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+{
+"url": "https://us-central1-<project-id>.cloudfunctions.net"
+}
+Response samples
+200400401429500
+Content type
+application/json
+
+Copy
+{
+"result": "success"
+}
+Application endpoints
+This section includes endpoints used by your application to operate on a single customer. Examples include creating and managing activation for a customer, retrieving his balance, transactions, etc. Endpoints have the prefix retail/a/.
+
+Order number for activation
+Returns a mobile phone number for service activation and an associated activation ID. Use the activation ID to retrieve the received SMS via GET /retail/a/customer/:customer_id/activation/:activation_id.
+
+Basics
+Ordering: Provide service_id and country_id to order a number. Use GET /activation/services and GET /activation/countries to fetch available IDs.
+For unsupported services, use the special other service.
+The is_retriable flag in the response indicates whether the number can receive multiple SMS messages.
+Billing Conditions
+No SMS, No Charge: Neither the developer nor customer is billed unless an SMS is received.
+First SMS Only: Billing is triggered only by the first SMS received.
+Billing Overview
+Developer Cost: You are billed for the actual activation price (capped by your max_price) only if an SMS is received.
+Customer Cost: The customer is billed based on your selected billing mode (fixed or dynamic) only if an SMS is received.
+Customer Price vs. Customer Cost:
+Customer Price is the price you display to your customer.
+Customer Cost is the actual amount deducted from the customer's balance.
+In dynamic billing, customer cost may be lower than the displayed price if a cheaper offer is matched.
+Customer Billing Modes (customer_billing_type)
+1. fixed Mode
+Price is determined upfront.
+
+Two options are available:
+
+Option A: Fixed Customer Price
+
+Set customer_price directly.
+This value is billed to the customer if SMS is received.
+max_price affects only the developer's cost.
+Option B: Fixed Customer Markup
+
+Set customer_markup (in %).
+Customer price is calculated as: customer_price = max_price * (1 + customer_markup / 100)
+The calculated price is billed to the customer.
+2. dynamic Mode
+Final price is determined only after a number is matched.
+Set customer_markup (in %); do not include customer_price.
+Estimated customer price can be shown using: customer_price = max_price * (1 + customer_markup / 100)
+Actual customer cost is: customer_cost = activation_price * (1 + customer_markup / 100), where activation_price is the actual price of the activation and less than or equal to max_price.
+Price Control
+Developer max_price:
+
+Limits your maximum cost for activation (in USD cents).
+If no number is found within limit, a 409 MaxPriceExceededException is returned with:
+suggestedPrice - the nearest available price above your current max
+order_id - a unique continuation token to retry the activation attempt
+🔄 Handling Price Changes
+The temporary number market is highly dynamic, with prices shifting minute by minute.
+
+If no phone number is available within your specified max_price, the request will fail with a:
+
+409 MaxPriceExceededException
+The response includes:
+
+suggestedPrice: the nearest available price above your current max
+order_id: a unique retry token that allows you to resume the same activation attempt
+🔁 Retrying an Activation Attempt
+To retry with the same activation context:
+
+Optionally inform the customer of the new price based on suggestedPrice
+Resubmit the request with:
+The same order_id
+An updated max_price (e.g., equal to suggestedPrice)
+This ensures a smooth continuation of the original attempt, avoids unnecessary resource consumption, and improves overall success rate.
+
+Quality Considerations
+We constantly monitor the quality of our phone number suppliers. Since higher quality numbers have a better chance of successfully receiving SMS messages, we recommend taking quality into account when ordering numbers.
+
+Quality Factor: The quality_factor parameter allows you to balance quality against price. This parameter is an integer ranging from 0 to 100, with a default value of 50.
+
+A value of 0 means you prioritize price, essentially disregarding quality in the number selection process.
+A value of 50 indicates you value price and quality equally, offering a balanced approach in your selection.
+A value of 100 indicates a preference for quality, making it the primary criterion for number selection, regardless of price.
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string <^[a-zA-Z0-9]+$> [ 1 .. 80 ] characters
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+Request Body schema: application/json
+One of Fixed with Customer MarkupFixed with Customer PriceDynamic with Customer Markup
+service_id
+required
+string [ 1 .. 30 ] characters
+ID of Service being verified. Can be retrieved using GET sms/services
+
+country_id
+required
+string [ 2 .. 9 ] characters
+ID of phone number Country. Can be retrieved using GET /countries
+
+max_price	
+integer [ 1 .. 10000 ]
+Maximum price in USD cents you (developer) are willing to pay for activation. This safeguards against price changes. If the actual price exceeds this limit, a 409 error is returned along with the new suggested price. Defaults to the current suggested price if not provided.
+
+customer_markup
+required
+integer [ 0 .. 10000 ]
+This parameter is used to calculate price of activation that customer will be billed. The markup percentage is applied to the max_price to calculate the customer cost.
+
+customer_billing_type	
+string
+Billing type for the customer. Must be fixed.
+
+Value: "fixed"
+order_id	
+string
+Optional continuation token for an activation attempt that failed due to pricing limits.
+
+When you receive a 409 MaxPriceExceededException, it means no phone numbers were available within your specified max_price, but alternatives are available just above your limit.
+
+In that case, the response includes a suggestedPrice and an order_id. To retry the same activation attempt at the suggested price (or higher), send a new request using the same order_id and a higher max_price.
+
+This ensures the system can continue the previous attempt with the same selection context, potentially increasing the success rate and reducing redundant attempts.
+
+Recommended Usage:
+
+Store the order_id when handling a 409 MaxPriceExceededException.
+Use it to continue the activation attempt once you've decided to raise the max_price.
+quality_factor	
+number [ 0 .. 100 ]
+Quality factor for the number. The quality factor is a number between 0 and 100. The default value is 50. 0 - means prefer price over quality. 100 - means prefer quality over price.
+
+Responses
+200 New activation
+400 Invalid request parameters
+401 Unauthorized to access this resource
+402 Payment required
+403 User account on hold status
+404 Resource not found exception
+409 Max price exceeded
+429 Rate limit exceeded exception
+500 Unexpected Error
+503 Service unavailable
+
+post
+/a/customer/{customer_id}/activation
+Request samples
+PayloadCLI
+Content type
+application/json
+Example
+
+Fixed with Customer Markup
+Fixed with Customer Markup
+
+Copy
+{
+"service_id": "7eleven",
+"country_id": "us",
+"max_price": 90,
+"customer_markup": 10000,
+"customer_billing_type": "fixed",
+"order_id": "682b17b958bf608ceae5ec3c",
+"quality_factor": 10
+}
+Response samples
+200400401402403404409429500503
+Content type
+application/json
+
+Copy
+{
+"activation_id": "64a1c0e8d2a1f9b7e45d3b8e",
+"customer_id": "yHZpQ8lf89aLt8uR6hNyJH7gk0y5",
+"customer_price": 80,
+"price": 20,
+"phone": "14155552671",
+"country_id": "us",
+"service_id": "netflix",
+"sms_status": "smsRequested",
+"activation_status": "active",
+"billing_status": "reserved",
+"report_status": null,
+"sms_code": null,
+"sms_text": null,
+"expire_at": 1729088539,
+"updated_at": 1729087939,
+"created_at": 1729087339,
+"is_retriable": false,
+"cancelable_after": null,
+"formatted": "+1 415 555-2671"
+}
+Get active activations
+Fetches active activations IDs. Optionally include activation data.
+
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string <^[a-zA-Z0-9]+$> [ 1 .. 80 ] characters
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+query Parameters
+with_data	
+boolean
+Default: false
+Example: with_data=true
+Include activation data
+
+Responses
+200 Active activations
+400 Invalid request parameters
+401 Unauthorized to access this resource
+429 Too Many Requests
+500 Unexpected Error
+
+get
+/a/customer/{customer_id}/activations
+Request samples
+CLI
+
+Copy
+curl -X GET ${server_base_path}/api/v1/retail/a/customer/${customer_id}/activations" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401429500
+Content type
+application/json
+Example
+
+Active activation IDs array
+Active activation IDs array
+
+Copy
+[
+"64a1c0e8d2a1f9b7e45d3b8e",
+"63f4d0dab040a865d80da08d",
+"63f4d0dab040a865d80da08a"
+]
+Get activation state
+Retrieve the activation state, including activation status, sms status, billing status, expiration, SMS code and text message, etc.
+Typically, this endpoint is polled either until the SMS is received or the activation expires.
+
+Statuses
+There are several statuses that an activation can have, each representing a different state of the activation process. The following are the possible statuses:
+
+💬 sms_status
+Description: Represents the current state of the SMS interaction within the activation process.
+Possible Values:
+"smsRequested": The initial state when an SMS is requested but not yet received.
+"smsReceived": The SMS has been received.
+"retryRequested": The user has requested another SMS.
+"retryReceived": The user has received a another SMS.
+🔁 activation_status
+Description: Represents the overall state of the activation.
+Possible Values:
+"active": The activation is currently active and can proceed.
+"finalized": The user has confirmed the activation, and no further changes are possible.
+"expired": The activation has expired based on the expire_at timestamp.
+"canceled": The activation was canceled before any SMS was received.
+💳 billing_status
+Description: Indicates the billing state of the activation.
+Possible Values:
+"reserved": Funds are reserved from the user's available balance upon activation creation.
+"released": No SMS was received, and reserved funds were returned to the available balance.
+"billed": An SMS was received, and the reserved funds have been charged.
+"refunded": A refund was issued after a user report, and the amount was returned to the available balance.
+📝 report_status
+Description: Represents the status of report filed by the user regarding the activation (e.g., reporting a wrong SMS).
+Possible Values:
+null: No report has been made.
+"inReview": The report is under review.
+"declined": The report was reviewed, and no refund was granted.
+"approved": The report was reviewed, and a refund was issued.
+Expiration
+Each activation has a limited lifetime. The expiration time of an activation can be determined by the expire_at attribute. If the activation is not completed within this timeframe, it will expire, and no further SMS retrievals will be possible.
+
+Usage Notes
+Expiration Handling: Developers should validate the expire_at field to ensure the activation is still valid. If the current time is past expire_at, consider the activation expired, even if the activation_status field has not yet been updated to "expired".
+Finalization: The activation_status field includes "finalized" to indicate that the activation has been confirmed by the user, and no further changes are allowed. Finalized activations should be removed from the active activations list.
+Reporting: Use the report_status field to track the outcome of any user reports regarding issues with the activation. This field is closely related to the billing_status if a refund is issued.
+Cancellation: The cancelable_after field indicates when an activation can be canceled. If this field is null, the activation does not support cancellation. If the current time is past the cancelable_after timestamp, the activation can be canceled using cancel operation.
+Retry Handling: The is_retriable field indicates whether the user can request another SMS. If true, the user can request a retry SMS using the retry operation. Retry possible after first sms recieved and while activation_status is active.
+Billing: The price field indicates the cost of the activation in USD cents. The amount is reserved from the user's available balance when the activation is created. The billing_status field indicates the current billing state of the activation.
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string [ 1 .. 80 ] characters ^[a-zA-Z0-9]+$
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+activation_id
+required
+string
+Example: 63f4d0dab040a865d80da08a
+Activation id
+
+Responses
+200 Activation state
+400 Invalid request parameters
+401 Unauthorized to access this resource
+404 Resource not found exception
+429 Too Many Requests
+500 Unexpected Error
+
+get
+/a/customer/{customer_id}/activation/{activation_id}
+Request samples
+CLI
+
+Copy
+curl -X GET ${server_base_path}/api/v1/retail/a/customer/${customer_id}/activation/${activation_id}" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401404429500
+Content type
+application/json
+Example
+
+Waiting for first SMS
+Waiting for first SMS
+
+Copy
+{
+"activation_id": "64a1c0e8d2a1f9b7e45d3b8e",
+"customer_id": "yHZpQ8lf89aLt8uR6hNyJH7gk0y5",
+"customer_price": 80,
+"price": 20,
+"phone": "14155552671",
+"country_id": "us",
+"service_id": "netflix",
+"sms_status": "smsRequested",
+"activation_status": "active",
+"billing_status": "reserved",
+"report_status": null,
+"sms_code": null,
+"sms_text": null,
+"expire_at": 1729088539,
+"updated_at": 1729087939,
+"created_at": 1729087339,
+"is_retriable": false,
+"cancelable_after": null,
+"formatted": "+1 415 555-2671"
+}
+Retry activation
+Instructs the server to overwrite the previous SMS with the first one arriving. Both "code" and "text" fields will be updated. This operation is free of charge, as billing occurs upon receipt of the first SMS.
+
+This operation is only possible if:
+
+sms_status of the activation is either smsReceived or retryReceived.
+activation_status = active.
+Activation attribute is_retriable = true.
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string [ 1 .. 80 ] characters ^[a-zA-Z0-9]+$
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+activation_id
+required
+string
+Example: 63f4d0dab040a865d80da08a
+Activation id
+
+Responses
+200 Success response
+400 Invalid request parameters
+401 Unauthorized to access this resource
+404 Resource not found exception
+409 Resource in a bad state
+429 Too Many Requests
+500 Unexpected Error
+
+put
+/a/customer/{customer_id}/activation/{activation_id}/retry
+Request samples
+CLI
+
+Copy
+curl -X PUT ${server_base_path}/api/v1/retail/a/customer/${customer_id}/activation/${activation_id}/retry" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401404409429500
+Content type
+application/json
+
+Copy
+{
+"result": "success"
+}
+Cancel activation
+Typically, you can cancel an active activation as long as no SMS has been received.
+The cancelable_after field indicates when an activation can be canceled:
+
+If this field is null, the activation does not support cancellation.
+If the current time is past the cancelable_after timestamp, the activation can be canceled using cancel operation.
+Cancellation is only possible if:
+
+activation_status = active.
+sms_status = smsRequested.
+cancelable_after allows cancelation.
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string [ 1 .. 80 ] characters ^[a-zA-Z0-9]+$
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+activation_id
+required
+string
+Example: 63f4d0dab040a865d80da08a
+Activation id
+
+Responses
+200 Success response
+400 Invalid request parameters
+401 Unauthorized to access this resource
+404 Resource not found exception
+409 Can't cancel activation
+429 Too Many Requests
+500 Unexpected Error
+
+put
+/a/customer/{customer_id}/activation/{activation_id}/cancel
+Request samples
+CLI
+
+Copy
+curl -X PUT ${server_base_path}/api/v1/retail/a/customer/${customer_id}/activation/${activation_id}/cancel" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401404409429500
+Content type
+application/json
+
+Copy
+{
+"result": "success"
+}
+Finalize activation
+Finalize an activation to prevent further SMS messages from being sent to the phone number and to reduce the number of active numbers.
+
+Finalize is only possible if:
+
+sms_status of the activation is either of smsReceived, retryRequested or retryReceived.
+activation_status = active
+billing_status = billed
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string [ 1 .. 80 ] characters ^[a-zA-Z0-9]+$
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+activation_id
+required
+string
+Example: 63f4d0dab040a865d80da08a
+Activation id
+
+Responses
+200 Success response
+400 Invalid request parameters
+401 Unauthorized to access this resource
+404 Resource not found exception
+409 Resource in a bad state
+429 Too Many Requests
+500 Unexpected Error
+
+put
+/a/customer/{customer_id}/activation/{activation_id}/finalize
+Request samples
+CLI
+
+Copy
+curl -X PUT ${server_base_path}/api/v1/retail/a/customer/${customer_id}/activation/${activation_id}/finalize" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401404409429500
+Content type
+application/json
+
+Copy
+{
+"result": "success"
+}
+Get activations history
+Fetches a history of activations, offering a comprehensive overview of past activation records. Each record includes details such as the activation ID, phone number, country ID, service ID, statuses, SMS code, SMS text, and timestamps for expiration and last update. The response is organized in a paginated format, allowing for efficient navigation through the activation records.
+
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string <^[a-zA-Z0-9]+$> [ 1 .. 80 ] characters
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+query Parameters
+exclude_reported	
+boolean
+Default: false
+Example: exclude_reported=true
+If true, only activations where report_status is null will be returned. If set exclude_active and only_expired are ignored.
+
+exclude_active	
+boolean
+Default: false
+Example: exclude_active=true
+If true, only activations where activation_status is not active will be returned. If set only_expired is ignored.
+
+only_expired	
+boolean
+Default: false
+Example: only_expired=true
+If true, only activations where activation_status is expired will be returned.
+
+page	
+integer
+Default: 1
+Example: page=3
+Selected page number
+
+limit	
+integer [ 1 .. 100 ]
+Default: 10
+Example: limit=10
+Items limit per page
+
+Responses
+200 Customers activation history
+400 Invalid request parameters
+401 Unauthorized to access this resource
+404 Customer not found exception
+429 Too Many Requests
+500 Unexpected Error
+
+get
+/a/customer/{customer_id}/activation/history
+Request samples
+CLI
+
+Copy
+curl -X GET ${server_base_path}/api/v1/retail/a/customer/${customer_id}/activation/history" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401404429500
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"activations": [
+{}
+],
+"page": 1,
+"limit": 10,
+"pages": 5,
+"total": 48
+}
+Get customer info
+Retrieve information about a specific customer.
+
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string <^[a-zA-Z0-9]+$> [ 1 .. 80 ] characters
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+Responses
+200 Customer's balance
+401 Unauthorized to access this resource
+403 User account on hold status
+404 Customer not found exception
+429 Too Many Requests
+500 Unexpected Error
+
+get
+/a/customers/{customer_id}
+Request samples
+CLI
+
+Copy
+curl -X GET ${server_base_path}/api/v1/retail/a/customer/${customer_id}" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200401403404429500
+Content type
+application/json
+
+Copy
+{
+"accountOnHold": false
+}
+Get balance
+Retrieves the current balance of customer, which is provided in USD cents. Note that there may be a slight delay in the balance update.
+
+Total: The total available balance, in USD cents.
+Reserved: The portion of the balance reserved for activations that have not yet been completed, also in USD cents.
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string <^[a-zA-Z0-9]+$> [ 1 .. 80 ] characters
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+Responses
+200 Customer's balance
+401 Unauthorized to access this resource
+404 Customer not found exception
+429 Too Many Requests
+500 Unexpected Error
+
+get
+/a/customer/{customer_id}/balance
+Request samples
+CLI
+
+Copy
+curl -X GET ${server_base_path}/api/v1/retail/a/customer/${customer_id}/balance" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200401404429500
+Content type
+application/json
+
+Copy
+{
+"total": 2301,
+"reserved": 210
+}
+Get transactions
+Get transactions list of customer. Filter by creation date.
+
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string <^[a-zA-Z0-9]+$> [ 1 .. 80 ] characters
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+query Parameters
+created_from_timestamp	
+integer
+Example: created_from_timestamp=1632400000
+Unix timestamp in seconds. If provided, only transactions created after this timestamp will be returned.
+
+created_to_timestamp	
+integer
+Example: created_to_timestamp=1632486400
+Unix timestamp in seconds. If provided, only transactions created before this timestamp will be returned.
+
+page	
+integer >= 1
+Default: 1
+Example: page=3
+Selected page number. Default is 1.
+
+limit	
+integer [ 1 .. 100 ]
+Default: 10
+Example: limit=10
+Maximum number of transactions to return. Default is 100. If not provided, 100 customers will be returned.
+
+Responses
+200 Customer transactions
+400 Invalid request parameters
+401 Unauthorized to access this resource
+403 User account on hold status
+404 Customer not found exception
+429 Rate limit exceeded error
+500 Unexpected Error
+503 Service unavailable
+
+get
+/a/customer/{customer_id}/transactions
+Request samples
+CLI
+
+Copy
+curl -X GET "${server_base_path}/api/v1/retail/a/customer/${customer_id}/transactions?transaction_id=${transaction_id}&created_from_timestamp=${created_from_timestamp}&created_to_timestamp=${created_to_timestamp}&page=${page}&limit=${limit}" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401403404429500503
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"transactions": [
+{}
+],
+"page": 1,
+"limit": 10,
+"pages": 5,
+"total": 48
+}
+Get available report reasons for activation
+Returns a list of available report reasons IDs with name and evidence requirements for activation. Reasons list depends on current activation state.
+
+Workflow:
+
+Get Available Report Reasons: Before creating a report, you must first retrieve the available report reasons for the specific activation using the getActivationReportReasons endpoint. Along with the list of valid report reason IDs, you will also get if evidence is required.
+Create Report: Create a report for the same activation by passing one of the available reason IDs along with evidence, if required.
+Use IDs from response to create report for the same activation you got reasons for.
+
+Full list of Report Reasons:
+
+ID	Reason name
+1	SMS is not coming
+2	Wrong SMS received
+3	Service not accepting the number
+4	Number has been used before
+5	Blocked after activation
+6	SMS received too late
+7	Other reason
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string [ 1 .. 80 ] characters ^[a-zA-Z0-9]+$
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+activation_id
+required
+string
+Example: 63f4d0dab040a865d80da08a
+Activation id
+
+Responses
+200 List of report reasons with evidence requirements
+400 Invalid request parameters
+401 Unauthorized to access this resource
+404 Resource not found exception
+409 Can't report activation
+429 Too Many Requests
+500 Unexpected Error
+
+get
+/a/customer/{customer_id}/activation/{activation_id}/report/reasons
+Request samples
+CLI
+
+Copy
+curl -X GET ${server_base_path}/api/v1/retail/a/customer/${customer_id}/activation/${activation_id}/report/reasons" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401404409429500
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+[
+{
+"reason_id": 1,
+"reason_name": "SMS is not coming",
+"evidence_required": true
+},
+{
+"reason_id": 2,
+"reason_name": "Wrong SMS received",
+"evidence_required": false
+}
+]
+Report activation
+This endpoint allows you to create a report for a specific activation.
+
+Important: Only one report can be created per activation. Submitting invalid or incomplete data may result in the report being declined.
+
+Declined Report Response Details:
+
+If the report is not accepted, you will receive a response with a decline_id. Below are the possible reasons corresponding to each decline_id:
+
+Decline ID	Reason
+1	Try another number
+2	Retry using the same number
+Workflow:
+
+Retrieve Available Report Reasons: Before creating a report, you must first retrieve the available report reasons for the specific activation using the getActivationReportReasons endpoint. This will return a list of valid report reason IDs based on the current state of the activation, along with any evidence requirements.
+
+Submit a Report: Once you have obtained the list of valid report reasons, you can create a report by selecting an appropriate reason ID and including any required evidence. If required, the evidence parameter must be provided in base64 format, following the guidelines outlined in the request body specification.
+
+Ensure that the reason ID and any accompanying evidence match the list returned by the getActivationReportReasons endpoint.
+
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string [ 1 .. 80 ] characters ^[a-zA-Z0-9]+$
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+activation_id
+required
+string
+Example: 63f4d0dab040a865d80da08a
+Activation id
+
+Request Body schema: multipart/form-data
+reason_id
+required
+integer >= 1
+ID of reason
+
+message	
+string <= 1000 characters
+Message with details about the report.
+
+evidence	
+string <binary>
+File upload for evidence. Acceptable file types: jpg, png, webp, zip, pdf, mp4. Maximum file size: 5MB.
+
+Responses
+200 New Report response
+400 Invalid request parameters
+401 Unauthorized to access this resource
+403 User account on hold status
+404 Resource not found exception
+409 Can't report activation
+429 Too Many Requests
+500 Unexpected Error
+
+post
+/a/customer/{customer_id}/activation/{activation_id}/report
+Request samples
+CLI
+
+Copy
+curl -X POST "${server_base_path}/api/v1/retail/a/customer/${customer_id}/activation/${activation_id}/report" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE" \
+-d '{"reason_id": 4, "message": "2FA enabled here"}'
+Response samples
+200400401403404409429500
+Content type
+application/json
+Example
+
+Report accepted
+Report accepted
+
+Copy
+{
+"status": "accepted",
+"decline_id": null
+}
+Get report
+Return a report object by Activation Id
+
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string [ 1 .. 80 ] characters ^[a-zA-Z0-9]+$
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+activation_id
+required
+string
+Example: 63f4d0dab040a865d80da08a
+Activation id
+
+Responses
+200 Report
+401 Unauthorized to access this resource
+404 Resource not found exception
+429 Too Many Requests
+500 Unexpected Error
+
+get
+/a/customer/{customer_id}/activation/{activation_id}/report
+Request samples
+CLI
+
+Copy
+curl -X GET "${server_base_path}/api/v1/retail/a/customer/${customer_id}/activation/${activation_id}/report" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200401404429500
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"reason_id": 1,
+"reason_name": "SMS is not coming",
+"message": "Test message",
+"evidence_url": "https://test-1.nyc3.digitaloceanspaces.com/reports/evidences/66b3163f708df00376fb91c6.png",
+"activation_state_snapshot": "{\"activation_status\":\"active\",\"sms_status\":\"smsRequested\",\"billing_status\":\"reserved\",\"sms_code\":null,\"sms_text\":null,\"updated_at\":1725264364}",
+"updated_at": 1679061001,
+"created_at": 1679061001,
+"activation": {
+"activation_id": "63f4d0dab040a865d80da08a",
+"customer_id": "xDWxt7dd6efro3yWL4qfuEWjvAz1",
+"customer_price": 100,
+"phone": "447975777666",
+"country_id": "uk",
+"service_id": "7eleven",
+"sms_status": "smsRequested",
+"activation_status": "expired",
+"billing_status": "billed",
+"report_status": null,
+"sms_code": "6363",
+"sms_text": "Your code is 6363",
+"price": 90,
+"expire_at": 1679061628,
+"updated_at": 1679061629,
+"created_at": 1679061001,
+"is_retriable": true,
+"cancelable_after": null,
+"formatted": "+44 7975 777666"
+}
+}
+Get reports
+Returns a list of reports with pagination
+
+Authorizations:
+apikey_auth
+path Parameters
+customer_id
+required
+string [ 1 .. 80 ] characters ^[a-zA-Z0-9]+$
+Example: xDWxt7dd6efro3yWL4qfuEWjvAz1
+ID of customer. Must be unique.
+
+query Parameters
+page	
+integer
+Default: 1
+Example: page=2
+Selected page number
+
+limit	
+integer [ 1 .. 100 ]
+Default: 10
+Example: limit=10
+Items limit per page
+
+Responses
+200 Reports
+400 Invalid request parameters
+401 Unauthorized to access this resource
+404 Customer not found exception
+429 Too Many Requests
+500 Unexpected Error
+
+get
+/a/customer/{customer_id}/activation/reports
+Request samples
+CLI
+
+Copy
+curl -X GET "${server_base_path}/api/v1/retail/a/customer/${customer_id}/activation/reports" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401404429500
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"reports": [
+{}
+],
+"page": 1,
+"limit": 10,
+"pages": 5,
+"total": 48
+}
+Prices
+Endpoints for obtaining activation prices. Activation costs vary by service and country. All prices are in USD cents. You will also get the number of available phone numbers for sale. We provide minimum, maximum, and suggested prices per service and country. Use max_price to set your price limit. Prices reflect the developer's cost for activation. Adjust these prices before displaying them to customers.
+
+Price for a Service in a Country
+Retrieve the price and availability for a specific service in a specific country. Use service_id and country_id to specify the service and country, respectively. These identifiers can be found via the getServices and getCountries operations.
+
+Authorizations:
+apikey_auth
+path Parameters
+service_id
+required
+string <^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-_]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-_]*[A-Za-z0-9])$> [ 1 .. 30 ] characters
+Example: 7eleven
+Service ID, as returned by getServices operation.
+
+country_id
+required
+string [ 2 .. 9 ] characters ^[a-zA-Z0-9]+([-_]*[a-zA-Z0-9]+)*$
+Example: uk
+Country ID, as returned by the getCountries operation.
+
+Responses
+200 Price and Availability for a Service in a Country
+400 Invalid request parameters
+401 Unauthorized to access this resource
+404 Resource not found
+429 Too Many Requests
+500 Unexpected Error
+503 Service unavailable
+
+get
+/m/activation/prices/services/{service_id}/countries/{country_id}
+Request samples
+CLI
+
+Copy
+curl -X GET "${server_base_path}/api/v1/activation/prices/services/${service_id}/countries/${country_id}" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401404429500503
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"price": {
+"min": 210,
+"max": 510,
+"suggested": 310
+},
+"quality": {
+"avg": 0.3
+},
+"count": 143
+}
+Price list organized by country
+Retrieve a comprehensive price list, organized by country. This endpoint returns a list of countries, each accompanied by an array of services available within that country, their respective prices, and the amount of available numbers for sale.
+
+Use optional country_id query parameter to get prices in a specific country.
+
+Authorizations:
+apikey_auth
+query Parameters
+country_id	
+string [ 2 .. 9 ] characters ^[a-zA-Z0-9]+([-_]*[a-zA-Z0-9]+)*$
+Example: country_id=uk
+Country ID, as returned by the getCountries operation.
+
+Responses
+200 Price list organized by country
+400 Invalid request parameters
+401 Unauthorized to access this resource
+429 Too Many Requests
+500 Unexpected Error
+503 Service unavailable
+
+get
+/m/activation/prices/countries
+Request samples
+CLI
+
+Copy
+curl -X GET "${server_base_path}/api/v1/retial/m/prices/countries" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401429500503
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+[
+{
+"country_id": "uk",
+"services": []
+}
+]
+Price list organized by service
+Retrieve a comprehensive price list, organized by service. This endpoint returns a list of services, each accompanied by an array of countries available for that service, their respective prices, and the amount of available numbers for sale.
+
+Use optional service_id query parameter to get prices for a specific service.
+
+Authorizations:
+apikey_auth
+query Parameters
+service_id	
+string <^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$> [ 1 .. 30 ] characters
+Example: service_id=7eleven
+Service ID, as returned by getServices operation.
+
+Responses
+200 Price list organized by service
+400 Invalid request parameters
+401 Unauthorized to access this resource
+429 Too Many Requests
+500 Unexpected Error
+503 Service unavailable
+
+get
+/m/activation/prices/services
+Request samples
+CLI
+
+Copy
+curl -X GET "${server_base_path}/api/v1/activation/prices/services" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200400401429500503
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+[
+{
+"service_id": "7eleven",
+"countries": []
+}
+]
+Catalog
+The catalog includes endpoints used to retrieve lists of countries and services available for activation. The list of services is regularly updated, with new services added to the catalog as they become available. These lists contain the IDs of the countries and services, which are utilized in the activation process. Before ordering a number, you should first verify the availability of the service and country through the price endpoints.
+
+You get icons for services and countries in the catalog by calling:
+
+https://temp-number.sfo3.cdn.digitaloceanspaces.com/retail/countries/<country_id>.svg
+https://temp-number.sfo3.cdn.digitaloceanspaces.com/retail/services/<service_id>.png
+Get countries
+Returns a list of countries, including each country's unique identifier and name. Use the country_id to specify the country when creating an activation. Countries that has suffix _v in their country_id are countries that contains only virtual mobile phone numbers. E.g. us_v is United States (Virtual) containing virtual mobile phone numbers in USA.
+
+Authorizations:
+apikey_auth
+header Parameters
+If-None-Match	
+string
+Example: 2a7d00a6580048cdc81c1ac65bab7be9820e4465
+Optional header for cache validation based on X-ETag.
+
+Responses
+200 List of countries
+304 Not modified (Empty body)
+401 Unauthorized to access this resource
+429 Too Many Requests
+500 Unexpected Error
+
+get
+/a/activation/countries
+Request samples
+CLI
+
+Copy
+curl -X GET "${server_base_path}/api/v1/countries" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200401429500
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+[
+{
+"country_id": "uk",
+"name": "United Kingdom",
+"alt_name": "France|frankrijk|frança|франция|fr",
+"codes": []
+}
+]
+Get services
+Returns a list of services, including each service unique identifier and name. Use the service_id to specify the service when creating an activation.
+
+Service with ID other is special service that must be used when you want to get number for service activation that is not listed in the services list. Please note that using the other service for activating services that are listed may result in account suspension.
+
+Authorizations:
+apikey_auth
+header Parameters
+If-None-Match	
+string
+Example: 2a7d00a6580048cdc81c1ac65bab7be9820e4465
+Optional header for cache validation based on X-ETag.
+
+Responses
+200 Services information
+304 Not modified (Empty body)
+401 Unauthorized to access this resource
+429 Too Many Requests
+500 Unexpected Error
+
+get
+/a/activation/services
+Request samples
+CLI
+
+Copy
+curl -X GET "${server_base_path}/api/v1/retail/services" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200401429500
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+[
+{
+"service_id": "7eleven",
+"name": "7-Eleven",
+"alt_name": "7-Eleven",
+"has_description": true,
+"has_warning": false,
+"prohibited": false
+}
+]
+Get popular services
+Returns a list of popular services. It may be used to show the most popular services to the user to simplify the selection process.
+
+Service with ID other is special service that must be used when you want to get number for service activation that is not listed in the services list. Please note that using the other service for activating services that are listed may result in account suspension.
+
+Authorizations:
+apikey_auth
+header Parameters
+If-None-Match	
+string
+Example: 2a7d00a6580048cdc81c1ac65bab7be9820e4465
+Optional header for cache validation based on X-ETag.
+
+Responses
+200 Services information
+304 Not modified (Empty body)
+401 Unauthorized to access this resource
+429 Too Many Requests
+500 Unexpected Error
+
+get
+/a/activation/services/popular
+Request samples
+CLI
+
+Copy
+curl -X GET "${server_base_path}/api/v1/retail/a/activation/services/popular" \
+-H "Content-Type: application/json" \
+-H "x-api-key: YOUR_API_KEY_HERE"
+Response samples
+200401429500
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+[
+{
+"service_id": "7eleven",
+"name": "7-Eleven",
+"alt_name": "7-Eleven",
+"has_description": true,
+"has_warning": false,
+"prohibited": false
+}
+]
+Get currency rate
+Returns the current currency exchange rate used for conversions on the platform
+
+Authorizations:
+apikey_auth
+query Parameters
+currency
+required
+string
+Enum: "USD" "EUR" "CNY" "RUB"
+Example: currency=USD
+Currency code to get the exchange rate for
+
+Responses
+200 Currency rate
+401 Unauthorized to access this resource
+429 Too Many Requests
+500 Unexpected Error
+
+get
+/a/currency-rate
+Request samples
+CLI
+
+Copy
+curl -G "${server_base_path}/api/v1/retail/a/currency-rate?currency=USD" \
+-H "x-api-key: YOUR_API_KEY_HERE" \
+-H "Accept: application/json"
+Response samples
+200401429500
+Content type
+application/json
+
+Copy
+{
+"rate": 1
+}
+Webhooks 📡
+Webhooks provide real-time notifications when significant state changes occur within the system. They enable external systems to react to updates without polling the API.
+
+For more details on setting up and handling webhooks, refer to the Webhook Guide.
+
+Customer activation updated webhook Webhook
+Issued when an activation's sms_status changes to either:
+
+smsReceived
+retryReceived
+This event can be used to notify the customer when sms is received.
+
+header Parameters
+x-webhook-id
+required
+string
+The webhook ID
+
+x-timestamp
+required
+integer
+Example: 1632400000
+The timestamp of the webhook
+
+x-signature
+required
+string
+The signature of the webhook
+
+Request Body schema: application/json
+id
+required
+string
+A unique identifier for the webhook event. Used for idempotency.
+
+api_version
+required
+string
+The version of the API that the webhook event is using.
+
+type
+required
+string
+Enum: "customer.low_balance" "account.low_balance" "customer.updated" "customer.activation.updated" "activation_report.updated" "alternative.activation.updated"
+The type of webhook event.
+
+data
+required
+object (Activation)
+The payload of the webhook event. The structure of this object varies depending on the event type.
+
+Responses
+200 Success response
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"id": "abcd1234",
+"api_version": "1.0",
+"type": "customer.low_balance",
+"data": {
+"activation_id": "63f4d0dab040a865d80da08a",
+"phone": "447975777666",
+"country_id": "uk",
+"service_id": "7eleven",
+"sms_status": "smsRequested",
+"activation_status": "expired",
+"billing_status": "billed",
+"report_status": null,
+"sms_code": "6363",
+"sms_text": "Your code is 6363",
+"price": 90,
+"expire_at": 1679061628,
+"updated_at": 1679061629,
+"created_at": 1679061001,
+"is_retriable": true,
+"cancelable_after": null,
+"customer_id": "xDWxt7dd6efro3yWL4qfuEWjvAz1",
+"customer_price": 100,
+"formatted": "+44 7975 777666"
+}
+}
+Response samples
+200
+Content type
+application/json
+
+Copy
+{
+"result": "success"
+}
+Activation report status updated webhook Webhook
+Issues a webhook when the activation report status is updated.
+
+header Parameters
+x-webhook-id
+required
+string
+The webhook ID
+
+x-timestamp
+required
+integer
+Example: 1632400000
+The timestamp of the webhook
+
+x-signature
+required
+string
+The signature of the webhook
+
+Request Body schema: application/json
+id
+required
+string
+A unique identifier for the webhook event. Used for idempotency.
+
+api_version
+required
+string
+The version of the API that the webhook event is using.
+
+type
+required
+string
+Enum: "customer.low_balance" "account.low_balance" "customer.updated" "customer.activation.updated" "activation_report.updated" "alternative.activation.updated"
+The type of webhook event.
+
+data
+required
+object (ActivationReportUpdated)
+The payload of the webhook event. The structure of this object varies depending on the event type.
+
+Responses
+200 Success response
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"id": "abcd1234",
+"api_version": "1.0",
+"type": "customer.low_balance",
+"data": {
+"activation_id": "63f4d0dab040a865d80da08a",
+"phone": "447975777666",
+"country_id": "uk",
+"service_id": "7eleven",
+"sms_status": "smsRequested",
+"activation_status": "expired",
+"billing_status": "billed",
+"report_status": null,
+"sms_code": "6363",
+"sms_text": "Your code is 6363",
+"price": 90,
+"expire_at": 1679061628,
+"updated_at": 1679061629,
+"created_at": 1679061001,
+"is_retriable": true,
+"cancelable_after": null,
+"customer_id": "xDWxt7dd6efro3yWL4qfuEWjvAz1"
+}
+}
+Response samples
+200
+Content type
+application/json
+
+Copy
+{
+"result": "success"
+}
+Customer low balance webhook Webhook
+Issues a webhook when the customer's balance is low.
+
+header Parameters
+x-webhook-id
+required
+string
+The webhook ID
+
+x-timestamp
+required
+integer
+Example: 1632400000
+The timestamp of the webhook
+
+x-signature
+required
+string
+The signature of the webhook
+
+Request Body schema: application/json
+id
+required
+string
+A unique identifier for the webhook event. Used for idempotency.
+
+api_version
+required
+string
+The version of the API that the webhook event is using.
+
+type
+required
+string
+Enum: "customer.low_balance" "account.low_balance" "customer.updated" "customer.activation.updated" "activation_report.updated" "alternative.activation.updated"
+The type of webhook event.
+
+data
+required
+object (CustomerBalance)
+The payload of the webhook event. The structure of this object varies depending on the event type.
+
+Responses
+200 Success response
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"id": "abcd1234",
+"api_version": "1.0",
+"type": "customer.low_balance",
+"data": {
+"activation_id": "63f4d0dab040a865d80da08a",
+"phone": "447975777666",
+"country_id": "uk",
+"service_id": "7eleven",
+"sms_status": "smsRequested",
+"activation_status": "expired",
+"billing_status": "billed",
+"report_status": null,
+"sms_code": "6363",
+"sms_text": "Your code is 6363",
+"price": 90,
+"expire_at": 1679061628,
+"updated_at": 1679061629,
+"created_at": 1679061001,
+"is_retriable": true,
+"cancelable_after": null,
+"customer_id": "xDWxt7dd6efro3yWL4qfuEWjvAz1",
+"balance": 90
+}
+}
+Response samples
+200
+Content type
+application/json
+
+Copy
+{
+"result": "success"
+}
+Customer status updated webhook Webhook
+Issues a webhook when the customer's status is updated.
+
+header Parameters
+x-webhook-id
+required
+string
+The webhook ID
+
+x-timestamp
+required
+integer
+Example: 1632400000
+The timestamp of the webhook
+
+x-signature
+required
+string
+The signature of the webhook
+
+Request Body schema: application/json
+required
+id
+required
+string
+A unique identifier for the webhook event. Used for idempotency.
+
+api_version
+required
+string
+The version of the API that the webhook event is using.
+
+type
+required
+string
+Enum: "customer.low_balance" "account.low_balance" "customer.updated" "customer.activation.updated" "activation_report.updated" "alternative.activation.updated"
+The type of webhook event.
+
+data
+required
+object (Customer)
+The payload of the webhook event. The structure of this object varies depending on the event type.
+
+Responses
+200 Success response
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"id": "abcd1234",
+"api_version": "1.0",
+"type": "customer.low_balance",
+"data": {
+"activation_id": "63f4d0dab040a865d80da08a",
+"phone": "447975777666",
+"country_id": "uk",
+"service_id": "7eleven",
+"sms_status": "smsRequested",
+"activation_status": "expired",
+"billing_status": "billed",
+"report_status": null,
+"sms_code": "6363",
+"sms_text": "Your code is 6363",
+"price": 90,
+"expire_at": 1679061628,
+"updated_at": 1632400000,
+"created_at": 1632400000,
+"is_retriable": true,
+"cancelable_after": null,
+"customer_id": "xDWxt7dd6efro3yWL4qfuEWjvAz1",
+"balance": 90,
+"status": "active"
+}
+}
+Response samples
+200
+Content type
+application/json
+
+Copy
+{
+"result": "success"
+}
+Main account low balance webhook Webhook
+Issues a webhook when the account's balance is low.
+
+header Parameters
+x-webhook-id
+required
+string
+The webhook ID
+
+x-timestamp
+required
+integer
+Example: 1632400000
+The timestamp of the webhook
+
+x-signature
+required
+string
+The signature of the webhook
+
+Request Body schema: application/json
+id
+required
+string
+A unique identifier for the webhook event. Used for idempotency.
+
+api_version
+required
+string
+The version of the API that the webhook event is using.
+
+type
+required
+string
+Enum: "account.low_balance" "activation.updated" "activation_report.updated" "alternative.activation.updated"
+The type of webhook event.
+
+data
+required
+object (AccountBalance)
+The payload of the webhook event. The structure of this object varies depending on the event type.
+
+Responses
+200 Success response
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"id": "abcd1234",
+"api_version": "1.0",
+"type": "activation.updated",
+"data": {
+"activation_id": "63f4d0dab040a865d80da08a",
+"phone": "447975777666",
+"country_id": "uk",
+"service_id": "7eleven",
+"sms_status": "smsRequested",
+"activation_status": "expired",
+"billing_status": "billed",
+"report_status": null,
+"sms_code": "6363",
+"sms_text": "Your code is 6363",
+"price": 90,
+"expire_at": 1679061628,
+"updated_at": 1679061629,
+"created_at": 1679061001,
+"is_retriable": true,
+"cancelable_after": null,
+"balance": 2301
+}
+}
+Response samples
+200
+Content type
+application/json
+
+Copy
+{
+"result": "success"
+}

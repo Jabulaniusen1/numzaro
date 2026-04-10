@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { smsPoolClient } from "@/lib/smspool/client";
+import { platfoneClient } from "@/lib/platfone/client";
 
 async function getMarkupMultiplier() {
   try {
@@ -71,12 +72,242 @@ function extractSmsPoolError(result: any): string {
   return "Failed to purchase number from SMSPool.";
 }
 
+// Platfone customer_id must match ^[a-zA-Z0-9]+$ — strip UUID hyphens
+function platfoneCustomerId(userId: string): string {
+  return userId.replace(/-/g, "");
+}
+
+// ─── Platfone: ensure customer exists (idempotent) ───────────────────────────
+async function ensurePlatfoneCustomer(userId: string): Promise<void> {
+  try {
+    await platfoneClient.createCustomer(platfoneCustomerId(userId));
+  } catch (err: any) {
+    // 409 = customer already exists — safe to ignore
+    if (err?.status === 409) return;
+    const msg = String(err?.message ?? "").toLowerCase();
+    if (msg.includes("already") || msg.includes("exists") || msg.includes("duplicate")) return;
+    throw err;
+  }
+}
+
+// ─── Platfone purchase ────────────────────────────────────────────────────────
+async function handlePlatfonePurchase(
+  body: any,
+  user: { id: string; email?: string | null },
+  supabase: any
+) {
+  const service     = String(body?.service  || "").trim();  // e.g. "whatsapp"
+  const country     = String(body?.country  || "").trim();  // e.g. "uk"
+  const serviceName = String(body?.serviceName || service).trim();
+
+  if (!service || !country) {
+    return NextResponse.json(
+      { error: "service and country are required for Platfone" },
+      { status: 400 }
+    );
+  }
+
+  const markupMultiplier = await getMarkupMultiplier();
+
+  // Get price (in USD cents) from Platfone: { price: { min, max, suggested }, count }
+  let priceInCents: number;
+  try {
+    const priceData = await platfoneClient.getPrice(service, country);
+    priceInCents = priceData?.price?.suggested ?? priceData?.price?.min ?? 0;
+    if (!Number.isFinite(priceInCents) || priceInCents <= 0) {
+      return NextResponse.json({ error: "Price not available for this service and country" }, { status: 400 });
+    }
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Failed to get Platfone price" }, { status: 400 });
+  }
+
+  // Convert cents → USD for our internal billing
+  const sellPrice = priceInCents / 100;
+  const userCharged = parseFloat((sellPrice * markupMultiplier).toFixed(2));
+
+  const { data: userData } = await supabase
+    .from("users")
+    .select("wallet_balance")
+    .eq("id", user.id)
+    .single();
+
+  const userBalance = parseFloat(userData?.wallet_balance || "0");
+  if (userBalance < userCharged) {
+    return NextResponse.json(
+      {
+        error: `Insufficient balance. Required: ${formatNairaFromUsd(userCharged)}, Available: ${formatNairaFromUsd(userBalance)}`,
+      },
+      { status: 402 }
+    );
+  }
+
+  // Ensure Platfone customer exists for this user
+  try {
+    await ensurePlatfoneCustomer(user.id);
+  } catch (err: any) {
+    console.error("[platfone purchase] Failed to ensure customer:", err.message);
+    return NextResponse.json(
+      { error: "Failed to initialise Platfone account. Please try again." },
+      { status: 503 }
+    );
+  }
+
+  // Top up Platfone customer balance with the exact cost (in cents)
+  try {
+    const txId = `${user.id}-${Date.now()}`;
+    await platfoneClient.addCustomerBalance(platfoneCustomerId(user.id), priceInCents, txId);
+  } catch (err: any) {
+    console.error("[platfone purchase] Failed to top up customer balance:", err.message);
+    return NextResponse.json(
+      { error: "Failed to fund Platfone account. Please try again." },
+      { status: 503 }
+    );
+  }
+
+  // Order the activation — retry once if price has moved
+  let activation;
+  try {
+    activation = await platfoneClient.createActivation(platfoneCustomerId(user.id), service, country, priceInCents);
+  } catch (err: any) {
+    if (err.platfoneCode === "max_price_exceeded" && typeof err.suggestedPrice === "number") {
+      // Price moved between getPrice and createActivation — top up the difference and retry
+      const newPriceCents: number = err.suggestedPrice;
+      const diff = newPriceCents - priceInCents;
+      if (diff > 0) {
+        try {
+          const retryTxId = `${user.id}-${Date.now()}-retry`;
+          await platfoneClient.addCustomerBalance(platfoneCustomerId(user.id), diff, retryTxId);
+        } catch (topUpErr: any) {
+          console.error("[platfone purchase] Failed to top up for retry:", topUpErr.message);
+          return NextResponse.json({ error: "Failed to fund Platfone account for retry." }, { status: 503 });
+        }
+      }
+      try {
+        activation = await platfoneClient.createActivation(platfoneCustomerId(user.id), service, country, newPriceCents);
+        priceInCents = newPriceCents;
+      } catch (retryErr: any) {
+        return NextResponse.json({ error: retryErr.message || "Failed to purchase number" }, { status: 400 });
+      }
+    } else if (typeof err.message === "string" && err.message.startsWith("PLATFONE_BALANCE:")) {
+      console.error("[platfone purchase] PROVIDER BALANCE LOW:", err.message);
+      return NextResponse.json(
+        { error: "This service is temporarily unavailable. Please try again later or contact support." },
+        { status: 503 }
+      );
+    } else if (err.platfoneCode === "no_numbers") {
+      return NextResponse.json(
+        { error: "No numbers available for this service in the selected country. Please try another country." },
+        { status: 400 }
+      );
+    } else {
+      return NextResponse.json({ error: err.message || "Failed to purchase number" }, { status: 400 });
+    }
+  }
+
+  const activationId = String(activation?.activation_id ?? "").trim();
+  // Use `formatted` (E.164) if available, otherwise `phone`
+  const rawPhone = activation?.formatted ?? activation?.phone;
+
+  if (!activationId || !rawPhone) {
+    if (activationId) {
+      try { await platfoneClient.cancelActivation(platfoneCustomerId(user.id), activationId); } catch {}
+    }
+    return NextResponse.json({ error: "Platfone purchase returned invalid activation data" }, { status: 500 });
+  }
+
+  const phoneNumber = normalizePhone(rawPhone);
+  if (!phoneNumber) {
+    try { await platfoneClient.cancelActivation(platfoneCustomerId(user.id), activationId); } catch {}
+    return NextResponse.json({ error: "Platfone purchase returned invalid phone number" }, { status: 500 });
+  }
+
+  // `price` in the activation response is in cents; convert to USD
+  const actualCost = typeof activation.price === "number" && activation.price > 0
+    ? activation.price / 100
+    : sellPrice;
+
+  const expiresAt = activation.expire_at
+    ? new Date(activation.expire_at * 1000).toISOString()
+    : new Date(Date.now() + 20 * 60 * 1000).toISOString();
+
+  const { data: virtualNumber, error: numberError } = await supabase
+    .from("virtual_numbers")
+    .insert({
+      user_id:             user.id,
+      phone_number:        phoneNumber,
+      country_code:        String(country),
+      country_name:        String(body?.countryName || `Country ${country}`),
+      textverified_id:     activationId,
+      status:              "active",
+      capabilities:        ["sms"],
+      twilio_monthly_cost: actualCost,
+      monthly_cost:        userCharged,
+      number_type:         "activation",
+      provider:            "platfone",
+      product:             serviceName,
+      product_code:        service,
+      product_type:        "activation",
+      expires_at:          expiresAt,
+    })
+    .select()
+    .single();
+
+  if (numberError) {
+    console.error("[platfone purchase] DB error:", numberError);
+    try { await platfoneClient.cancelActivation(platfoneCustomerId(user.id), activationId); } catch {}
+    return NextResponse.json({ error: `Database error: ${numberError.message}` }, { status: 500 });
+  }
+
+  // Deduct from SocialBooster wallet
+  await supabase
+    .from("users")
+    .update({ wallet_balance: userBalance - userCharged })
+    .eq("id", user.id);
+
+  await supabase.from("wallet_transactions").insert({
+    user_id:        user.id,
+    type:           "order_payment",
+    amount:         -userCharged,
+    balance_before: userBalance,
+    balance_after:  userBalance - userCharged,
+    description:    `Platfone ${serviceName} (Country ${country}): ${phoneNumber}`,
+  });
+
+  await supabase.from("number_purchases").insert({
+    user_id:           user.id,
+    virtual_number_id: virtualNumber.id,
+    amount:            userCharged,
+    actual_cost:       actualCost,
+    profit:            parseFloat((userCharged - actualCost).toFixed(2)),
+    currency:          "USD",
+    status:            "completed",
+  });
+
+  const supabaseAdmin = createServiceRoleClient();
+  await supabaseAdmin.from("notifications").insert({
+    user_id: user.id,
+    type:    "transaction",
+    title:   "Number Purchased",
+    message: `${phoneNumber} — ${serviceName} via Platfone`,
+    data: { type: "number_purchased", number_id: virtualNumber.id, provider: "platfone", mode: "activation" },
+  });
+
+  return NextResponse.json({ success: true, number: virtualNumber });
+}
+
+// ─── Main handler ─────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
     const { user, supabase } = await authenticateRequest(request);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
+
+    // Route to Platfone handler when provider is specified
+    if (body?.provider === "platfone") {
+      return handlePlatfonePurchase(body, user, supabase);
+    }
+
     const serviceCode = String(body?.serviceCode || "").trim();
     const serviceName = String(body?.serviceName || "").trim();
     const countryId = String(body?.country || "").trim();

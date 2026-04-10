@@ -10,7 +10,14 @@
       "Bash(curl -s \"https://api.smspool.net/request/price?key=HppN4WcgidnhLZ2CzHiF5CdoqYaVJGDz&country=1&service=1\")",
       "Bash(curl -s \"https://api.smspool.net/service/retrieve_all?key=HppN4WcgidnhLZ2CzHiF5CdoqYaVJGDz\")",
       "Bash(find '/Users/mac/Desktop/Client projects/social-booster' -type f -name *boost* -o -name *socials*)",
-      "Bash(find '/Users/mac/Desktop/Client projects/social-booster' -type d -name *boost* -o -type d -name *service*)"
+      "Bash(find '/Users/mac/Desktop/Client projects/social-booster' -type d -name *boost* -o -type d -name *service*)",
+      "Read(//Users/mac/Desktop/**)",
+      "Bash(curl -s -X POST \"https://proxnum.com/api/v1/resell/virtual/buy\" -H \"Authorization: Bearer 80|w6odIZkLf9l99vgj1m8PXKBYwJKM6Pm3SlPXl9Oa1c2f01d3\" -H \"Accept: application/json\" -H \"Content-Type: application/json\" -d '{\"\"service\"\":\"\"ig\"\",\"\"country\"\":6}')",
+      "Bash(curl -s -X POST \"https://proxnum.com/api/v1/resell/virtual/buy\" -H \"Authorization: Bearer 81|YHue1nuU1BBHMnlyBM7UyA6RpWv73xkMCNFZCGSb49dd9822\" -H \"Accept: application/json\" -H \"Content-Type: application/json\" -d '{\"\"service\"\":\"\"ig\"\",\"\"country\"\":6}')",
+      "Bash(curl -s -X POST \"https://proxnum.com/api/v1/resell/virtual/cancel\" -H \"Authorization: Bearer 81|YHue1nuU1BBHMnlyBM7UyA6RpWv73xkMCNFZCGSb49dd9822\" -H \"Accept: application/json\" -H \"Content-Type: application/json\" -d '{\"\"activation_id\"\":\"\"229244919\"\"}')",
+      "WebFetch(domain:platfone.com)",
+      "WebFetch(domain:temp-number-api.com)",
+      "Bash(npx supabase:*)"
     ]
   }
 }

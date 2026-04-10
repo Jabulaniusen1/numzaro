@@ -23,7 +23,7 @@ interface Stats {
 }
 
 interface AdminService {
-  id: string;
+  id: string | number;
   service_id: string | number;
   name: string;
   category: string;
@@ -31,6 +31,17 @@ interface AdminService {
   min_quantity: number;
   max_quantity: number;
   is_hidden?: boolean;
+}
+
+interface ApiServiceOption {
+  service_id: number;
+  name: string;
+  category: string;
+  type: string;
+  min_quantity: number;
+  max_quantity: number;
+  exists_in_db: boolean;
+  is_hidden: boolean;
 }
 
 export default function AdminPage() {
@@ -49,20 +60,28 @@ export default function AdminPage() {
   const [syncingServices, setSyncingServices] = useState(false);
   const [syncSelectedCategories, setSyncSelectedCategories] = useState<string[]>([]);
   const [syncCategorySearch, setSyncCategorySearch] = useState("");
-  const [syncLimit, setSyncLimit] = useState("");
   const [apiCategories, setApiCategories] = useState<string[]>([]);
   const [apiTotal, setApiTotal] = useState<number | null>(null);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [services, setServices] = useState<AdminService[]>([]);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [servicesQuery, setServicesQuery] = useState("");
-  const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
+  const [deletingServiceId, setDeletingServiceId] = useState<string | number | null>(null);
   const [servicesTotal, setServicesTotal] = useState(0);
   const [servicesPage, setServicesPage] = useState(1);
   const [servicesTotalPages, setServicesTotalPages] = useState(1);
-  const [markedServiceIds, setMarkedServiceIds] = useState<string[]>([]);
+  const [markedServiceIds, setMarkedServiceIds] = useState<Array<string | number>>([]);
   const [updatingHidden, setUpdatingHidden] = useState(false);
   const [adminTab, setAdminTab] = useState("overview");
+  const [apiServiceOptions, setApiServiceOptions] = useState<ApiServiceOption[]>([]);
+  const [apiServicesLoading, setApiServicesLoading] = useState(false);
+  const [apiServicesSearch, setApiServicesSearch] = useState("");
+  const [apiServicesCategory, setApiServicesCategory] = useState("");
+  const [apiServicesPage, setApiServicesPage] = useState(1);
+  const [apiServicesTotal, setApiServicesTotal] = useState(0);
+  const [apiServicesTotalPages, setApiServicesTotalPages] = useState(1);
+  const [selectedApiServiceIds, setSelectedApiServiceIds] = useState<number[]>([]);
+  const [addingSelectedServices, setAddingSelectedServices] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -81,6 +100,24 @@ export default function AdminPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [servicesQuery, servicesPage]);
+
+  useEffect(() => {
+    setApiServicesPage(1);
+  }, [apiServicesSearch, apiServicesCategory]);
+
+  useEffect(() => {
+    if (adminTab !== "services") return;
+    const timer = setTimeout(() => {
+      fetchSelectableApiServices(apiServicesSearch, apiServicesCategory, apiServicesPage);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [adminTab, apiServicesSearch, apiServicesCategory, apiServicesPage]);
+
+  useEffect(() => {
+    if (adminTab !== "services") return;
+    if (apiCategories.length > 0 || loadingCategories) return;
+    fetchApiCategories();
+  }, [adminTab, apiCategories.length, loadingCategories]);
 
   const fetchStats = async () => {
     try {
@@ -230,13 +267,106 @@ export default function AdminPage() {
     }
   };
 
+  const fetchSelectableApiServices = async (search = "", category = "", page = 1) => {
+    setApiServicesLoading(true);
+    try {
+      const params = new URLSearchParams({
+        list: "1",
+        limit: "20",
+        page: String(page),
+      });
+      if (search.trim()) params.set("search", search.trim());
+      if (category.trim()) params.set("category", category.trim());
+
+      const response = await fetch(`/api/admin/services/sync?${params.toString()}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load API services");
+      }
+
+      setApiServiceOptions(data.services || []);
+      setApiServicesTotal(data.pagination?.total || 0);
+      setApiServicesTotalPages(data.pagination?.totalPages || 1);
+      setApiCategories(data.categories || []);
+      setApiTotal(data.apiTotal ?? data.total ?? null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load API services",
+        variant: "destructive",
+      });
+    } finally {
+      setApiServicesLoading(false);
+    }
+  };
+
+  const toggleSelectedApiService = (serviceId: number) => {
+    setSelectedApiServiceIds((prev) =>
+      prev.includes(serviceId)
+        ? prev.filter((id) => id !== serviceId)
+        : [...prev, serviceId]
+    );
+  };
+
+  const toggleSelectAllApiServicesOnPage = () => {
+    if (apiServiceOptions.length === 0) return;
+    const idsOnPage = apiServiceOptions.map((s) => s.service_id);
+    const allSelected = idsOnPage.every((id) => selectedApiServiceIds.includes(id));
+    if (allSelected) {
+      setSelectedApiServiceIds((prev) => prev.filter((id) => !idsOnPage.includes(id)));
+    } else {
+      setSelectedApiServiceIds((prev) => Array.from(new Set([...prev, ...idsOnPage])));
+    }
+  };
+
+  const handleAddSelectedServices = async () => {
+    if (selectedApiServiceIds.length === 0) {
+      toast({
+        title: "No services selected",
+        description: "Select one or more API services first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAddingSelectedServices(true);
+    try {
+      const response = await fetch("/api/admin/services/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceIds: selectedApiServiceIds }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.details || "Failed to add selected services");
+      }
+
+      toast({
+        title: "Services added",
+        description: `${data.count || selectedApiServiceIds.length} selected service(s) added to site listings.`,
+      });
+
+      setSelectedApiServiceIds([]);
+      fetchAdminServices(servicesQuery, servicesPage);
+      fetchSelectableApiServices(apiServicesSearch, apiServicesCategory, apiServicesPage);
+    } catch (error: any) {
+      toast({
+        title: "Add failed",
+        description: error.message || "Failed to add selected services",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingSelectedServices(false);
+    }
+  };
+
   const handleSyncServices = async () => {
     setSyncingServices(true);
     try {
       const body: Record<string, unknown> = {};
       if (syncSelectedCategories.length > 0) body.categories = syncSelectedCategories;
-      const parsedLimit = parseInt(syncLimit, 10);
-      if (!isNaN(parsedLimit) && parsedLimit > 0) body.limit = parsedLimit;
 
       const response = await fetch("/api/admin/services/sync", {
         method: "POST",
@@ -248,10 +378,14 @@ export default function AdminPage() {
 
       if (response.ok) {
         toast({
-          title: "Services synced",
-          description: `Successfully synced ${data.count || 0} services from SMMFollows API.`,
+          title: syncSelectedCategories.length > 0 ? "Categories synced" : "All services synced",
+          description:
+            syncSelectedCategories.length > 0
+              ? `Synced ${data.count || 0} services from ${syncSelectedCategories.length} selected categor${syncSelectedCategories.length === 1 ? "y" : "ies"}.`
+              : `Successfully synced ${data.count || 0} services from SMMFollows API.`,
         });
         fetchAdminServices(servicesQuery, servicesPage);
+        fetchSelectableApiServices(apiServicesSearch, apiServicesCategory, apiServicesPage);
       } else {
         throw new Error(data.error || data.details || "Failed to sync services");
       }
@@ -301,7 +435,7 @@ export default function AdminPage() {
     }
   };
 
-  const toggleMarked = (serviceId: string) => {
+  const toggleMarked = (serviceId: string | number) => {
     setMarkedServiceIds((prev) =>
       prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId]
     );
@@ -551,6 +685,154 @@ export default function AdminPage() {
 
       {adminTab === "services" && (
       <>
+      {/* Select & Add Services */}
+      <Card className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-gray-800 dark:text-gray-100">Select Services To Add</CardTitle>
+          <CardDescription>
+            Pick specific services from SMMFollows and add them to your site listings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col md:flex-row gap-2 md:items-center">
+            <Input
+              value={apiServicesSearch}
+              onChange={(e) => setApiServicesSearch(e.target.value)}
+              placeholder="Search API services by name, ID, category, type"
+              className="md:w-80 rounded-xl"
+            />
+            <select
+              value={apiServicesCategory}
+              onChange={(e) => setApiServicesCategory(e.target.value)}
+              className="h-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm text-gray-700 dark:text-gray-200"
+            >
+              <option value="">All categories</option>
+              {apiCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fetchSelectableApiServices(apiServicesSearch, apiServicesCategory, apiServicesPage)}
+              disabled={apiServicesLoading}
+              className="rounded-xl"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${apiServicesLoading ? "animate-spin" : ""}`} />
+              Reload
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAddSelectedServices}
+              disabled={addingSelectedServices || selectedApiServiceIds.length === 0}
+              className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl"
+            >
+              {addingSelectedServices ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                `Add Selected (${selectedApiServiceIds.length})`
+              )}
+            </Button>
+          </div>
+
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            API services found: {apiServicesTotal} | Selected: {selectedApiServiceIds.length}
+          </p>
+
+          {apiServicesLoading ? (
+            <div className="py-8 text-center text-gray-500 dark:text-gray-400">Loading API services...</div>
+          ) : apiServiceOptions.length === 0 ? (
+            <div className="py-8 text-center text-gray-500 dark:text-gray-400">No API services found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="text-left py-2 pr-3 font-medium text-gray-500 dark:text-gray-400">
+                      <input
+                        type="checkbox"
+                        checked={apiServiceOptions.length > 0 && apiServiceOptions.every((s) => selectedApiServiceIds.includes(s.service_id))}
+                        onChange={toggleSelectAllApiServicesOnPage}
+                      />
+                    </th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-500 dark:text-gray-400">Service ID</th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-500 dark:text-gray-400">Name</th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-500 dark:text-gray-400">Category</th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-500 dark:text-gray-400">Type</th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {apiServiceOptions.map((service) => (
+                    <tr key={service.service_id} className="border-b border-gray-100 dark:border-gray-700/50">
+                      <td className="py-3 pr-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedApiServiceIds.includes(service.service_id)}
+                          onChange={() => toggleSelectedApiService(service.service_id)}
+                        />
+                      </td>
+                      <td className="py-3 pr-3 text-gray-700 dark:text-gray-200">{service.service_id}</td>
+                      <td className="py-3 pr-3 text-gray-800 dark:text-gray-100">{service.name}</td>
+                      <td className="py-3 pr-3 text-gray-700 dark:text-gray-200">{service.category || "-"}</td>
+                      <td className="py-3 pr-3 text-gray-700 dark:text-gray-200">{service.type || "-"}</td>
+                      <td className="py-3 pr-3">
+                        {service.exists_in_db ? (
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs ${
+                              service.is_hidden
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                                : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                            }`}
+                          >
+                            {service.is_hidden ? "Already added (hidden)" : "Already added (visible)"}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                            Not added
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Page {apiServicesPage} of {apiServicesTotalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={apiServicesLoading || apiServicesPage <= 1}
+                onClick={() => setApiServicesPage((p) => Math.max(1, p - 1))}
+                className="rounded-xl"
+              >
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={apiServicesLoading || apiServicesPage >= apiServicesTotalPages}
+                onClick={() => setApiServicesPage((p) => Math.min(apiServicesTotalPages, p + 1))}
+                className="rounded-xl"
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Services Sync */}
       <Card className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
         <CardHeader>
@@ -559,7 +841,7 @@ export default function AdminPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-300">
-            Fetch the latest services from SMMFollows API and sync them to the database. Use the filters below to sync only specific categories or a limited number of services.
+            Mark categories (optional), then click Sync Services. If no category is marked, all services will be synced.
           </p>
 
           {/* Category multi-select */}
@@ -667,22 +949,6 @@ export default function AdminPage() {
             )}
           </div>
 
-          {/* Limit filter */}
-          <div className="space-y-1">
-            <Label htmlFor="syncLimit" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Limit (number of services)
-            </Label>
-            <Input
-              id="syncLimit"
-              type="number"
-              min="1"
-              value={syncLimit}
-              onChange={(e) => setSyncLimit(e.target.value)}
-              placeholder="Leave blank to sync all matched"
-              className="w-56 rounded-xl"
-            />
-          </div>
-
           <div className="flex items-center gap-3 pt-1">
             <Button
               onClick={handleSyncServices}
@@ -695,11 +961,21 @@ export default function AdminPage() {
                 "Sync Services"
               )}
             </Button>
+            {syncSelectedCategories.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSyncSelectedCategories([])}
+                disabled={syncingServices}
+                className="rounded-xl"
+              >
+                Clear Marks
+              </Button>
+            )}
             <span className="text-xs text-gray-500 dark:text-gray-400">
               {syncSelectedCategories.length > 0
                 ? `${syncSelectedCategories.length} categor${syncSelectedCategories.length === 1 ? "y" : "ies"}`
                 : "All categories"}
-              {syncLimit ? `, up to ${syncLimit} services` : ""}
             </span>
           </div>
         </CardContent>
@@ -712,7 +988,7 @@ export default function AdminPage() {
             <div>
               <CardTitle className="text-gray-800 dark:text-gray-100">Manage Services</CardTitle>
               <CardDescription>
-                View and delete services. Showing up to 50 at a time.
+                Mark services, hide/unhide them, or delete them. Showing up to 50 at a time.
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">

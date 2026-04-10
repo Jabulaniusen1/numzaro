@@ -1,61 +1,45 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import Link from "next/link";
-import { Search, RefreshCw, Info, Copy, Plus, Hourglass, Clock, Phone, Loader2 } from "lucide-react";
+import { Search, RefreshCw, Copy, Phone, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { OrderTableRow } from "@/components/dashboard/OrderTableRow";
-import { cn, getFlag } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { format as dateFormat, differenceInSeconds, parseISO } from "date-fns";
-import { ServiceIcon, getServicePrettyName } from "@/components/dashboard/ServiceIcon";
-import { useRouter } from "next/navigation";
+import {
+  FaWhatsapp, FaInstagram, FaFacebook, FaTelegram, FaGoogle,
+  FaTwitter, FaTiktok, FaYoutube, FaSpotify, FaDiscord,
+  FaLinkedin, FaSnapchatGhost, FaPinterest, FaViber, FaWeixin,
+  FaSkype, FaAmazon, FaApple, FaPaypal, FaReddit, FaSteam,
+  FaLine, FaUber, FaEbay,
+} from "react-icons/fa";
+import type { IconType } from "react-icons";
 
-function Countdown({ expiresAt }: { expiresAt: string | null }) {
-  const [timeLeft, setTimeLeft] = useState("");
+const SERVICE_ICONS: Record<string, IconType> = {
+  wa: FaWhatsapp, ig: FaInstagram, fb: FaFacebook, tg: FaTelegram,
+  go: FaGoogle, tw: FaTwitter, tt: FaTiktok, yt: FaYoutube,
+  sp: FaSpotify, dp: FaDiscord, li: FaLinkedin, sb: FaSnapchatGhost,
+  pt: FaPinterest, vi: FaViber, wb: FaWeixin, sk: FaSkype,
+  am: FaAmazon, ap: FaApple, pk: FaPaypal, rd: FaReddit,
+  st: FaSteam, lt: FaLine, ub: FaUber, eb: FaEbay,
+};
 
-  useEffect(() => {
-    if (!expiresAt) return;
-    const interval = setInterval(() => {
-      const diff = differenceInSeconds(parseISO(expiresAt), new Date());
-      if (diff <= 0) { setTimeLeft("Expired"); clearInterval(interval); return; }
-      const d = Math.floor(diff / 86400);
-      const h = Math.floor((diff % 86400) / 3600);
-      const m = Math.floor((diff % 3600) / 60);
-      const s = diff % 60;
-      setTimeLeft(d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}:${s.toString().padStart(2, "0")}`);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [expiresAt]);
-
-  if (!expiresAt) return null;
-  return (
-    <div className="flex items-center gap-1.5 text-[#7C5CFC] font-bold text-sm">
-      <Clock className="h-4 w-4" />
-      <span>{timeLeft}</span>
-    </div>
-  );
-}
-
-const CopyButton = ({ value, label }: { value: string; label?: string }) => {
-  const { toast } = useToast();
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(value); toast({ title: "Copied!", description: `${label || "Value"} copied` }); }}
-      className="flex items-center justify-center hover:opacity-70 transition-opacity"
-    >
-      <Copy className="h-4 w-4" />
-    </button>
-  );
+const SERVICE_COLORS: Record<string, string> = {
+  wa: "#25D366", ig: "#E1306C", fb: "#1877F2", tg: "#0088cc",
+  go: "#4285F4", tw: "#000000", tt: "#000000", yt: "#FF0000",
+  sp: "#1DB954", dp: "#5865F2", li: "#0A66C2", sb: "#FFFC00",
+  pt: "#E60023", vi: "#665CAC", wb: "#07C160", sk: "#00AFF0",
+  am: "#FF9900", ap: "#555555", pk: "#003087", rd: "#FF4500",
+  st: "#1B2838", lt: "#00C300", ub: "#000000", eb: "#E53238",
 };
 
 interface VirtualNumber {
   id: string;
   phone: string;
-  operator: string;
   product: string;
   product_code?: string;
   price: number;
@@ -66,48 +50,105 @@ interface VirtualNumber {
   country_name: string;
   otp_code?: string;
   provider: string;
-  message_count: number;
 }
 
-const STATUS_TABS = {
-  active: ["PENDING", "RECEIVED", "ACTIVE"],
-  history: ["FINISHED", "CANCELED", "TIMEOUT", "BANNED", "CANCELLED", "SUSPENDED"],
-};
+function ServiceBubble({ code, name }: { code?: string; name: string }) {
+  const key = (code || "").toLowerCase();
+  const Icon = SERVICE_ICONS[key];
+  const bg = SERVICE_COLORS[key] || "#7C5CFC";
+  const iconColor = bg === "#FFFC00" ? "#000" : "#fff";
+  return (
+    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: bg }}>
+      {Icon
+        ? <Icon size={18} color={iconColor} />
+        : <span className="font-black text-sm" style={{ color: iconColor }}>{name.charAt(0).toUpperCase()}</span>
+      }
+    </div>
+  );
+}
+
+function Countdown({ expiresAt }: { expiresAt: string | null }) {
+  const [timeLeft, setTimeLeft] = useState("");
+
+  useEffect(() => {
+    if (!expiresAt) return;
+    function tick() {
+      const diff = differenceInSeconds(parseISO(expiresAt!), new Date());
+      if (diff <= 0) { setTimeLeft("Expired"); return; }
+      const m = Math.floor(diff / 60);
+      const s = diff % 60;
+      setTimeLeft(m > 0 ? `${m}:${s.toString().padStart(2, "0")}` : `0:${s.toString().padStart(2, "0")}`);
+    }
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [expiresAt]);
+
+  if (!expiresAt) return null;
+  return (
+    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-bold text-sm">
+      <Clock className="h-3.5 w-3.5" />{timeLeft}
+    </span>
+  );
+}
+
+function CopyBtn({ value }: { value: string }) {
+  const { toast } = useToast();
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(value); toast({ title: "Copied!" }); }}
+      className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+    >
+      <Copy className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const s = status.toLowerCase();
+  if (s === "active" || s === "pending" || s === "waiting") {
+    return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 uppercase tracking-wide">Active</span>;
+  }
+  if (s === "completed" || s === "finished" || s === "received") {
+    return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 uppercase tracking-wide"><CheckCircle2 className="h-2.5 w-2.5" />Done</span>;
+  }
+  return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 uppercase tracking-wide"><XCircle className="h-2.5 w-2.5" />{status}</span>;
+}
+
+const ACTIVE_STATUSES  = ["active", "pending", "waiting", "received"];
+const HISTORY_STATUSES = ["completed", "finished", "cancelled", "canceled", "suspended", "timeout", "banned"];
 
 export default function MyNumbersPage() {
   const { toast } = useToast();
   const { format: formatCurrency, convert } = useCurrency();
-  const router = useRouter();
-  const [numbers, setNumbers] = useState<VirtualNumber[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [buyingAnother, setBuyingAnother] = useState(false);
+
+  const [numbers, setNumbers]     = useState<VirtualNumber[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [syncing, setSyncing]     = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"active" | "history">("active");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [search, setSearch]       = useState("");
 
-  useEffect(() => { fetchNumbers(); }, []);
-
-  const fetchNumbers = async () => {
+  const fetchNumbers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/numbers");
+      const res  = await fetch("/api/numbers");
       if (!res.ok) throw new Error("Failed to fetch numbers");
       const data = await res.json();
       setNumbers(
         (data.numbers || []).map((n: any) => ({
-          id: n.id,
-          phone: n.phone_number,
-          operator: n.operator || "virtual",
-          product: n.product || "activation",
-          product_code: n.product_code || undefined,
-          price: n.monthly_cost || 0,
-          status: n.status || "PENDING",
-          expires_at: n.expires_at,
-          created_at: n.created_at,
-          country_code: n.country_code || "US",
+          id:           n.id,
+          phone:        n.phone_number,
+          product:      n.product || "Activation",
+          product_code: n.product_code,
+          price:        n.monthly_cost || 0,
+          status:       n.status || "active",
+          expires_at:   n.expires_at,
+          created_at:   n.created_at,
+          country_code: n.country_code || "",
           country_name: n.country_name || "",
-          otp_code: n.otp_code,
-          provider: n.provider,
-          message_count: n.message_count || 0,
+          otp_code:     n.otp_code,
+          provider:     n.provider || "platfone",
         }))
       );
     } catch (err: any) {
@@ -115,321 +156,207 @@ export default function MyNumbersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleAction = async (numberId: string, action: string) => {
+  useEffect(() => { fetchNumbers(); }, [fetchNumbers]);
+
+  async function handleSync(id: string) {
+    setSyncing(id);
     try {
-      const res = await fetch(`/api/numbers/${numberId}`, {
+      const res  = await fetch(`/api/numbers/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action: "sync" }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Action failed");
-      toast({ title: "Done", description: `Number ${action}ed` });
-      fetchNumbers();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
-
-  const findCountryIdForSmsPool = async (countryShortCode: string, countryName: string) => {
-    const res = await fetch("/api/smspool/countries", { cache: "no-store" });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !Array.isArray(data)) {
-      throw new Error("Failed to resolve country for this number");
-    }
-
-    const normalizedShortCode = countryShortCode.trim().toUpperCase();
-    const byShortCode = data.find(
-      (country: any) => String(country?.shortCode || "").trim().toUpperCase() === normalizedShortCode
-    );
-    if (byShortCode?.code) return String(byShortCode.code);
-
-    const normalizedName = countryName.trim().toLowerCase();
-    const byName = data.find(
-      (country: any) => String(country?.name || "").trim().toLowerCase() === normalizedName
-    );
-    if (byName?.code) return String(byName.code);
-
-    return "";
-  };
-
-  const handleGetAnotherNumber = async () => {
-    if (buyingAnother) return;
-
-    if (!activeNumber) {
-      router.push("/dashboard/numbers");
-      return;
-    }
-
-    if (String(activeNumber.provider || "").toLowerCase() !== "smspool") {
-      router.push("/dashboard/numbers");
-      return;
-    }
-
-    const serviceCode = String(activeNumber.product_code || "").trim();
-    if (!serviceCode) {
-      toast({
-        title: "Cannot auto-generate yet",
-        description: "This number is missing service metadata. Please select service manually.",
-        variant: "destructive",
-      });
-      router.push("/dashboard/numbers");
-      return;
-    }
-
-    setBuyingAnother(true);
-    try {
-      const countryId = await findCountryIdForSmsPool(activeNumber.country_code, activeNumber.country_name);
-      if (!countryId) throw new Error("Could not resolve country for this number");
-
-      const purchaseRes = await fetch("/api/numbers/purchase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceCode,
-          serviceName: activeNumber.product,
-          country: countryId,
-          countryName: activeNumber.country_name,
-          countryShortCode: activeNumber.country_code,
-        }),
-      });
-
-      const purchaseData = await purchaseRes.json().catch(() => null);
-      if (!purchaseRes.ok) {
-        throw new Error(purchaseData?.error || "Failed to generate another number");
-      }
-
-      toast({
-        title: "New number ready",
-        description: `${purchaseData?.number?.phone_number || "Your new number"} has been generated`,
-      });
-
-      setActiveTab("active");
-      setSearchQuery("");
+      if (!res.ok) throw new Error(data.error || "Sync failed");
+      toast({ title: data.otp_code ? `OTP: ${data.otp_code}` : "No code yet", description: data.otp_code ? "Code copied to clipboard" : "Check back in a moment" });
+      if (data.otp_code) navigator.clipboard.writeText(data.otp_code).catch(() => {});
       await fetchNumbers();
     } catch (err: any) {
-      toast({
-        title: "Get another number failed",
-        description: err?.message || "Please try again",
-        variant: "destructive",
-      });
+      toast({ title: "Sync failed", description: err.message, variant: "destructive" });
     } finally {
-      setBuyingAnother(false);
+      setSyncing(null);
     }
-  };
+  }
+
+  async function handleCancel(id: string) {
+    setCancelling(id);
+    try {
+      const res  = await fetch(`/api/numbers/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Cancel failed");
+      toast({ title: "Number cancelled" });
+      await fetchNumbers();
+    } catch (err: any) {
+      toast({ title: "Cancel failed", description: err.message, variant: "destructive" });
+    } finally {
+      setCancelling(null);
+    }
+  }
 
   const filtered = numbers.filter((n) => {
-    const matchSearch = !searchQuery || n.phone.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchTab = STATUS_TABS[activeTab].includes(n.status.toUpperCase());
-    return matchSearch && matchTab;
+    const s = n.status.toLowerCase();
+    const inTab = activeTab === "active"
+      ? ACTIVE_STATUSES.some(a => s.startsWith(a))
+      : HISTORY_STATUSES.some(h => s.startsWith(h));
+    const matchSearch = !search || n.phone.includes(search) || n.product.toLowerCase().includes(search.toLowerCase());
+    return inTab && matchSearch;
   });
-
-  const activeNumber = activeTab === "active" ? filtered[0] : null;
 
   return (
     <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
-      <div className="px-4 pt-4 pb-6 md:px-6 md:pt-6 max-w-6xl mx-auto space-y-4">
+      <div className="px-4 pt-4 pb-10 md:px-6 md:pt-6 max-w-4xl mx-auto space-y-4">
 
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
-              My Numbers
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Virtual numbers you've purchased</p>
-          </div>
-          <Button
-            size="sm"
-            onClick={handleGetAnotherNumber}
-            disabled={buyingAnother}
-            className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl gap-1.5"
-          >
-            {buyingAnother ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Phone className="h-3.5 w-3.5" />}
-            {buyingAnother ? "Generating..." : "Get another number"}
-          </Button>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
+            My Numbers
+          </h1>
+          <Link href="/dashboard/numbers">
+            <Button size="sm" className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl gap-1.5">
+              <Phone className="h-3.5 w-3.5" />
+              Buy Number
+            </Button>
+          </Link>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-1 w-fit shadow-sm">
-          {(["active", "history"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                "px-5 py-2 rounded-xl text-sm font-bold transition-all capitalize",
-                activeTab === tab
-                  ? "bg-[#7C5CFC] text-white shadow-md shadow-violet-200 dark:shadow-none"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-              )}
-            >
-              {tab === "active" ? "Active" : "History"}
-            </button>
-          ))}
-        </div>
-
-        {activeTab === "history" && (
-          <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/50 rounded-xl p-4 flex gap-3 items-start">
-            <div className="w-6 h-6 rounded-full bg-[#7C5CFC] flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Info className="h-3.5 w-3.5 text-white" />
-            </div>
-            <p className="text-sm text-violet-700 dark:text-violet-300 leading-relaxed">
-              Activation history may be periodically cleared. Save any numbers you need to keep track of.
-            </p>
+        {/* Tabs + Search */}
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-1 shadow-sm">
+            {(["active", "history"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={cn(
+                  "px-4 py-1.5 rounded-lg text-sm font-bold transition-all capitalize",
+                  activeTab === tab
+                    ? "bg-[#7C5CFC] text-white shadow-sm"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                )}
+              >
+                {tab === "active" ? "Active" : "History"}
+              </button>
+            ))}
           </div>
-        )}
 
-        {/* Search + Refresh */}
-        <div className="flex gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
             <Input
-              placeholder="Search by number..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 rounded-full border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
+              placeholder="Search…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-9 rounded-full text-sm border-gray-200 dark:border-gray-600 dark:bg-gray-800"
             />
           </div>
+
           <button
             onClick={fetchNumbers}
-            className="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-[#7C5CFC] hover:border-[#7C5CFC]/40 transition-colors"
+            className="w-9 h-9 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 hover:text-[#7C5CFC] transition-colors"
           >
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </button>
         </div>
 
-        {/* Active Number Card */}
-        {activeNumber && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
-            {/* Top row */}
-            <div className="flex items-center justify-between mb-5">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">#{activeNumber.id.slice(0, 8)}</span>
-              <div className="flex items-center gap-4">
-                <Countdown expiresAt={activeNumber.expires_at} />
-                <span className="text-xs text-gray-400">{dateFormat(parseISO(activeNumber.created_at), "HH:mm")}</span>
-                <div className="w-2.5 h-2.5 rounded-full bg-[#7C5CFC] shadow-[0_0_8px_#7C5CFC]" />
-              </div>
-            </div>
-
-            {/* Info */}
-            <div className="flex flex-wrap items-center gap-5 mb-5">
-              <div className="flex items-center gap-2">
-                <ServiceIcon name={activeNumber.product} size="md" />
-                <span className="font-bold text-gray-800 dark:text-gray-100">{getServicePrettyName(activeNumber.product)}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xl">{getFlag(activeNumber.country_code)}</span>
-                <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">{activeNumber.country_name}</span>
-              </div>
-              <span className="font-bold text-gray-700 dark:text-gray-200">{formatCurrency(convert(activeNumber.price))}</span>
-              <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-violet-50 dark:bg-violet-900/30 text-[#7C5CFC]">
-                &gt;1 SMS
-              </span>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-wrap items-center gap-2 mb-5">
-              <button
-                onClick={() => handleAction(activeNumber.id, "finish")}
-                className="h-10 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold flex items-center gap-1.5 transition-colors"
-              >
-                <Hourglass className="h-4 w-4" /> Finish
-              </button>
-              <button
-                onClick={() => handleAction(activeNumber.id, "ban")}
-                className="h-10 px-4 rounded-xl border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-bold hover:border-red-400 hover:text-red-500 transition-colors"
-              >
-                Ban
-              </button>
-              <button
-                onClick={() => handleAction(activeNumber.id, "cancel")}
-                className="h-10 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleAction(activeNumber.id, "sync")}
-                className="h-10 w-10 rounded-xl bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white flex items-center justify-center transition-colors"
-                title="Sync Messages"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Number + OTP */}
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 flex items-center rounded-2xl border-2 border-gray-100 dark:border-gray-700 overflow-hidden h-14">
-                <div className="w-14 h-full bg-[#7C5CFC] flex items-center justify-center flex-shrink-0">
-                  <div className="relative">
-                    <Plus className="h-3.5 w-3.5 text-white absolute -top-1 -left-1" />
-                    <Copy className="h-4 w-4 text-white" />
-                  </div>
-                </div>
-                <div className="flex-1 text-center font-bold text-lg text-gray-700 dark:text-gray-200 tracking-wider">
-                  {activeNumber.phone}
-                </div>
-                <div className="w-14 h-full bg-[#7C5CFC] flex items-center justify-center text-white">
-                  <CopyButton value={activeNumber.phone} label="Phone number" />
-                </div>
-              </div>
-
-              <div className="flex-1 flex items-center gap-3">
-                <span className="text-sm font-bold text-gray-500 whitespace-nowrap">Code</span>
-                <div className="flex-1 flex items-center rounded-2xl border-2 border-gray-100 dark:border-gray-700 overflow-hidden h-14">
-                  <div className="flex-1 text-center font-bold text-xl tracking-[0.5em] pl-[0.5em] text-gray-700 dark:text-gray-200">
-                    {activeNumber.otp_code || "—"}
-                  </div>
-                  <div className="w-14 h-full bg-[#7C5CFC] flex items-center justify-center text-white">
-                    <CopyButton value={activeNumber.otp_code || ""} label="OTP code" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        {/* List */}
+        <div className="space-y-3">
           {loading ? (
-            <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-4">
-                  {[...Array(5)].map((_, j) => <Skeleton key={j} className="h-4 flex-1" />)}
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-4">
+                <Skeleton className="w-9 h-9 rounded-xl" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-24" />
                 </div>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-16 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center mx-auto mb-3">
-                <Phone className="h-7 w-7 text-[#7C5CFC]" />
+                <Skeleton className="h-8 w-20 rounded-xl" />
               </div>
-              <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3">No numbers found</p>
-              <Link href="/dashboard/numbers">
-                <Button size="sm" className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl">
-                  Get another number
-                </Button>
-              </Link>
+            ))
+          ) : filtered.length === 0 ? (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 py-16 text-center">
+              <Phone className="h-8 w-8 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm text-gray-400 mb-4">
+                {activeTab === "active" ? "No active numbers" : "No history yet"}
+              </p>
+              {activeTab === "active" && (
+                <Link href="/dashboard/numbers">
+                  <Button size="sm" className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl">
+                    Buy a number
+                  </Button>
+                </Link>
+              )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-gray-700">
-                    {["ID", "Date", "Service", "Country", "Price / Operator", "Number / Code", "Status"].map((h, i) => (
-                      <th key={h} className={cn("py-3.5 px-4 text-xs font-bold text-gray-400 uppercase tracking-wide", i === 6 ? "text-right pr-5" : "text-left")}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-gray-700/30">
-                  {filtered.map((order) => (
-                    <OrderTableRow key={order.id} order={order} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            filtered.map((n) => {
+              const isActive = ACTIVE_STATUSES.some(a => n.status.toLowerCase().startsWith(a));
+              return (
+                <div key={n.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+                  {/* Top row */}
+                  <div className="flex items-center gap-3">
+                    <ServiceBubble code={n.product_code} name={n.product} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-gray-800 dark:text-gray-100 text-sm">{n.product}</span>
+                        <StatusBadge status={n.status} />
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
+                        <span>{n.country_name || n.country_code}</span>
+                        <span>·</span>
+                        <span>{dateFormat(parseISO(n.created_at), "dd MMM, HH:mm")}</span>
+                        {isActive && n.expires_at && (
+                          <>
+                            <span>·</span>
+                            <Countdown expiresAt={n.expires_at} />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                      {formatCurrency(convert(n.price))}
+                    </span>
+                  </div>
+
+                  {/* Phone number */}
+                  <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl px-3 py-2">
+                    <span className="font-mono font-bold text-gray-800 dark:text-gray-100 text-sm tracking-wide flex-1">
+                      {n.phone}
+                    </span>
+                    <CopyBtn value={n.phone} />
+                  </div>
+
+                  {/* OTP code */}
+                  <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl px-3 py-2">
+                    <span className="text-xs font-semibold text-gray-400 w-8">OTP</span>
+                    <span className={cn("font-mono font-bold text-lg tracking-[0.3em] flex-1", n.otp_code ? "text-[#7C5CFC]" : "text-gray-300 dark:text-gray-600")}>
+                      {n.otp_code || "———"}
+                    </span>
+                    {n.otp_code && <CopyBtn value={n.otp_code} />}
+                  </div>
+
+                  {/* Actions (active only) */}
+                  {isActive && (
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => handleSync(n.id)}
+                        disabled={syncing === n.id}
+                        className="flex-1 h-9 rounded-xl bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white text-sm font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-60"
+                      >
+                        {syncing === n.id
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <RefreshCw className="h-3.5 w-3.5" />}
+                        Check for OTP
+                      </button>
+                      <button
+                        onClick={() => handleCancel(n.id)}
+                        disabled={cancelling === n.id}
+                        className="h-9 px-4 rounded-xl border border-gray-200 dark:border-gray-600 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-60"
+                      >
+                        {cancelling === n.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Cancel"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       </div>

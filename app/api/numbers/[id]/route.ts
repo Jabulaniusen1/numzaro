@@ -70,6 +70,16 @@ export async function GET(
       }
     }
 
+    // Sync messages from Platfone
+    if (number.provider === "platfone" && number.textverified_id) {
+      try {
+        const { syncPlatfoneActivation } = await import("@/lib/platfone/adapter");
+        await syncPlatfoneActivation(number.id, number.textverified_id, supabase, number.user_id.replace(/-/g, ""));
+      } catch (syncError) {
+        console.error("Failed to sync Platfone messages:", syncError);
+      }
+    }
+
     const { count: messageCount } = await supabase
       .from("messages")
       .select("*", { count: "exact", head: true })
@@ -155,6 +165,15 @@ export async function DELETE(
       }
     }
 
+    if (number.provider === "platfone" && number.textverified_id) {
+      try {
+        const { platfoneClient } = await import("@/lib/platfone/client");
+        await platfoneClient.cancelActivation(number.user_id.replace(/-/g, ""), number.textverified_id);
+      } catch (e) {
+        console.error("Platfone cancel error:", e);
+      }
+    }
+
     await supabase
       .from("virtual_numbers")
       .update({ status: "cancelled" })
@@ -222,6 +241,11 @@ export async function PATCH(
         await syncSmsPoolActivation(number.id, number.textverified_id, supabase);
         return NextResponse.json({ success: true });
       }
+      if (number.provider === "platfone" && number.textverified_id) {
+        const { syncPlatfoneActivation } = await import("@/lib/platfone/adapter");
+        await syncPlatfoneActivation(number.id, number.textverified_id, supabase, number.user_id.replace(/-/g, ""));
+        return NextResponse.json({ success: true });
+      }
     }
 
     if (action === "cancel") {
@@ -259,6 +283,14 @@ export async function PATCH(
           await smsPoolClient.cancelSMS(number.textverified_id);
         } catch (e) {
           console.error("SMSPool cancel error:", e);
+        }
+      }
+      if (number.provider === "platfone" && number.textverified_id) {
+        try {
+          const { platfoneClient } = await import("@/lib/platfone/client");
+          await platfoneClient.cancelActivation(number.user_id.replace(/-/g, ""), number.textverified_id);
+        } catch (e) {
+          console.error("Platfone cancel error:", e);
         }
       }
       await supabase
