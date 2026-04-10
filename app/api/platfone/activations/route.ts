@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = request.nextUrl;
     const type = searchParams.get("type") ?? "history";
+    const page = Number(searchParams.get("page") ?? "1");
+    const perPage = Number(searchParams.get("per_page") ?? "25");
 
     const customerId = user.id.replace(/-/g, "");
 
@@ -22,7 +24,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(data);
     }
 
-    const data = await platfoneClient.getActiveActivations(customerId);
+    const data = await platfoneClient.getActivationHistory(
+      customerId,
+      Number.isFinite(page) && page > 0 ? page : 1,
+      Number.isFinite(perPage) && perPage > 0 ? perPage : 25
+    );
     return NextResponse.json(data);
   } catch (error: any) {
     console.error("[/api/platfone/activations] error:", error);

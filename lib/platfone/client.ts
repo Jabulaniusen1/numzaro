@@ -98,6 +98,11 @@ export interface PlatfonePricesByServiceEntry {
   }>;
 }
 
+export interface PlatfonePricingQuery {
+  service?: string;
+  country?: string | number;
+}
+
 export type SmsStatus = "smsRequested" | "smsReceived" | "retryRequested" | "retryReceived";
 export type ActivationStatus = "active" | "finalized" | "expired" | "canceled";
 export type BillingStatus = "reserved" | "released" | "billed" | "refunded";
@@ -122,6 +127,14 @@ export interface PlatfoneActivation {
   created_at?: number;
   is_retriable?: boolean;
   cancelable_after?: number | null;
+}
+
+export interface PlatfoneActivationHistoryResponse {
+  activations: PlatfoneActivation[];
+  page: number;
+  limit: number;
+  pages: number;
+  total: number;
 }
 
 // ─── Client ───────────────────────────────────────────────────────────────────
@@ -158,6 +171,26 @@ export const platfoneClient = {
     return platfoneFetch(
       `/activation/prices/services/${encodeURIComponent(serviceId)}/countries/${encodeURIComponent(countryId)}`
     );
+  },
+
+  // Compatibility helper used by /api/platfone/pricing
+  async getPricing(query: PlatfonePricingQuery = {}): Promise<any> {
+    const serviceId = query.service;
+    const countryId = query.country !== undefined ? String(query.country) : undefined;
+
+    if (serviceId && countryId) {
+      return this.getPrice(serviceId, countryId);
+    }
+
+    const byService = await this.getPricesByService(serviceId);
+    if (!countryId) return byService;
+
+    return byService
+      .map((entry) => ({
+        ...entry,
+        countries: entry.countries.filter((country) => country.country_id === countryId),
+      }))
+      .filter((entry) => entry.countries.length > 0);
   },
 
   // ── Customer management (/retail/m/) ──────────────────────────────────────
@@ -239,6 +272,18 @@ export const platfoneClient = {
   getActiveActivations(customerId: string): Promise<PlatfoneActivation[]> {
     return platfoneFetch(
       `/retail/a/customer/${encodeURIComponent(customerId)}/activations?with_data=true`
+    );
+  },
+
+  // Curl: api/v1/retail/a/customer/{id}/activation/history?page=1&limit=25
+  getActivationHistory(
+    customerId: string,
+    page = 1,
+    limit = 25
+  ): Promise<PlatfoneActivationHistoryResponse> {
+    const qs = `?page=${encodeURIComponent(String(page))}&limit=${encodeURIComponent(String(limit))}`;
+    return platfoneFetch(
+      `/retail/a/customer/${encodeURIComponent(customerId)}/activation/history${qs}`
     );
   },
 
