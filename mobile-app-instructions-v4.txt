@@ -1,0 +1,213 @@
+================================================================================
+  MOBILE APP INSTRUCTIONS (V4) — Backend Contract Corrections + Platfone Updates
+  Base docs: mobile-app-instructions.txt + v2 + v3
+================================================================================
+
+Use this as the latest update layer for mobile integration.
+
+Key point: V3 eSIM provider assumptions are partially outdated. The current
+backend contract for eSIM routes is SMSPool-based and has different payload
+semantics than the eSIM Access examples in V3.
+
+================================================================================
+  1) CRITICAL CORRECTIONS TO V3
+================================================================================
+
+1. eSIM API routes are currently implemented through `smsPoolClient` server-side.
+2. `/api/esim/packages` returns `price` in USD decimal (example: `1.5`), not
+   integer cents (example: `10000`) as shown in V3 examples.
+3. `providerPrice` sent to `/api/esim/order` must be the raw `price` value
+   returned by `/api/esim/packages` (USD decimal), not converted values.
+4. `/api/esim/order` may return `qr_code_url`, `iccid`, `order_no` as `null`
+   initially; mobile must handle this gracefully.
+5. Status updates and low-data alerts still arrive via notifications and should
+   deep-link to eSIM detail.
+
+================================================================================
+  2) CURRENT eSIM API CONTRACT (AUTHORITATIVE)
+================================================================================
+
+All routes require auth.
+
+─── GET /api/esim/countries ────────────────────────────────────────────────────
+
+Response:
+{
+  "countries": [
+    {
+      "code": "JP",
+      "name": "Japan",
+      "flag": "🇯🇵",
+      "startingPriceUsd": 1.0,
+      "startingChargedUsd": 1.3
+    }
+  ]
+}
+
+Notes:
+- Use this to build country selector and starting-from prices.
+
+─── POST /api/esim/packages ────────────────────────────────────────────────────
+
+Body (optional):
+{
+  "locationCode": "JP"
+}
+
+Response:
+{
+  "packages": [
+    {
+      "packageCode": "1234",
+      "slug": "smspool-1234",
+      "name": "Japan 1GB - 30 days",
+      "price": 1.0,               // raw provider USD
+      "currencyCode": "USD",
+      "volume": 1073741824,
+      "duration": 30,
+      "durationUnit": "DAY",
+      "location": "Japan",
+      "priceUsd": 1.0,
+      "chargedUsd": 1.3,          // user charge after markup
+      "dataFormatted": "1.0 GB"
+    }
+  ]
+}
+
+Notes:
+- Always show `chargedUsd` to users.
+- Preserve `price` for purchase payload as `providerPrice`.
+
+─── POST /api/esim/order ───────────────────────────────────────────────────────
+
+Body:
+{
+  "packageCode": "1234",
+  "packageName": "Japan 1GB - 30 days",
+  "location": "Japan",
+  "duration": "30 DAY",
+  "dataVolume": "1.0 GB",
+  "providerPrice": 1.0
+}
+
+Success:
+{
+  "success": true,
+  "order": {
+    "id": "uuid",
+    "package_name": "Japan 1GB - 30 days",
+    "location": "Japan",
+    "duration": "30 DAY",
+    "data_volume": "1.0 GB",
+    "order_no": null,
+    "esim_tran_no": "25031120490003",
+    "iccid": null,
+    "qr_code_url": null,
+    "ac": "LPA:1$...",
+    "smdp_address": "rsp.truphone.com",
+    "status": "got_resource",
+    "esim_status": "0",
+    "provider_cost": 1.0,
+    "charged_amount": 1.3
+  }
+}
+
+Insufficient balance:
+- HTTP 402 with `{ "error": "Insufficient balance. Required: $X, Available: $Y" }`
+
+─── GET /api/esim/orders?page=1&limit=20 ──────────────────────────────────────
+
+Response:
+{
+  "orders": [ ... ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 42,
+    "totalPages": 3
+  }
+}
+
+─── POST /api/esim/usage ───────────────────────────────────────────────────────
+
+Body (one required):
+{ "orderId": "uuid" }
+or
+{ "esimTranNo": "25031120490003" }
+
+Response:
+{
+  "usage": {
+    "esimTranNo": "25031120490003",
+    "dataUsedBytes": 1453344832,
+    "totalDataBytes": 5368709120,
+    "dataUsedFormatted": "1.4 GB",
+    "totalDataFormatted": "5.0 GB",
+    "remainingBytes": 3915364288,
+    "remainingFormatted": "3.6 GB",
+    "percentUsed": 27.1,
+    "lastUpdateTime": "2026-04-10T12:00:00.000Z"
+  }
+}
+
+================================================================================
+  3) UI/UX RULES FOR MOBILE
+================================================================================
+
+1. Always render purchase price from `chargedUsd`.
+2. Keep `providerPrice = package.price` in purchase payload.
+3. Handle nullable `qr_code_url`, `iccid`, and `order_no` safely.
+4. Show usage section for statuses: `got_resource`, `in_use`, `used_up`.
+5. For status badge mapping keep:
+   - `pending`, `got_resource`, `in_use`, `used_up`, `used_expired`,
+     `unused_expired`, `cancelled`, `failed`.
+6. Deep-link notifications:
+   - `esim_purchased`
+   - `esim_status_update`
+   - `esim_data_usage`
+   - `esim_expiring`
+
+================================================================================
+  4) PLATFONE API UPDATE (IF MOBILE USES PLATFONE SCREENS)
+================================================================================
+
+These routes are available and now aligned:
+
+1. `GET /api/platfone/services`
+2. `GET /api/platfone/countries?service={serviceId}`
+3. `GET /api/platfone/pricing?service={serviceId}&country={countryId}`
+4. `GET /api/platfone/activations?type=active|history&page=1&per_page=25`
+
+Important:
+- For `type=history`, backend now returns paginated history from Platfone.
+- For `type=active`, backend returns active activation list.
+
+================================================================================
+  5) REQUIRED MOBILE API HELPERS (FINAL)
+================================================================================
+
+- `fetchEsimCountries()`
+- `fetchEsimPackages(locationCode?)`
+- `purchaseEsim(payload)`
+- `fetchEsimOrders(page, limit)`
+- `fetchEsimUsage({ orderId? , esimTranNo? })`
+- `fetchPlatfoneServices()` (optional)
+- `fetchPlatfoneCountries(service)` (optional)
+- `fetchPlatfonePricing(service, country?)` (optional)
+- `fetchPlatfoneActivations(type, page?, perPage?)` (optional)
+
+================================================================================
+  6) MUST-PASS QA CHECKS
+================================================================================
+
+1. eSIM packages list renders with `chargedUsd`.
+2. Purchase sends decimal `providerPrice` (same as package `price`).
+3. Purchase handles HTTP 402 cleanly with top-up CTA.
+4. eSIM detail screen works when QR code is initially null.
+5. Usage refresh works with `orderId`.
+6. Notification tap opens eSIM detail by `esim_order_id`.
+7. Platfone history endpoint works with pagination when used.
+
+================================================================================
+  END OF V4 UPDATE FILE
+================================================================================
