@@ -8,7 +8,7 @@ import { ThemeToggle } from "@/components/ThemeToggle"
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { Phone, ShoppingBag } from "lucide-react"
+import { Phone, ShoppingBag, Wifi } from "lucide-react"
 import { FaApple, FaFacebookF, FaGooglePlay, FaInstagram, FaLinkedinIn, FaTiktok, FaYoutube } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
 
@@ -58,7 +58,7 @@ const reviews = [
 ];
 
 // CTA Button Component with redirect handling
-function ServiceCTA({ destination, children, variant = "default" }: { destination: "numbers" | "services", children: React.ReactNode, variant?: "default" | "outline" }) {
+function ServiceCTA({ destination, children, variant = "default" }: { destination: "numbers" | "services" | "esim", children: React.ReactNode, variant?: "default" | "outline" }) {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
@@ -72,15 +72,18 @@ function ServiceCTA({ destination, children, variant = "default" }: { destinatio
     setIsLoggedIn(!!user);
   };
 
+  const getPath = () => {
+    if (destination === "numbers") return "/dashboard/numbers";
+    if (destination === "esim") return "/dashboard/esim";
+    return "/dashboard/services";
+  };
+
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    
-    const path = destination === "numbers" ? "/dashboard/numbers" : "/dashboard/services";
-    
+    const path = getPath();
     if (isLoggedIn) {
       router.push(path);
     } else {
-      // Store redirect destination in localStorage
       if (typeof window !== "undefined") {
         localStorage.setItem("redirectAfterAuth", path);
       }
@@ -89,9 +92,8 @@ function ServiceCTA({ destination, children, variant = "default" }: { destinatio
   };
 
   if (isLoggedIn === null) {
-    // Show loading state or default link
     return (
-      <Link href={destination === "numbers" ? "/dashboard/numbers" : "/dashboard/services"} className="w-full sm:w-auto">
+      <Link href={getPath()} className="w-full sm:w-auto">
         <Button size="lg" variant={variant} className={`w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-5 md:py-6 text-base sm:text-lg ${variant === "default" ? "bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200" : "border-2 border-primary/40 text-primary hover:border-primary/60 hover:bg-primary/5 dark:hover:bg-primary/10 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"}`}>
           {children}
         </Button>
@@ -223,25 +225,33 @@ export default function HomePage() {
                 {/* Main Headline */}
                 <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight px-2 lg:px-0">
                   <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    Virtual Phone Numbers
+                    Virtual Numbers, eSIM
                   </span>
                   <span className="block mt-1 sm:mt-2 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    And Social Media Growth
+                    & Social Media Growth
                   </span>
                 </h1>
 
                 {/* Subheadline */}
                 <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-primary/80 dark:text-primary/80 max-w-3xl mx-auto lg:mx-0 leading-relaxed px-4 lg:px-0 font-light">
-                  Buy virtual phone numbers for SMS verification and scale your social media marketing with followers, likes, views, and engagement packages across top platforms.
+                  Buy virtual phone numbers for SMS verification, activate eSIM data plans in seconds, and scale your social media marketing across top platforms.
                 </p>
                   
                 {/* Dual CTAs */}
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start items-center mt-6 sm:mt-8 px-4 lg:px-0">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start items-center mt-6 sm:mt-8 px-4 lg:px-0 flex-wrap">
                   <div className="w-full sm:w-auto">
                     <ServiceCTA destination="numbers" variant="default">
                       <div className="flex items-center gap-2 justify-center">
                         <Phone className="w-5 h-5" />
                         Get Virtual Numbers
+                      </div>
+                    </ServiceCTA>
+                  </div>
+                  <div className="w-full sm:w-auto">
+                    <ServiceCTA destination="esim" variant="default">
+                      <div className="flex items-center gap-2 justify-center">
+                        <Wifi className="w-5 h-5" />
+                        Get eSIM Data
                       </div>
                     </ServiceCTA>
                   </div>
@@ -269,6 +279,8 @@ export default function HomePage() {
                   <span>827K+ Active Users</span>
                   <span className="hidden sm:inline">•</span>
                   <span>50K+ Phone Numbers</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span>100+ eSIM Countries</span>
                   <span className="hidden sm:inline">•</span>
                   <span>4M+ Orders Delivered</span>
                 </div>
@@ -369,15 +381,15 @@ export default function HomePage() {
             <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 dark:from-primary/20 dark:via-secondary/20 dark:to-primary/20 rounded-2xl blur-xl"></div>
             <div className="relative">
               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-3 sm:mb-4 px-4">
-                Virtual Numbers & Social Media Services
+                Virtual Numbers, eSIM & Social Media Services
               </h2>
             </div>
           </div>
           <p className="text-base sm:text-lg md:text-xl text-primary/80 dark:text-primary/70 max-w-2xl mx-auto px-4 font-medium">
-            Two SEO‑ready solutions to help businesses and creators verify accounts and grow online.
+            Three powerful solutions to help businesses and creators stay connected, verify accounts, and grow online.
           </p>
         </div>
-        <div className="grid md:grid-cols-2 gap-6 md:gap-8 max-w-6xl mx-auto mb-12">
+        <div className="grid md:grid-cols-3 gap-6 md:gap-8 max-w-6xl mx-auto mb-12">
           {/* Virtual Numbers Service */}
           <Card className="border-2 border-secondary/30 dark:border-secondary/40 bg-gradient-to-br from-secondary/10 to-primary/10 dark:from-secondary/10 dark:to-primary/10 hover:shadow-xl transition-all duration-300 hover:scale-105">
             <CardHeader className="pb-3 sm:pb-4">
@@ -422,6 +434,63 @@ export default function HomePage() {
               <div className="mt-6">
                 <ServiceCTA destination="numbers" variant="default">
                   Buy Virtual Numbers
+                </ServiceCTA>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* eSIM Data Service */}
+          <Card className="border-2 border-secondary/40 dark:border-secondary/50 bg-gradient-to-br from-secondary/15 to-primary/15 dark:from-secondary/15 dark:to-primary/15 hover:shadow-xl transition-all duration-300 hover:scale-105 relative overflow-hidden">
+            {/* Decorative chip lines */}
+            <div className="absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none">
+              <div className="absolute top-4 right-4 w-20 h-14 rounded-lg border-2 border-primary"></div>
+              <div className="absolute top-8 right-8 w-8 h-6 rounded border border-primary"></div>
+              <div className="absolute top-6 right-0 w-4 h-px bg-primary"></div>
+              <div className="absolute top-10 right-0 w-6 h-px bg-primary"></div>
+              <div className="absolute top-14 right-0 w-4 h-px bg-primary"></div>
+            </div>
+            <CardHeader className="pb-3 sm:pb-4">
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-lg bg-gradient-to-br from-secondary to-primary flex items-center justify-center mb-4 shadow-md">
+                <Wifi className="w-8 h-8 md:w-10 md:h-10 text-white" />
+              </div>
+              <CardTitle className="text-xl sm:text-2xl md:text-3xl text-primary dark:text-primary">eSIM Data Plans</CardTitle>
+              <CardDescription className="text-sm sm:text-base text-primary/70 dark:text-primary/70">
+                Instant data connectivity in 100+ countries
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm sm:text-base text-primary/80 dark:text-primary/80 leading-relaxed mb-4">
+                Activate an eSIM data plan instantly — no physical SIM swap needed. Stay connected while traveling or working remotely with flexible data packages across global networks.
+              </p>
+              <ul className="space-y-2 text-sm sm:text-base text-primary/80 dark:text-primary/80">
+                <li className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Scan QR code and connect in seconds</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Coverage in 100+ countries & regions</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Flexible daily, weekly & monthly plans</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Works on all eSIM-compatible devices</span>
+                </li>
+              </ul>
+              <div className="mt-6">
+                <ServiceCTA destination="esim" variant="default">
+                  Get eSIM Data Plan
                 </ServiceCTA>
               </div>
             </CardContent>
@@ -475,6 +544,105 @@ export default function HomePage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      </section>
+
+      {/* eSIM Spotlight Section */}
+      <section className="container mx-auto px-4 py-12 sm:py-16 md:py-20">
+        <div className="max-w-6xl mx-auto rounded-3xl border border-secondary/30 bg-gradient-to-br from-secondary/10 via-primary/5 to-secondary/15 dark:from-secondary/15 dark:via-primary/10 dark:to-secondary/20 overflow-hidden relative">
+          {/* Abstract circuit background */}
+          <div className="absolute inset-0 pointer-events-none opacity-[0.07]">
+            <div className="absolute top-8 left-8 w-48 h-32 rounded-2xl border-2 border-primary"></div>
+            <div className="absolute top-16 left-16 w-16 h-10 rounded border border-primary"></div>
+            <div className="absolute top-12 left-32 w-24 h-px bg-primary"></div>
+            <div className="absolute top-20 left-0 w-8 h-px bg-primary"></div>
+            <div className="absolute bottom-8 right-8 w-48 h-32 rounded-2xl border-2 border-secondary"></div>
+            <div className="absolute bottom-16 right-16 w-16 h-10 rounded border border-secondary"></div>
+            <div className="absolute bottom-12 right-32 w-24 h-px bg-secondary"></div>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left: Content */}
+            <div className="p-8 sm:p-10 md:p-12 flex flex-col justify-center">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/20 border border-secondary/30 text-secondary text-xs font-semibold uppercase tracking-widest mb-5 w-fit">
+                <Wifi className="w-3.5 h-3.5" />
+                New — eSIM Data
+              </div>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-4 leading-tight">
+                Travel & Stay Connected Without Swapping SIMs
+              </h2>
+              <p className="text-base sm:text-lg text-primary/80 dark:text-primary/70 mb-6 leading-relaxed">
+                Activate a local data plan anywhere in the world in under a minute. Just scan a QR code — no roaming fees, no physical SIM card, no waiting.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-3 mb-8">
+                {[
+                  { icon: "🌍", label: "100+ Countries" },
+                  { icon: "⚡", label: "Instant Activation" },
+                  { icon: "📶", label: "4G / 5G Networks" },
+                  { icon: "🔄", label: "Flexible Plans" },
+                ].map(({ icon, label }) => (
+                  <div key={label} className="flex items-center gap-3 rounded-xl border border-primary/15 bg-white/60 dark:bg-white/5 px-4 py-3">
+                    <span className="text-xl">{icon}</span>
+                    <span className="text-sm font-medium text-primary">{label}</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <ServiceCTA destination="esim" variant="default">
+                  <div className="flex items-center gap-2">
+                    <Wifi className="w-5 h-5" />
+                    Browse eSIM Plans
+                  </div>
+                </ServiceCTA>
+              </div>
+            </div>
+
+            {/* Right: Visual SIM Card Mockup */}
+            <div className="hidden lg:flex items-center justify-center p-8 md:p-12 relative">
+              {/* Outer glow */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-64 h-64 rounded-full bg-secondary/20 blur-3xl"></div>
+              </div>
+              {/* SIM Card */}
+              <div className="relative w-[260px] h-[180px] rounded-2xl bg-gradient-to-br from-gray-800 to-gray-950 dark:from-gray-700 dark:to-gray-900 shadow-2xl border border-white/10 flex flex-col justify-between p-5 rotate-3">
+                {/* Chip */}
+                <div className="w-12 h-9 rounded-md bg-gradient-to-br from-yellow-300 to-yellow-500 shadow-inner flex items-center justify-center">
+                  <div className="grid grid-cols-3 gap-0.5 w-8 h-6">
+                    {[...Array(9)].map((_, i) => (
+                      <div key={i} className="rounded-[1px] bg-yellow-600/60"></div>
+                    ))}
+                  </div>
+                </div>
+                {/* Logo / label */}
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-white/40 mb-0.5">eSIM</p>
+                    <p className="text-white font-bold text-base tracking-wide">Numzaro</p>
+                    <p className="text-white/50 text-[9px] tracking-widest uppercase">Global Data</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex gap-0.5 justify-end mb-1">
+                      {[3, 4, 5, 4, 3].map((h, i) => (
+                        <div key={i} className="w-1 bg-secondary rounded-full" style={{ height: `${h * 4}px` }}></div>
+                      ))}
+                    </div>
+                    <p className="text-[9px] text-white/40 uppercase tracking-widest">5G Ready</p>
+                  </div>
+                </div>
+                {/* Shine overlay */}
+                <div className="absolute top-0 left-0 w-full h-1/2 rounded-t-2xl bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
+              </div>
+              {/* Floating data badges */}
+              <div className="absolute top-10 right-8 bg-white dark:bg-gray-900 border border-secondary/30 rounded-xl px-3 py-2 shadow-lg text-xs font-semibold text-primary flex items-center gap-1.5 -rotate-2">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                Active in 🇺🇸 USA
+              </div>
+              <div className="absolute bottom-12 left-4 bg-white dark:bg-gray-900 border border-primary/20 rounded-xl px-3 py-2 shadow-lg text-xs font-semibold text-primary flex items-center gap-1.5 rotate-1">
+                <Wifi className="w-3 h-3 text-secondary" />
+                10GB · 30 days
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -585,12 +753,16 @@ export default function HomePage() {
               </div>
             </div>
             <p className="text-base sm:text-lg text-primary/80 dark:text-primary/70 leading-relaxed px-4">
-              Numzaro is a growth platform for businesses, agencies, and creators who need reliable virtual phone numbers for SMS verification and scalable social media marketing services. We combine fast delivery, transparent order tracking, and secure checkout so teams can verify accounts and grow online without delays.
+              Numzaro is a growth platform for businesses, agencies, and creators who need reliable virtual phone numbers for SMS verification, eSIM data plans for global connectivity, and scalable social media marketing services. We combine fast delivery, transparent order tracking, and secure checkout so teams can verify accounts and grow online without delays.
             </p>
             <div className="mt-6 grid sm:grid-cols-2 gap-3 px-4 text-sm sm:text-base text-primary/80 dark:text-primary/80">
               <div className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 rounded-full bg-secondary"></span>
                 <span>Global SMS verification numbers</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-1 h-2 w-2 rounded-full bg-secondary"></span>
+                <span>eSIM data plans in 100+ countries</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 rounded-full bg-secondary"></span>
@@ -613,6 +785,7 @@ export default function HomePage() {
             </p>
             <div className="flex flex-wrap gap-3">
               <span className="px-3 py-1 text-xs sm:text-sm rounded-full bg-primary/10 text-primary">SMS Verification</span>
+              <span className="px-3 py-1 text-xs sm:text-sm rounded-full bg-secondary/10 text-primary">eSIM Data Plans</span>
               <span className="px-3 py-1 text-xs sm:text-sm rounded-full bg-secondary/10 text-primary">Social Media Growth</span>
               <span className="px-3 py-1 text-xs sm:text-sm rounded-full bg-primary/10 text-primary">Order Tracking</span>
               <span className="px-3 py-1 text-xs sm:text-sm rounded-full bg-secondary/10 text-primary">Secure Checkout</span>
@@ -769,6 +942,26 @@ export default function HomePage() {
           </Card>
           <Card className="border-2 border-secondary/30 dark:border-secondary/40 bg-white/70 dark:bg-white/5 backdrop-blur-md">
             <CardHeader>
+              <CardTitle className="text-lg sm:text-xl text-primary">How does eSIM activation work?</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm sm:text-base text-primary/80">
+                After purchase, you receive a QR code. Scan it in your phone's Settings to install the eSIM — no physical SIM swap required. You're connected in under a minute.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-2 border-primary/30 dark:border-primary/40 bg-white/70 dark:bg-white/5 backdrop-blur-md">
+            <CardHeader>
+              <CardTitle className="text-lg sm:text-xl text-primary">Which devices support eSIM?</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm sm:text-base text-primary/80">
+                Most modern smartphones support eSIM including iPhone XS and later, Samsung Galaxy S20+, Google Pixel 3+, and many other devices. Check your device settings to confirm.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border-2 border-secondary/30 dark:border-secondary/40 bg-white/70 dark:bg-white/5 backdrop-blur-md">
+            <CardHeader>
               <CardTitle className="text-lg sm:text-xl text-primary">Do you offer refunds?</CardTitle>
             </CardHeader>
             <CardContent>
@@ -792,14 +985,19 @@ export default function HomePage() {
 
       {/* CTA Section */}
       <section className="container mx-auto px-4 py-20 text-center bg-gradient-to-r from-primary to-secondary rounded-2xl my-20 dark:from-primary dark:to-secondary">
-        <h2 className="text-4xl font-bold mb-6 text-white">Start SMS Verification and Social Growth Today</h2>
+        <h2 className="text-4xl font-bold mb-6 text-white">Virtual Numbers, eSIM Data & Social Growth — All in One Place</h2>
         <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-          Join thousands of customers who trust Numzaro for virtual phone numbers, OTP delivery, and social media marketing packages.
+          Join thousands of customers who trust Numzaro for SMS verification, instant eSIM connectivity, and social media marketing packages.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <Link href="/dashboard/numbers">
             <Button size="lg" variant="outline" className="border-white hover:bg-white/10 hover:text-white">
               Buy SMS Numbers
+            </Button>
+          </Link>
+          <Link href="/dashboard/esim">
+            <Button size="lg" variant="outline" className="border-white hover:bg-white/10 hover:text-white">
+              Get eSIM Data
             </Button>
           </Link>
           <Link href="/dashboard/services">
@@ -818,7 +1016,7 @@ export default function HomePage() {
             <div className="space-y-4">
               <div className="text-2xl font-bold text-primary">Numzaro</div>
               <p className="text-gray-600 dark:text-gray-300 text-sm">
-                Virtual phone numbers for SMS verification and social media marketing services for businesses, agencies, and creators.
+                Virtual phone numbers, eSIM data plans, and social media marketing services for businesses, agencies, and creators.
               </p>
               <div className="flex gap-4">
                 <a href="#" className="text-gray-400 hover:text-secondary transition-colors">
@@ -849,6 +1047,11 @@ export default function HomePage() {
                 <li>
                   <Link href="/dashboard/numbers" className="text-gray-600 dark:text-gray-300 hover:text-secondary transition-colors">
                     Phone Numbers
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/dashboard/esim" className="text-gray-600 dark:text-gray-300 hover:text-secondary transition-colors">
+                    eSIM Data Plans
                   </Link>
                 </li>
                 <li>

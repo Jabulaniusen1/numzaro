@@ -7,7 +7,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Search, RefreshCw, ChevronLeft, ChevronRight,
-  Wifi, Clock, QrCode, BarChart3, X, AlertCircle,
+  Wifi, Clock, QrCode, BarChart3, X, AlertCircle, Smartphone, Apple, Copy, Check,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -184,6 +184,149 @@ function BuyModal({ pkg, onClose, onSuccess }: { pkg: ESimPackage; onClose: () =
   );
 }
 
+// ─── eSIM Connect Card ────────────────────────────────────────────────────────
+
+function ESimConnectCard({
+  order,
+  copyToClipboard,
+}: {
+  order: ESimOrder;
+  copyToClipboard: (text: string, label: string) => void;
+}) {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const handleCopy = (text: string, label: string) => {
+    copyToClipboard(text, label);
+    setCopied(label);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const lpaString = order.smdp_address && order.ac
+    ? `LPA:1$${order.smdp_address}$${order.ac}`
+    : null;
+
+  const iosDeepLink = lpaString
+    ? `https://esim.apple.com/subscribe?address=${encodeURIComponent(order.smdp_address ?? "")}&iccid=${encodeURIComponent(order.iccid ?? "")}`
+    : null;
+
+  const androidDeepLink = lpaString
+    ? `https://esimsetup.android.com/esim_qr_code?qrCode=${encodeURIComponent(lpaString)}`
+    : null;
+
+  return (
+    <div className="rounded-2xl border border-[#7C5CFC]/20 bg-gradient-to-br from-[#7C5CFC]/5 to-purple-50 dark:from-[#7C5CFC]/10 dark:to-gray-800/60 overflow-hidden">
+      {/* Header */}
+      <div className="px-4 pt-4 pb-3 border-b border-[#7C5CFC]/10 dark:border-gray-700">
+        <div className="flex items-center gap-2 mb-1">
+          <QrCode className="h-4 w-4 text-[#7C5CFC]" />
+          <p className="text-sm font-bold text-gray-800 dark:text-white">Install Your eSIM</p>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Scan the QR code or tap a button below to activate on your device.
+        </p>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* QR Code */}
+        {order.qr_code_url && (
+          <div className="flex flex-col items-center gap-2">
+            <div className="bg-white dark:bg-gray-900 rounded-xl p-3 shadow-inner border border-gray-100 dark:border-gray-700">
+              <img
+                src={order.qr_code_url}
+                alt="eSIM QR Code"
+                className="w-[200px] h-[200px] object-contain rounded-md"
+              />
+            </div>
+            <p className="text-[11px] text-gray-400 text-center">
+              Point your camera at this code in your phone's eSIM settings.
+            </p>
+          </div>
+        )}
+
+        {/* Installation Details */}
+        {(order.smdp_address || order.ac || order.iccid) && (
+          <div className="space-y-2">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">Installation Details</p>
+            {order.smdp_address && (
+              <div
+                className="flex items-start justify-between gap-2 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors group"
+                onClick={() => handleCopy(order.smdp_address!, "SM-DP+ Address")}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">SM-DP+ Address</p>
+                  <p className="text-xs font-mono text-gray-800 dark:text-gray-100 break-all">{order.smdp_address}</p>
+                </div>
+                {copied === "SM-DP+ Address"
+                  ? <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                  : <Copy className="h-4 w-4 text-gray-400 group-hover:text-[#7C5CFC] flex-shrink-0 mt-0.5 transition-colors" />
+                }
+              </div>
+            )}
+            {order.ac && (
+              <div
+                className="flex items-start justify-between gap-2 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors group"
+                onClick={() => handleCopy(order.ac!, "Activation Code")}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">Activation Code</p>
+                  <p className="text-xs font-mono text-gray-800 dark:text-gray-100 break-all">{order.ac}</p>
+                </div>
+                {copied === "Activation Code"
+                  ? <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                  : <Copy className="h-4 w-4 text-gray-400 group-hover:text-[#7C5CFC] flex-shrink-0 mt-0.5 transition-colors" />
+                }
+              </div>
+            )}
+            {order.iccid && (
+              <div
+                className="flex items-start justify-between gap-2 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors group"
+                onClick={() => handleCopy(order.iccid!, "ICCID")}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">ICCID</p>
+                  <p className="text-xs font-mono text-gray-800 dark:text-gray-100">{order.iccid}</p>
+                </div>
+                {copied === "ICCID"
+                  ? <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                  : <Copy className="h-4 w-4 text-gray-400 group-hover:text-[#7C5CFC] flex-shrink-0 mt-0.5 transition-colors" />
+                }
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Connect buttons */}
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">Connect Your Device</p>
+          <div className="grid grid-cols-2 gap-2">
+            <a
+              href={iosDeepLink ?? "https://support.apple.com/en-us/111900"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-black text-white text-xs font-semibold hover:bg-gray-900 transition-colors shadow-sm"
+            >
+              <Apple className="h-4 w-4" />
+              Connect on iOS
+            </a>
+            <a
+              href={androidDeepLink ?? "https://support.google.com/android/answer/9449946"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#3DDC84] text-black text-xs font-semibold hover:bg-[#34c778] transition-colors shadow-sm"
+            >
+              <Smartphone className="h-4 w-4" />
+              Connect on Android
+            </a>
+          </div>
+          <p className="text-[10px] text-gray-400 text-center">
+            Opens your device's eSIM setup screen directly.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Order Detail Modal ───────────────────────────────────────────────────────
 
 function OrderDetailModal({ order, onClose }: { order: ESimOrder; onClose: () => void }) {
@@ -238,50 +381,9 @@ function OrderDetailModal({ order, onClose }: { order: ESimOrder; onClose: () =>
             <span className="text-xs text-gray-400">${order.charged_amount.toFixed(2)}</span>
           </div>
 
-          {/* QR Code */}
-          {order.qr_code_url && (
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wide">Scan QR Code</p>
-              <img src={order.qr_code_url} alt="eSIM QR Code" className="mx-auto max-w-[180px] rounded-lg" />
-            </div>
-          )}
-
-          {/* Installation details */}
-          {(order.ac || order.smdp_address || order.iccid) && (
-            <div className="space-y-2">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Installation Details</p>
-              {order.smdp_address && (
-                <div
-                  className="flex items-start justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
-                  onClick={() => copyToClipboard(order.smdp_address!, "SM-DP+ Address")}
-                >
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">SM-DP+ Address</p>
-                    <p className="text-sm font-mono text-gray-800 dark:text-gray-100 break-all">{order.smdp_address}</p>
-                  </div>
-                </div>
-              )}
-              {order.ac && (
-                <div
-                  className="flex items-start justify-between gap-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
-                  onClick={() => copyToClipboard(order.ac!, "Activation Code")}
-                >
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Activation Code</p>
-                    <p className="text-sm font-mono text-gray-800 dark:text-gray-100 break-all">{order.ac}</p>
-                  </div>
-                </div>
-              )}
-              {order.iccid && (
-                <div
-                  className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
-                  onClick={() => copyToClipboard(order.iccid!, "ICCID")}
-                >
-                  <p className="text-xs text-gray-500 dark:text-gray-400">ICCID</p>
-                  <p className="text-sm font-mono text-gray-800 dark:text-gray-100">{order.iccid}</p>
-                </div>
-              )}
-            </div>
+          {/* QR Code + Installation Details + Connect Buttons */}
+          {(order.qr_code_url || order.ac || order.smdp_address || order.iccid) && (
+            <ESimConnectCard order={order} copyToClipboard={copyToClipboard} />
           )}
 
           {/* Usage */}
