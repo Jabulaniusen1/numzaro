@@ -10,7 +10,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import {
   Loader2, Clock, ChevronRight, ShoppingBag, X,
   Users, Heart, Eye, MessageCircle, Share2, Play, Star, Zap, Search,
-  ArrowLeft, ChevronLeft,
+  ArrowLeft, ChevronLeft, Timer, Gauge, ShieldCheck, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -66,6 +66,25 @@ function detectPlatform(category: string) {
     if (p.keywords.some((k) => c.includes(k))) return p.id;
   }
   return "other";
+}
+
+// ─── Parse JAP metadata embedded in service names ────────────────────────────
+function parseServiceMeta(rawName: string) {
+  const get = (pattern: RegExp) => rawName.match(pattern)?.[1]?.trim() ?? null;
+
+  const startTime  = get(/\[Start\s*Time:\s*([^\]]+)\]/i);
+  const speed      = get(/\[Speed:\s*([^\]]+)\]/i);
+  const refill     = get(/\[Refill:\s*([^\]]+)\]/i);
+  const averageTime = get(/\[Average\s*Time:\s*([^\]]+)\]/i);
+
+  // Guaranteed = any non-negative refill value
+  const noRefill = !refill || /^(no|none|nop)$/i.test(refill.trim());
+  const guaranteed = noRefill ? null : refill;
+
+  // Description = name with all bracket groups stripped
+  const description = rawName.replace(/\s*\[[^\]]*\]/g, "").trim();
+
+  return { startTime, speed, guaranteed, averageTime, description };
 }
 
 function detectType(name: string, type: string) {
@@ -488,9 +507,10 @@ export default function ServicesPage() {
             <>
               <div className="space-y-2">
                 {pagedServices.map((s) => {
-                  const t      = detectType(s.name, s.type);
-                  const meta   = TYPE_META[t];
+                  const t          = detectType(s.name, s.type);
+                  const meta       = TYPE_META[t];
                   const isSelected = selectedService?.id === s.id;
+                  const sm         = parseServiceMeta(s.name);
 
                   return (
                     <button
@@ -511,16 +531,28 @@ export default function ServicesPage() {
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{s.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-xs text-gray-400">{ngn(s.rate)} / 1k</span>
-                          {s.refill_allowed && (
-                            <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400">
-                              Refill
+                        <p className="font-semibold text-sm text-gray-800 dark:text-gray-100 leading-snug line-clamp-2">
+                          {sm.description || s.name}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          <span className="text-xs text-gray-400 font-medium">{ngn(s.rate)} / 1k</span>
+                          {sm.startTime && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-px rounded-full bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 border border-violet-100 dark:border-violet-800">
+                              <Timer className="h-2.5 w-2.5" />{sm.startTime}
+                            </span>
+                          )}
+                          {sm.speed && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-px rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
+                              <Gauge className="h-2.5 w-2.5" />{sm.speed}
+                            </span>
+                          )}
+                          {sm.guaranteed && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-px rounded-full bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-300 border border-green-100 dark:border-green-800">
+                              <ShieldCheck className="h-2.5 w-2.5" />{sm.guaranteed}
                             </span>
                           )}
                           {s.cancel_allowed && (
-                            <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
+                            <span className="text-[10px] font-bold px-1.5 py-px rounded-full bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300 border border-orange-100 dark:border-orange-800">
                               Cancel
                             </span>
                           )}
@@ -572,6 +604,7 @@ export default function ServicesPage() {
       {/* ── Order form — bottom sheet ──────────────────────────────────────────── */}
       {selectedService && (() => {
         const platDef = activePlatformDef;
+        const sm = parseServiceMeta(selectedService.name);
         return (
           <div className="fixed inset-0 z-40 flex flex-col justify-end pointer-events-none">
             <div
@@ -590,14 +623,14 @@ export default function ServicesPage() {
                     <platDef.Icon className="absolute -right-3 -bottom-3 h-20 w-20 opacity-10" />
                   )}
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="flex-1 min-w-0 pr-8">
                       {platDef && (
                         <div className="flex items-center gap-1.5 mb-1">
                           <platDef.Icon className="h-3.5 w-3.5 opacity-75" />
                           <p className="text-[11px] font-semibold opacity-75 uppercase tracking-wide">{platDef.name}</p>
                         </div>
                       )}
-                      <p className="font-bold text-sm leading-snug pr-8">{selectedService.name}</p>
+                      <p className="font-bold text-sm leading-snug">{sm.description || selectedService.name}</p>
                     </div>
                     <button
                       onClick={closeOrder}
@@ -619,6 +652,37 @@ export default function ServicesPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Service metadata grid */}
+                {(sm.startTime || sm.speed) && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { icon: Timer, label: "Start Time", value: sm.startTime },
+                      { icon: Gauge, label: "Speed",      value: sm.speed     },
+                    ].map(({ icon: Icon, label, value }) => (
+                      <div key={label} className="rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-3">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Icon className="h-3 w-3 text-[#7C5CFC]" />
+                          <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400">{label}</p>
+                        </div>
+                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 leading-snug">
+                          {value ?? "—"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Description */}
+                {sm.description && (
+                  <div className="rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-3">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <FileText className="h-3 w-3 text-[#7C5CFC]" />
+                      <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400">Description</p>
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{sm.description}</p>
+                  </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Link */}
@@ -679,10 +743,10 @@ export default function ServicesPage() {
                     <div className="rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-4 space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-1.5 text-gray-500">
-                          <Clock className="h-3.5 w-3.5" /> Est. delivery
+                          <Clock className="h-3.5 w-3.5" /> Start time
                         </span>
                         <span className="font-semibold text-gray-700 dark:text-gray-200">
-                          {(() => {
+                          {sm.startTime ?? (() => {
                             const t = detectType(selectedService.name, selectedService.type);
                             if (t === "followers" || t === "subscribers") return "24–48 hours";
                             if (t === "likes" || t === "views") return "1–6 hours";

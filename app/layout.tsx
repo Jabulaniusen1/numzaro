@@ -31,7 +31,7 @@ export default function RootLayout({
           {children}
           <Toaster />
         </ThemeProvider>
-        <Script src="https://js.paystack.co/v2/inline.js" strategy="lazyOnload" />
+        <Script src="https://korablobstorage.blob.core.windows.net/modal-bucket/korapay-collections.min.js" strategy="afterInteractive" />
       </body>
     </html>
   )

@@ -218,24 +218,24 @@ export async function POST(request: NextRequest) {
     const markupPercentage =
       Number.isFinite(rawMarkup) && rawMarkup >= 0 ? Math.min(rawMarkup, 10000) : DEFAULT_MARKUP;
 
-    console.log("Admin sync: Fetching services from SMMFollows API...");
+    console.log("Admin sync: Fetching services from JAP API...");
 
-    // Fetch services from SMMFollows API
+    // Fetch services from JAP API
     let apiServices;
     try {
       apiServices = await getServices();
-      console.log(`Admin sync: Fetched ${apiServices?.length || 0} services from SMMFollows API`);
+      console.log(`Admin sync: Fetched ${apiServices?.length || 0} services from JAP API`);
     } catch (apiError: any) {
-      console.error("Admin sync: Error fetching services from SMMFollows API:", apiError);
+      console.error("Admin sync: Error fetching services from JAP API:", apiError);
       return NextResponse.json(
-        { error: "Failed to fetch services from SMMFollows API", details: apiError.message },
+        { error: "Failed to fetch services from JAP API", details: apiError.message },
         { status: 500 }
       );
     }
 
     if (!apiServices || apiServices.length === 0) {
       return NextResponse.json(
-        { error: "No services received from SMMFollows API" },
+        { error: "No services received from JAP API" },
         { status: 500 }
       );
     }

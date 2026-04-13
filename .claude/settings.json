@@ -19,7 +19,23 @@
       "WebFetch(domain:temp-number-api.com)",
       "Bash(npx supabase:*)",
       "Bash(node -e \"require\\('typescript'\\)\")",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(curl -s -X POST https://justanotherpanel.com/api/v2 -d \"key=29e38d111bd06371c66d00b431cf089b&action=services\")",
+      "WebFetch(domain:docs.korapay.com)",
+      "WebFetch(domain:korapay.com)",
+      "WebFetch(domain:www.korahq.com)",
+      "WebFetch(domain:docs.korahq.com)",
+      "WebFetch(domain:developers.korapay.com)",
+      "WebFetch(domain:api.korapay.com)",
+      "WebFetch(domain:merchant.korapay.com)",
+      "WebFetch(domain:dashboard.korapay.com)",
+      "WebFetch(domain:www.korapay.com)",
+      "WebFetch(domain:developers.korahq.com)",
+      "WebFetch(domain:korahq.com)",
+      "WebFetch(domain:static.korapay.com)",
+      "WebFetch(domain:static.korahq.com)",
+      "WebFetch(domain:js.korahq.com)",
+      "WebFetch(domain:support.korapay.com)"
     ]
   }
 }

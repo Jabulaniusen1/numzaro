@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
-import { initializeTransaction, PaystackError } from "@/lib/paystack/client";
+import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,74 +13,38 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { amount, currency: requestCurrency } = body;
 
-    // Default to USD if no currency specified
-    const currency = requestCurrency || "USD";
+    const currency = requestCurrency || "NGN";
 
     if (!amount || amount <= 0) {
-      return NextResponse.json(
-        { error: "Invalid amount" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
-    // Get user email
     const { data: userProfile } = await supabase
       .from("users")
-      .select("email")
+      .select("email, full_name, username")
       .eq("id", user.id)
       .maybeSingle();
 
     const email = userProfile?.email || user.email;
     if (!email) {
-      return NextResponse.json(
-        { error: "User email not found" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "User email not found" }, { status: 400 });
     }
 
-    // Convert amount to smallest currency unit (kobo for NGN, cents for USD, etc.)
-    // Most currencies use 100 as the multiplier, but we'll handle it generically
-    const amountInSmallestUnit = Math.round(amount * 100);
+    const name =
+      userProfile?.full_name ||
+      userProfile?.username ||
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      email.split("@")[0];
 
-    const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/verify?type=wallet`;
+    // For the inline/popup SDK flow, we only generate a reference here.
+    // The Korapay SDK initializes the charge itself — pre-registering it
+    // via initializeCharge would cause a "duplicate payment reference" error.
+    const reference = `NMZ-${randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`;
 
-    const result = await initializeTransaction({
-      email,
-      amount: amountInSmallestUnit,
-      currency: currency,
-      callback_url: callbackUrl,
-      metadata: {
-        type: "wallet_funding",
-        user_id: user.id,
-        currency: currency, // Store currency in metadata for verification
-      },
-    });
-
-    if (!result.status) {
-      return NextResponse.json(
-        { error: result.message || "Failed to initialize payment" },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({
-      access_code: result.data.access_code,
-      reference: result.data.reference,
-      email: email, // Return email for popup SDK
-    });
+    return NextResponse.json({ reference, email, name, amount, currency });
   } catch (error) {
-    if (error instanceof PaystackError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.statusCode || 500 }
-      );
-    }
     console.error("Wallet funding error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-
-

@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  process.env.SMMFOLLOWS_API_URL || "https://smmfollows.com/api/v2";
+  process.env.JAP_API_URL || "https://justanotherpanel.com/api/v2";
 
 export interface Service {
   service: number;
@@ -70,7 +70,7 @@ class SocialBoostAPIError extends Error {
 }
 
 function getApiKey() {
-  return process.env.SMMFOLLOWS_API_KEY || process.env.SHOPRIME_API_KEY || "";
+  return process.env.JAP_API_KEY || "";
 }
 
 function parseId(value: number | string | undefined, field: string): number {
@@ -94,7 +94,7 @@ async function makeRequest(params: Record<string, string | number>): Promise<unk
   const apiKey = getApiKey().trim();
   if (!apiKey) {
     throw new SocialBoostAPIError(
-      "Missing SMMFOLLOWS API key. Set SMMFOLLOWS_API_KEY (or SHOPRIME_API_KEY for backward compatibility)."
+      "Missing JAP API key. Set JAP_API_KEY in your environment variables."
     );
   }
 

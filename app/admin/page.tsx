@@ -382,7 +382,7 @@ export default function AdminPage() {
           description:
             syncSelectedCategories.length > 0
               ? `Synced ${data.count || 0} services from ${syncSelectedCategories.length} selected categor${syncSelectedCategories.length === 1 ? "y" : "ies"}.`
-              : `Successfully synced ${data.count || 0} services from SMMFollows API.`,
+              : `Successfully synced ${data.count || 0} services from JAP API.`,
         });
         fetchAdminServices(servicesQuery, servicesPage);
         fetchSelectableApiServices(apiServicesSearch, apiServicesCategory, apiServicesPage);
@@ -690,7 +690,7 @@ export default function AdminPage() {
         <CardHeader>
           <CardTitle className="text-gray-800 dark:text-gray-100">Select Services To Add</CardTitle>
           <CardDescription>
-            Pick specific services from SMMFollows and add them to your site listings.
+            Pick specific services from JAP and add them to your site listings.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -837,7 +837,7 @@ export default function AdminPage() {
       <Card className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
         <CardHeader>
           <CardTitle className="text-gray-800 dark:text-gray-100">Services Management</CardTitle>
-          <CardDescription>Sync services from SMMFollows API to database</CardDescription>
+          <CardDescription>Sync services from JAP API to database</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-300">

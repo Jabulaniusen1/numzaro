@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyTransaction } from "@/lib/paystack/client";
+import { verifyCharge } from "@/lib/korapay/client";
 import { authenticateRequest } from "@/lib/supabase/server";
 import { convertCurrency } from "@/lib/currency/rates";
 
@@ -9,13 +9,10 @@ export async function POST(request: NextRequest) {
     const { reference, type } = body; // type: 'wallet' or undefined
 
     if (!reference) {
-      return NextResponse.json(
-        { error: "Reference is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Reference is required" }, { status: 400 });
     }
 
-    const result = await verifyTransaction(reference);
+    const result = await verifyCharge(reference);
 
     if (!result.status) {
       return NextResponse.json(
@@ -27,43 +24,36 @@ export async function POST(request: NextRequest) {
     const { user, supabase } = await authenticateRequest(request);
 
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Store payment in database
-    const paymentData = {
-      user_id: user.id,
-      amount: result.data.amount / 100, // Convert from kobo to main currency
-      currency: result.data.currency,
-      payment_provider: "paystack",
-      provider_transaction_id: result.data.reference,
-      status: result.data.status === "success" ? "Success" : "Failed",
-    };
+    const charge = result.data;
+    const isSuccess = charge.status === "success";
 
+    // Store payment record
     const { data: payment, error: paymentError } = await supabase
       .from("payments")
-      .insert(paymentData)
+      .insert({
+        user_id: user.id,
+        amount: charge.amount,
+        currency: charge.currency,
+        payment_provider: "korapay",
+        provider_transaction_id: charge.reference,
+        status: isSuccess ? "Success" : "Failed",
+      })
       .select()
       .single();
 
     if (paymentError) {
       console.error("Error storing payment:", paymentError);
-      return NextResponse.json(
-        { error: "Error storing payment", status: "error" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Error storing payment", status: "error" }, { status: 500 });
     }
 
-    if (result.data.status === "success" && payment) {
-      // Check if this is wallet funding
-      const metadata = result.data.metadata;
-      const isWalletFunding = type === "wallet" || metadata?.type === "wallet_funding";
+    if (isSuccess && payment) {
+      const metadata = charge.metadata ?? {};
+      const isWalletFunding = type === "wallet" || metadata.type === "wallet_funding";
 
       if (isWalletFunding) {
-        // Credit user's wallet
         const { data: userProfile } = await supabase
           .from("users")
           .select("wallet_balance")
@@ -71,61 +61,50 @@ export async function POST(request: NextRequest) {
           .single();
 
         const balanceBefore = parseFloat(userProfile?.wallet_balance || "0.00");
-        
-        // Get the amount paid in the currency that was used
-        const paidAmount = result.data.amount / 100; // Convert from kobo to main unit
-        const paidCurrency = result.data.currency || metadata?.currency || "USD";
+        const paidAmount = charge.amount;
+        const paidCurrency = charge.currency || metadata.currency || "NGN";
 
-        // Convert to USD if payment was in a different currency (wallet always stored in USD)
         let depositAmountUSD = paidAmount;
         if (paidCurrency !== "USD") {
           try {
             depositAmountUSD = await convertCurrency(paidAmount, paidCurrency, "USD");
-          } catch (error) {
-            console.error("Error converting currency:", error);
+          } catch (err) {
+            console.error("Currency conversion error:", err);
           }
         }
 
         const balanceAfter = balanceBefore + depositAmountUSD;
 
-        // Update wallet balance (always stored in USD, same as web)
         await supabase
           .from("users")
           .update({ wallet_balance: balanceAfter })
           .eq("id", user.id);
 
-        // Create wallet transaction record
-        await supabase
-          .from("wallet_transactions")
-          .insert({
-            user_id: user.id,
-            type: "deposit",
-            amount: depositAmountUSD,
-            balance_before: balanceBefore,
-            balance_after: balanceAfter,
-            payment_id: payment.id,
-            description: `Wallet deposit via Paystack (${paidCurrency} ${paidAmount.toFixed(2)})`,
-          });
+        await supabase.from("wallet_transactions").insert({
+          user_id: user.id,
+          type: "deposit",
+          amount: depositAmountUSD,
+          balance_before: balanceBefore,
+          balance_after: balanceAfter,
+          payment_id: payment.id,
+          description: `Wallet deposit via Korapay (${paidCurrency} ${paidAmount.toFixed(2)})`,
+        });
 
         return NextResponse.json({
           status: "success",
           type: "wallet",
-          reference: reference,
-          balanceAfter: balanceAfter,
+          reference,
+          balanceAfter,
         });
       }
-      // Legacy: If metadata has order info, it's an old direct payment flow
     }
 
     return NextResponse.json({
-      status: result.data.status === "success" ? "success" : "failed",
-      reference: reference,
+      status: isSuccess ? "success" : "failed",
+      reference,
     });
   } catch (error) {
     console.error("Payment verification error:", error);
-    return NextResponse.json(
-      { error: "Internal server error", status: "error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error", status: "error" }, { status: 500 });
   }
 }

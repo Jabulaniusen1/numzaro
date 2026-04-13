@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create order in SMMFollows API
+    // Create order in JAP API
     let exosupplierOrderId: number;
     try {
       exosupplierOrderId = await createOrder(
@@ -108,9 +108,9 @@ export async function POST(request: NextRequest) {
         comments || undefined // comments
       );
     } catch (apiError: any) {
-      console.error("Error creating order in SMMFollows API:", apiError);
+      console.error("Error creating order in JAP API:", apiError);
       return NextResponse.json(
-        { error: apiError.message || "Failed to create order in SMMFollows API" },
+        { error: apiError.message || "Failed to create order in JAP API" },
         { status: 500 }
       );
     }

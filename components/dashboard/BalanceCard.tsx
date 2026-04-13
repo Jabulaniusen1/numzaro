@@ -25,6 +25,47 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
   // Suggested amounts in Naira
   const SUGGESTED_AMOUNTS_NGN = [5000, 10000, 20000];
 
+  const KORA_SCRIPT_URL =
+    "https://korablobstorage.blob.core.windows.net/modal-bucket/korapay-collections.min.js";
+
+  // Dynamically ensure the Korapay inline script is loaded.
+  // The SDK exposes window.Korapay with a static .initialize() method.
+  const loadKoraSDK = (): Promise<any> =>
+    new Promise((resolve, reject) => {
+      const getSDK = () => (window as any).Korapay ?? null;
+
+      if (getSDK()) return resolve(getSDK());
+
+      // Script not yet loaded — inject it and wait
+      const existing = document.querySelector(
+        'script[src*="korapay-collections"]'
+      );
+      const script = (existing ?? document.createElement("script")) as HTMLScriptElement;
+
+      const onLoad = () => {
+        const sdk = getSDK();
+        if (sdk) resolve(sdk);
+        else reject(new Error("Korapay SDK failed to initialise after loading."));
+      };
+
+      if (existing) {
+        // Script tag is present but may still be loading — poll briefly
+        script.addEventListener("load", onLoad);
+        const poll = setInterval(() => {
+          const sdk = getSDK();
+          if (sdk) { clearInterval(poll); resolve(sdk); }
+        }, 100);
+        setTimeout(() => clearInterval(poll), 8000);
+      } else {
+        script.src = KORA_SCRIPT_URL;
+        script.addEventListener("load", onLoad);
+        script.addEventListener("error", () =>
+          reject(new Error("Failed to load Korapay SDK. Check your connection and try again."))
+        );
+        document.head.appendChild(script);
+      }
+    });
+
   const handleFund = async () => {
     const fundAmount = parseFloat(amount);
     if (!fundAmount || fundAmount <= 0) {
@@ -40,13 +81,8 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
     try {
       const response = await fetch("/api/wallet/fund", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          amount: fundAmount, // Send amount in Naira to Paystack
-          currency: currency, // Send currency code (NGN) for Paystack
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: fundAmount, currency }),
       });
 
       if (!response.ok) {
@@ -54,80 +90,54 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
         throw new Error(error.error || "Failed to initialize payment");
       }
 
-      const { reference, email: userEmail } = await response.json();
-      
-      // Convert amount to smallest currency unit for Paystack (Naira uses kobo, 100 kobo = 1 Naira)
-      const amountInSmallestUnit = Math.round(fundAmount * 100);
-      
-      // Use Paystack popup SDK
-      if (typeof window !== "undefined" && (window as any).PaystackPop) {
-        const handler = (window as any).PaystackPop.setup({
-          key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "",
-          email: userEmail,
-          amount: amountInSmallestUnit,
-          currency: currency,
-          ref: reference,
-          callback: async function(response: any) {
-            // Verify payment on server (using JSON endpoint to avoid redirects)
-            try {
-              const verifyResponse = await fetch("/api/payments/verify-popup", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  reference: response.reference,
-                  type: "wallet",
-                }),
-              });
+      const { reference, email: userEmail, name: userName } = await response.json();
 
-              if (!verifyResponse.ok) {
-                const errorData = await verifyResponse.json();
-                throw new Error(errorData.error || "Payment verification failed");
-              }
+      const Korapay = await loadKoraSDK();
 
-              const verifyData = await verifyResponse.json();
-              
-              if (verifyData.status === "success") {
-                toast({
-                  title: "Payment successful!",
-                  description: "Your wallet has been funded successfully.",
-                });
-                if (onFunded) {
-                  onFunded();
-                }
-                setOpen(false);
-              } else {
-                throw new Error("Payment verification failed");
-              }
-            } catch (error: any) {
-              toast({
-                title: "Payment verification error",
-                description: error.message || "Payment was successful but verification failed. Please contact support.",
-                variant: "destructive",
-              });
-            } finally {
-              setLoading(false);
-            }
-          },
-          onClose: function() {
-            toast({
-              title: "Payment cancelled",
-              description: "You cancelled the payment process.",
+      Korapay.initialize({
+        key: process.env.NEXT_PUBLIC_KORAPAY_PUBLIC_KEY || "",
+        reference,
+        amount: fundAmount,
+        currency,
+        customer: { email: userEmail, name: userName },
+        onSuccess: async (data: any) => {
+          try {
+            const verifyResponse = await fetch("/api/payments/verify-popup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ reference: data.reference ?? reference, type: "wallet" }),
             });
+
+            const verifyData = await verifyResponse.json();
+
+            if (verifyData.status === "success") {
+              toast({ title: "Payment successful!", description: "Your wallet has been funded." });
+              if (onFunded) onFunded();
+              setOpen(false);
+            } else {
+              throw new Error(verifyData.error || "Payment verification failed");
+            }
+          } catch (err: any) {
+            toast({
+              title: "Verification error",
+              description: err.message || "Payment received but verification failed. Contact support.",
+              variant: "destructive",
+            });
+          } finally {
             setLoading(false);
-          },
-        });
-        handler.openIframe();
-      } else {
-        throw new Error("Paystack SDK not loaded. Please refresh the page.");
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to fund wallet",
-        variant: "destructive",
+          }
+        },
+        onFailed: (_data: any) => {
+          toast({ title: "Payment failed", description: "Your payment was not completed.", variant: "destructive" });
+          setLoading(false);
+        },
+        onClose: () => {
+          toast({ title: "Payment cancelled", description: "You closed the payment window." });
+          setLoading(false);
+        },
       });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to fund wallet", variant: "destructive" });
       setLoading(false);
     }
   };

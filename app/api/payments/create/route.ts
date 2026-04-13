@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
-import { initializeTransaction, PaystackError } from "@/lib/paystack/client";
+import { initializeCharge, KorapayError } from "@/lib/korapay/client";
+import { randomUUID } from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,13 +15,9 @@ export async function POST(request: NextRequest) {
     const { amount, metadata } = body;
 
     if (!amount) {
-      return NextResponse.json(
-        { error: "Amount is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Amount is required" }, { status: 400 });
     }
 
-    // Get user email - use auth user email as fallback
     const { data: userProfile } = await supabase
       .from("users")
       .select("email")
@@ -29,50 +26,30 @@ export async function POST(request: NextRequest) {
 
     const email = userProfile?.email || user.email;
     if (!email) {
-      return NextResponse.json(
-        { error: "User email not found" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "User email not found" }, { status: 400 });
     }
 
-    // Convert amount to kobo (Paystack uses smallest currency unit)
-    const amountInKobo = Math.round(amount * 100);
+    const reference = `NMZ-${randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`;
+    const redirect_url = `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/verify`;
 
-    const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/verify`;
-
-    const result = await initializeTransaction({
+    const result = await initializeCharge({
       email,
-      amount: amountInKobo,
-      callback_url: callbackUrl,
-      metadata: {
-        ...metadata,
-        user_id: user.id,
-      },
+      amount,           // Korapay uses main currency unit — no kobo conversion
+      currency: "NGN",
+      reference,
+      redirect_url,
+      metadata: { ...metadata, user_id: user.id },
     });
 
-    if (!result.status) {
-      return NextResponse.json(
-        { error: result.message || "Failed to initialize payment" },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json({
-      authorization_url: result.data.authorization_url,
+      checkout_url: result.data.checkout_url,
       reference: result.data.reference,
     });
   } catch (error) {
-    if (error instanceof PaystackError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.statusCode || 500 }
-      );
+    if (error instanceof KorapayError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode || 500 });
     }
     console.error("Payment creation error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-
