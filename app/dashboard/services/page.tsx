@@ -16,8 +16,11 @@ import { cn } from "@/lib/utils";
 import {
   FaFacebook, FaInstagram, FaTiktok, FaTwitter, FaDiscord,
   FaTelegram, FaWhatsapp, FaYoutube, FaSpotify, FaLinkedin,
-  FaPinterest, FaSnapchatGhost, FaTwitch,
+  FaPinterest, FaSnapchatGhost, FaTwitch, FaDeezer,
 } from "react-icons/fa";
+import {
+  SiApplemusic, SiAudiomack, SiDribbble, SiKick, SiMedium, SiQuora, SiReddit, SiSoundcloud,
+} from "react-icons/si";
 
 interface Service {
   id: number;
@@ -45,7 +48,16 @@ const PLATFORMS = [
   { id: "linkedin", name: "LinkedIn",     Icon: FaLinkedin,      bg: "bg-gradient-to-br from-[#0A66C2] to-[#004182]",               color: "#0A66C2", keywords: ["linkedin"] },
   { id: "pinterest",name: "Pinterest",    Icon: FaPinterest,     bg: "bg-gradient-to-br from-[#E60023] to-[#a3001a]",               color: "#E60023", keywords: ["pinterest"] },
   { id: "snapchat", name: "Snapchat",     Icon: FaSnapchatGhost, bg: "bg-gradient-to-br from-[#FFFC00] to-[#f5d800]",               color: "#FFFC00", keywords: ["snapchat"] },
-  { id: "twitch",   name: "Twitch",       Icon: FaTwitch,        bg: "bg-gradient-to-br from-[#9146FF] to-[#6c2cd6]",               color: "#9146FF", keywords: ["twitch"] },
+  { id: "twitch",      name: "Twitch",       Icon: FaTwitch,      bg: "bg-gradient-to-br from-[#9146FF] to-[#6c2cd6]",               color: "#9146FF",  keywords: ["twitch"] },
+  { id: "applemusic",  name: "Apple Music",  Icon: SiApplemusic,  bg: "bg-gradient-to-br from-[#FA243C] to-[#b80027]",               color: "#FA243C",  keywords: ["apple music", "apple", "itunes", "podcast"] },
+  { id: "soundcloud",  name: "SoundCloud",   Icon: SiSoundcloud,  bg: "bg-gradient-to-br from-[#FF5500] to-[#cc4400]",               color: "#FF5500",  keywords: ["soundcloud"] },
+  { id: "audiomack",   name: "Audiomack",    Icon: SiAudiomack,   bg: "bg-gradient-to-br from-[#FFA500] to-[#cc8400]",               color: "#FFA500",  keywords: ["audiomack"] },
+  { id: "deezer",      name: "Deezer",       Icon: FaDeezer,      bg: "bg-gradient-to-br from-[#A238FF] to-[#7a1fd6]",               color: "#A238FF",  keywords: ["deezer"] },
+  { id: "dribbble",    name: "Dribbble",     Icon: SiDribbble,    bg: "bg-gradient-to-br from-[#EA4C89] to-[#c2306a]",               color: "#EA4C89",  keywords: ["dribbble", "dribble"] },
+  { id: "kick",        name: "Kick",         Icon: SiKick,        bg: "bg-gradient-to-br from-[#53FC18] to-[#35a80f]",               color: "#53FC18",  keywords: ["kick"] },
+  { id: "medium",      name: "Medium",       Icon: SiMedium,      bg: "bg-gradient-to-br from-[#000000] to-[#333333]",               color: "#000000",  keywords: ["medium"] },
+  { id: "quora",       name: "Quora",        Icon: SiQuora,       bg: "bg-gradient-to-br from-[#B92B27] to-[#8a1f1c]",               color: "#B92B27",  keywords: ["quora"] },
+  { id: "reddit",      name: "Reddit",       Icon: SiReddit,      bg: "bg-gradient-to-br from-[#FF4500] to-[#cc3700]",               color: "#FF4500",  keywords: ["reddit"] },
 ];
 
 const TYPE_META: Record<string, { Icon: React.ElementType; label: string }> = {
@@ -176,7 +188,11 @@ export default function ServicesPage() {
   const ngn = (n: number) =>
     `₦${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  useEffect(() => { fetchServices(); fetchBalance(); }, []);
+  useEffect(() => {
+    console.log("Boost Socials page loaded");
+    fetchServices();
+    fetchBalance();
+  }, []);
 
   async function fetchServices() {
     try {
