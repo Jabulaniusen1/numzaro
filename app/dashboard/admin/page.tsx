@@ -5,20 +5,24 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Settings, Wifi, Phone, ShoppingBag, Save, RefreshCw, AlertCircle, CheckCircle2, Lock } from "lucide-react";
-
-interface MarkupSetting {
-  label: string;
-  description: string;
-  icon: React.ElementType;
-  endpoint: string;
-  color: string;
-  value: number | null;
-  loading: boolean;
-  saving: boolean;
-  error: string | null;
-  saved: boolean;
-}
+import {
+  Settings,
+  Wifi,
+  Phone,
+  ShoppingBag,
+  Save,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2,
+  Lock,
+  Users,
+  ListOrdered,
+  Boxes,
+} from "lucide-react";
+import AdminServicesPage from "@/app/admin/page";
+import AdminUsersPage from "@/app/admin/users/page";
+import AdminOrdersPage from "@/app/admin/orders/page";
+import AdminNumbersPage from "@/app/admin/numbers/page";
 
 const SETTINGS_CONFIG = [
   {
@@ -42,7 +46,7 @@ const SETTINGS_CONFIG = [
     endpoint: "/api/admin/esim/markup",
     color: "blue",
   },
-];
+] as const;
 
 function MarkupCard({
   label,
@@ -59,27 +63,33 @@ function MarkupCard({
   const [saved, setSaved] = useState(false);
   const { toast } = useToast();
 
-  const colorMap: Record<string, { border: string; bg: string; text: string; icon: string; badge: string }> = {
+  const colorMap: Record<
+    string,
+    { border: string; bg: string; text: string; icon: string; badge: string }
+  > = {
     violet: {
       border: "border-violet-200 dark:border-violet-800",
       bg: "bg-violet-50 dark:bg-violet-900/20",
       text: "text-violet-700 dark:text-violet-300",
       icon: "text-violet-500",
-      badge: "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300",
+      badge:
+        "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300",
     },
     indigo: {
       border: "border-indigo-200 dark:border-indigo-800",
       bg: "bg-indigo-50 dark:bg-indigo-900/20",
       text: "text-indigo-700 dark:text-indigo-300",
       icon: "text-indigo-500",
-      badge: "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300",
+      badge:
+        "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300",
     },
     blue: {
       border: "border-blue-200 dark:border-blue-800",
       bg: "bg-blue-50 dark:bg-blue-900/20",
       text: "text-blue-700 dark:text-blue-300",
       icon: "text-blue-500",
-      badge: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
+      badge:
+        "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
     },
   };
 
@@ -117,7 +127,10 @@ function MarkupCard({
       if (!res.ok) throw new Error(data.error || "Failed to save");
       setCurrent(num);
       setSaved(true);
-      toast({ title: `${label} updated`, description: `Markup set to ${num}%` });
+      toast({
+        title: `${label} updated`,
+        description: `Markup set to ${num}%`,
+      });
       setTimeout(() => setSaved(false), 3000);
     } catch (err: any) {
       setError(err.message);
@@ -128,20 +141,38 @@ function MarkupCard({
 
   const multiplier = current !== null ? (1 + current / 100).toFixed(2) : "—";
   const exampleCost = 10;
-  const examplePrice = current !== null ? (exampleCost * (1 + current / 100)).toFixed(2) : "—";
+  const examplePrice =
+    current !== null ? (exampleCost * (1 + current / 100)).toFixed(2) : "—";
 
   return (
-    <div className={cn("bg-white dark:bg-gray-800 rounded-2xl border p-5 shadow-sm", c.border)}>
+    <div
+      className={cn(
+        "bg-white dark:bg-gray-800 rounded-2xl border p-5 shadow-sm",
+        c.border
+      )}
+    >
       <div className="flex items-start gap-3 mb-4">
-        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", c.bg)}>
+        <div
+          className={cn(
+            "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+            c.bg
+          )}
+        >
           <Icon className={cn("h-5 w-5", c.icon)} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{label}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            {description}
+          </p>
         </div>
         {current !== null && (
-          <span className={cn("text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0", c.badge)}>
+          <span
+            className={cn(
+              "text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0",
+              c.badge
+            )}
+          >
             {current}% now
           </span>
         )}
@@ -159,18 +190,28 @@ function MarkupCard({
                 max="10000"
                 step="0.1"
                 value={value}
-                onChange={(e) => { setValue(e.target.value); setError(null); setSaved(false); }}
+                onChange={(e) => {
+                  setValue(e.target.value);
+                  setError(null);
+                  setSaved(false);
+                }}
                 className="w-full px-4 py-2.5 pr-8 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/30"
                 placeholder="e.g. 30"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-semibold">%</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-semibold">
+                %
+              </span>
             </div>
             <Button
               className="bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white rounded-xl px-4"
               onClick={handleSave}
               disabled={saving}
             >
-              {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {saving ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
             </Button>
           </div>
 
@@ -190,7 +231,9 @@ function MarkupCard({
 
           <div className={cn("rounded-xl px-3 py-2 text-xs", c.bg, c.text)}>
             Cost $10.00 → charged <span className="font-bold">${examplePrice}</span>
-            <span className="text-gray-400 dark:text-gray-500 ml-1">({multiplier}x multiplier)</span>
+            <span className="text-gray-400 dark:text-gray-500 ml-1">
+              ({multiplier}x multiplier)
+            </span>
           </div>
         </>
       )}
@@ -198,10 +241,13 @@ function MarkupCard({
   );
 }
 
-export default function AdminPage() {
+type AdminSection = "settings" | "services" | "users" | "orders" | "numbers";
+
+export default function DashboardAdminPage() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
+  const [section, setSection] = useState<AdminSection>("settings");
 
   useEffect(() => {
     fetch("/api/admin/markup")
@@ -228,28 +274,91 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
-      <div className="px-4 pt-4 pb-24 md:px-6 md:pt-6 max-w-2xl mx-auto">
-
-        <div className="mb-6 flex items-center gap-3">
+      <div className="px-4 pt-4 pb-24 md:px-6 md:pt-6 max-w-7xl mx-auto space-y-6">
+        <div className="mb-2 flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-[#7C5CFC] flex items-center justify-center">
             <Settings className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Settings</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage pricing markup across all services</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Console</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              Manage settings, services, users, orders, and numbers
+            </p>
           </div>
         </div>
 
-        <div className="mb-4 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300">
-          <Lock className="h-3.5 w-3.5 flex-shrink-0" />
-          Changes take effect immediately on the next request — no restart needed.
+        <div className="flex flex-wrap gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={section === "settings" ? "default" : "outline"}
+            onClick={() => setSection("settings")}
+            className={section === "settings" ? "bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white" : ""}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={section === "services" ? "default" : "outline"}
+            onClick={() => setSection("services")}
+            className={section === "services" ? "bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white" : ""}
+          >
+            <Boxes className="h-4 w-4 mr-2" />
+            Services
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={section === "users" ? "default" : "outline"}
+            onClick={() => setSection("users")}
+            className={section === "users" ? "bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white" : ""}
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Users
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={section === "orders" ? "default" : "outline"}
+            onClick={() => setSection("orders")}
+            className={section === "orders" ? "bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white" : ""}
+          >
+            <ListOrdered className="h-4 w-4 mr-2" />
+            Orders
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={section === "numbers" ? "default" : "outline"}
+            onClick={() => setSection("numbers")}
+            className={section === "numbers" ? "bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white" : ""}
+          >
+            <Phone className="h-4 w-4 mr-2" />
+            Numbers
+          </Button>
         </div>
 
-        <div className="space-y-4">
-          {SETTINGS_CONFIG.map((s) => (
-            <MarkupCard key={s.endpoint} {...s} />
-          ))}
-        </div>
+        {section === "settings" ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300">
+              <Lock className="h-3.5 w-3.5 flex-shrink-0" />
+              Changes take effect immediately on the next request — no restart needed.
+            </div>
+            {SETTINGS_CONFIG.map((s) => (
+              <MarkupCard key={s.endpoint} {...s} />
+            ))}
+          </div>
+        ) : null}
+
+        {section === "services" ? <AdminServicesPage /> : null}
+
+        {section === "users" ? <AdminUsersPage /> : null}
+
+        {section === "orders" ? <AdminOrdersPage /> : null}
+
+        {section === "numbers" ? <AdminNumbersPage /> : null}
       </div>
     </div>
   );

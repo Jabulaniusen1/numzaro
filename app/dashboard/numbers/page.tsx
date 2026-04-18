@@ -19,7 +19,6 @@ import {
 } from "react-icons/fa";
 import type { IconType } from "react-icons";
 
-// ─── react-icons per service code ────────────────────────────────────────────
 const SERVICE_ICONS: Record<string, IconType> = {
   whatsapp:  FaWhatsapp,
   instagram: FaInstagram,
@@ -47,12 +46,43 @@ const SERVICE_ICONS: Record<string, IconType> = {
   ebay:      FaEbay,
 };
 
+const SERVICE_COLORS: Record<string, string> = {
+  whatsapp:  "#25D366",
+  instagram: "#E1306C",
+  facebook:  "#1877F2",
+  telegram:  "#2AABEE",
+  google:    "#4285F4",
+  twitter:   "#1DA1F2",
+  tiktok:    "#010101",
+  youtube:   "#FF0000",
+  spotify:   "#1DB954",
+  discord:   "#5865F2",
+  linkedin:  "#0A66C2",
+  snapchat:  "#FFFC00",
+  pinterest: "#E60023",
+  viber:     "#7360F2",
+  wechat:    "#07C160",
+  skype:     "#00AFF0",
+  amazon:    "#FF9900",
+  apple:     "#555555",
+  paypal:    "#003087",
+  reddit:    "#FF4500",
+  steam:     "#1b2838",
+  line:      "#00C300",
+  uber:      "#000000",
+  ebay:      "#E53238",
+};
+
 interface SmsPoolService {
   code: string;
   name: string;
   color?: string;
   totalAvailable: number;
   priority: number;
+}
+
+interface TvService {
+  serviceName: string;
 }
 
 interface SmsPoolCountry {
@@ -64,9 +94,9 @@ interface SmsPoolCountry {
   sellPrice: number;
 }
 
-type Step = "service" | "country" | "confirm";
+type Region = "us" | "other";
+type Step = "region" | "service" | "country" | "confirm";
 
-// ─── Skeletons ────────────────────────────────────────────────────────────────
 function ServiceGridSkeleton() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
@@ -95,7 +125,6 @@ function CountryGridSkeleton() {
   );
 }
 
-// ─── Service icon — react-icons with brand color, letter fallback ─────────────
 function ServiceIcon({ code, name, color }: { code: string; name: string; color: string }) {
   const lowerCode = code.toLowerCase();
   const lowerName = name.toLowerCase();
@@ -103,13 +132,13 @@ function ServiceIcon({ code, name, color }: { code: string; name: string; color:
     (key) => lowerCode === key || lowerName.includes(key)
   );
   const Icon = matchedKey ? SERVICE_ICONS[matchedKey] : undefined;
-  // Snapchat has a yellow bg — use dark icon; most others need white
-  const iconColor = color === "#FFFC00" || color === "#FAE100" ? "#000" : "#fff";
+  const bg = (matchedKey && SERVICE_COLORS[matchedKey]) || color;
+  const iconColor = bg === "#FFFC00" || bg === "#FAE100" ? "#000" : "#fff";
 
   return (
     <div
       className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-      style={{ backgroundColor: color }}
+      style={{ backgroundColor: bg }}
     >
       {Icon
         ? <Icon size={22} color={iconColor} />
@@ -119,28 +148,34 @@ function ServiceIcon({ code, name, color }: { code: string; name: string; color:
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function NumbersPage() {
   const { toast }  = useToast();
   const { format: formatCurrency, convert } = useCurrency();
   const router     = useRouter();
 
-  const [balance, setBalance]         = useState<number | null>(null);
-  const [services, setServices]       = useState<SmsPoolService[]>([]);
-  const [countries, setCountries]     = useState<SmsPoolCountry[]>([]);
-  const [selectedService, setSelectedService] = useState<SmsPoolService | null>(null);
-  const [selectedCountry, setSelectedCountry] = useState<SmsPoolCountry | null>(null);
-  const [step, setStep]               = useState<Step>("service");
-  const [serviceSearch, setServiceSearch] = useState("");
-  const [countrySearch, setCountrySearch] = useState("");
-  const [loadingServices, setLoadingServices] = useState(true);
-  const [loadingCountries, setLoadingCountries] = useState(false);
-  const [purchasing, setPurchasing]   = useState(false);
+  const [balance, setBalance]               = useState<number | null>(null);
+  const [region, setRegion]                 = useState<Region | null>(null);
 
-  useEffect(() => {
-    fetchBalance();
-    fetchServices();
-  }, []);
+  // SMSPool (other countries)
+  const [services, setServices]             = useState<SmsPoolService[]>([]);
+  const [loadingServices, setLoadingServices] = useState(false);
+
+  // TextVerified (US)
+  const [tvServices, setTvServices]         = useState<TvService[]>([]);
+  const [loadingTvServices, setLoadingTvServices] = useState(false);
+  const [tvPrice, setTvPrice]               = useState<number | null>(null);
+  const [loadingTvPrice, setLoadingTvPrice] = useState(false);
+
+  const [countries, setCountries]           = useState<SmsPoolCountry[]>([]);
+  const [selectedService, setSelectedService] = useState<SmsPoolService | TvService | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<SmsPoolCountry | null>(null);
+  const [step, setStep]                     = useState<Step>("region");
+  const [serviceSearch, setServiceSearch]   = useState("");
+  const [countrySearch, setCountrySearch]   = useState("");
+  const [loadingCountries, setLoadingCountries] = useState(false);
+  const [purchasing, setPurchasing]         = useState(false);
+
+  useEffect(() => { fetchBalance(); }, []);
 
   async function fetchBalance() {
     try {
@@ -149,7 +184,7 @@ export default function NumbersPage() {
     } catch {}
   }
 
-  async function fetchServices() {
+  async function fetchSmsPoolServices() {
     setLoadingServices(true);
     try {
       const limit = 100;
@@ -185,6 +220,20 @@ export default function NumbersPage() {
     }
   }
 
+  async function fetchTvServices() {
+    setLoadingTvServices(true);
+    try {
+      const res  = await fetch("/api/numbers/tv-services");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `${res.status}`);
+      setTvServices(data.services ?? []);
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Failed to load US services", variant: "destructive" });
+    } finally {
+      setLoadingTvServices(false);
+    }
+  }
+
   async function fetchCountries(serviceCode: string) {
     setLoadingCountries(true);
     setCountries([]);
@@ -200,11 +249,48 @@ export default function NumbersPage() {
     }
   }
 
-  function selectService(service: SmsPoolService) {
+  async function fetchTvPrice(serviceName: string) {
+    setTvPrice(null);
+    setLoadingTvPrice(true);
+    try {
+      const res  = await fetch(`/api/numbers/tv-price?service=${encodeURIComponent(serviceName)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Price unavailable");
+      setTvPrice(data.price);
+    } catch (err: any) {
+      toast({ title: "Price Error", description: err?.message || "Failed to fetch price", variant: "destructive" });
+    } finally {
+      setLoadingTvPrice(false);
+    }
+  }
+
+  function selectRegion(r: Region) {
+    setRegion(r);
+    setSelectedService(null);
+    setSelectedCountry(null);
+    setTvPrice(null);
+    setServiceSearch("");
+    setCountrySearch("");
+    setStep("service");
+    if (r === "us") {
+      if (tvServices.length === 0) fetchTvServices();
+    } else {
+      if (services.length === 0) fetchSmsPoolServices();
+    }
+  }
+
+  function selectService(service: SmsPoolService | TvService) {
     setSelectedService(service);
     setSelectedCountry(null);
-    setStep("country");
-    fetchCountries(service.code);
+    if (region === "us") {
+      const tvSvc = service as TvService;
+      setStep("confirm");
+      fetchTvPrice(tvSvc.serviceName);
+    } else {
+      const smpSvc = service as SmsPoolService;
+      setStep("country");
+      fetchCountries(smpSvc.code);
+    }
   }
 
   function selectCountry(country: SmsPoolCountry) {
@@ -212,34 +298,75 @@ export default function NumbersPage() {
     setStep("confirm");
   }
 
+  function goBack() {
+    if (step === "confirm") {
+      if (region === "us") setStep("service");
+      else setStep("country");
+    } else if (step === "country") {
+      setStep("service");
+    } else if (step === "service") {
+      setStep("region");
+      setRegion(null);
+    } else {
+      setStep("region");
+    }
+  }
+
   async function handlePurchase() {
-    if (!selectedService || !selectedCountry) return;
+    if (!selectedService) return;
+    if (region === "other" && !selectedCountry) return;
 
     setPurchasing(true);
     try {
+      let body: Record<string, any>;
+
+      if (region === "us") {
+        const tvSvc = selectedService as TvService;
+        body = {
+          serviceName: tvSvc.serviceName,
+          countryShortCode: "US",
+          countryName: "United States",
+          country: "1",
+          serviceCode: tvSvc.serviceName,
+        };
+      } else {
+        const smpSvc = selectedService as SmsPoolService;
+        body = {
+          serviceCode: smpSvc.code,
+          country:     selectedCountry!.code,
+          serviceName: smpSvc.name,
+          countryName: selectedCountry!.name,
+          countryShortCode: selectedCountry!.shortCode || undefined,
+        };
+      }
+
       const res = await fetch("/api/numbers/purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceCode: selectedService.code,
-          country:     selectedCountry.code,
-          serviceName: selectedService.name,
-          countryName: selectedCountry.name,
-          countryShortCode: selectedCountry.shortCode || undefined,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Purchase failed");
+      if (!res.ok) {
+        const label = data.provider || data.errorSource;
+        const prefix = label ? `${label}: ` : "";
+        throw new Error(`${prefix}${data.error || "Purchase failed"}`);
+      }
+
+      const displayName = region === "us"
+        ? (selectedService as TvService).serviceName
+        : (selectedService as SmsPoolService).name;
 
       toast({
         title: "Number Purchased!",
-        description: `${data.number?.phone_number} is ready for ${selectedService.name}`,
+        description: `${data.number?.phone_number} is ready for ${displayName}`,
       });
 
+      setRegion(null);
       setSelectedService(null);
       setSelectedCountry(null);
-      setStep("service");
+      setTvPrice(null);
+      setStep("region");
       fetchBalance();
       router.push("/dashboard/numbers/my-numbers");
     } catch (e: any) {
@@ -249,16 +376,29 @@ export default function NumbersPage() {
     }
   }
 
-  const filteredServices = services.filter((s) =>
+  // Filtered lists
+  const filteredSmpServices = services.filter((s) =>
     s.name.toLowerCase().includes(serviceSearch.toLowerCase()) ||
     s.code.toLowerCase().includes(serviceSearch.toLowerCase())
+  );
+  const filteredTvServices = tvServices.filter((s) =>
+    s.serviceName.toLowerCase().includes(serviceSearch.toLowerCase())
   );
   const filteredCountries = countries.filter((c) =>
     c.name.toLowerCase().includes(countrySearch.toLowerCase())
   );
 
-  // Price shown to user — backend applies our configured markup on top of SMSPool pricing
   const userPrice = selectedCountry?.sellPrice ?? null;
+
+  // Breadcrumb steps for display
+  const crumbs =
+    region === "us"
+      ? ["Region", "Service", "Confirm"]
+      : ["Region", "Service", "Country", "Confirm"];
+  const stepIndex: Record<Step, number> = {
+    region: 0, service: 1, country: 2, confirm: region === "us" ? 2 : 3,
+  };
+  const currentIndex = stepIndex[step];
 
   return (
     <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
@@ -294,40 +434,83 @@ export default function NumbersPage() {
       </div>
 
       {/* Breadcrumb */}
-      <div className="px-4 md:px-6 pb-2 flex items-center gap-3 text-sm">
-        {step !== "service" && (
+      <div className="px-4 md:px-6 pb-2 flex items-center gap-3 text-sm flex-wrap">
+        {step !== "region" && (
           <button
-            onClick={() => {
-              if (step === "confirm") setStep("country");
-              else setStep("service");
-            }}
+            onClick={goBack}
             className="flex items-center gap-1 text-xs font-bold text-[#7C5CFC] bg-violet-50 dark:bg-violet-900/30 px-3 py-1.5 rounded-xl hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors mr-1"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
             Back
           </button>
         )}
-        <button onClick={() => setStep("service")} className={cn("font-semibold transition-colors", step === "service" ? "text-[#7C5CFC]" : "text-gray-400 hover:text-gray-600")}>
-          1. Service
-        </button>
-        <ChevronRight className="h-4 w-4 text-gray-300" />
-        <button onClick={() => selectedService && setStep("country")} disabled={!selectedService} className={cn("font-semibold transition-colors", step === "country" ? "text-[#7C5CFC]" : "text-gray-400", selectedService ? "hover:text-gray-600" : "cursor-default")}>
-          2. Country
-        </button>
-        <ChevronRight className="h-4 w-4 text-gray-300" />
-        <span className={cn("font-semibold", step === "confirm" ? "text-[#7C5CFC]" : "text-gray-400")}>
-          3. Confirm
-        </span>
+        {crumbs.map((label, i) => (
+          <span key={label} className="flex items-center gap-3">
+            {i > 0 && <ChevronRight className="h-4 w-4 text-gray-300" />}
+            <span className={cn(
+              "font-semibold transition-colors",
+              i === currentIndex ? "text-[#7C5CFC]" : "text-gray-400"
+            )}>
+              {i + 1}. {label}
+            </span>
+          </span>
+        ))}
       </div>
 
       <div className="px-4 pb-32 md:pb-6 md:px-6">
 
+        {/* ── Step 0: Choose Region ─────────────────────────────────────────────── */}
+        {step === "region" && (
+          <div className="max-w-xl mx-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-5">
+                Choose a region
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* US Numbers */}
+                <button
+                  onClick={() => selectRegion("us")}
+                  className="flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-gray-700 hover:border-[#7C5CFC] hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all group text-left"
+                >
+                  <span className="text-5xl">🇺🇸</span>
+                  <div className="text-center">
+                    <p className="font-bold text-gray-800 dark:text-gray-100 text-base">US Numbers</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">United States only</p>
+                  </div>
+                </button>
+
+                {/* Other Countries */}
+                <button
+                  onClick={() => selectRegion("other")}
+                  className="flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-gray-100 dark:border-gray-700 hover:border-[#7C5CFC] hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all group text-left"
+                >
+                  <span className="text-5xl">🌍</span>
+                  <div className="text-center">
+                    <p className="font-bold text-gray-800 dark:text-gray-100 text-base">Other Countries</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">International numbers</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Step 1: Select Service ──────────────────────────────────────────── */}
         {step === "service" && (
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4">
-            <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-              Select a service
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                Select a service
+              </h2>
+              <span className={cn(
+                "text-[10px] font-bold px-2.5 py-1 rounded-full",
+                region === "us"
+                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                  : "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300"
+              )}>
+                {region === "us" ? "🇺🇸 US · TextVerified" : "🌍 International · SMSPool"}
+              </span>
+            </div>
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <Input
@@ -338,41 +521,67 @@ export default function NumbersPage() {
               />
             </div>
 
-            {loadingServices ? (
-              <ServiceGridSkeleton />
-            ) : filteredServices.length === 0 ? (
-              <p className="text-center py-10 text-sm text-gray-400">No services found.</p>
+            {region === "us" ? (
+              loadingTvServices ? (
+                <ServiceGridSkeleton />
+              ) : filteredTvServices.length === 0 ? (
+                <p className="text-center py-10 text-sm text-gray-400">No services found.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  {filteredTvServices.map((svc) => (
+                    <button
+                      key={svc.serviceName}
+                      onClick={() => selectService(svc)}
+                      className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-gray-100 dark:border-gray-700 hover:border-[#7C5CFC] hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all"
+                    >
+                      <ServiceIcon code={svc.serviceName} name={svc.serviceName} color="#7C5CFC" />
+                      <span className="text-xs font-bold text-gray-700 dark:text-gray-200 text-center leading-tight line-clamp-2">
+                        {svc.serviceName}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {filteredServices.map((service) => (
-                  <button
-                    key={service.code}
-                    onClick={() => selectService(service)}
-                    className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-gray-100 dark:border-gray-700 hover:border-[#7C5CFC] hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all group"
-                  >
-                    <ServiceIcon code={service.code} name={service.name} color={service.color || "#7C5CFC"} />
-                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200 text-center leading-tight line-clamp-2">
-                      {service.name}
-                    </span>
-                    <span className="text-[10px] text-gray-400">
-                      {service.totalAvailable.toLocaleString()} avail.
-                    </span>
-                  </button>
-                ))}
-              </div>
+              loadingServices ? (
+                <ServiceGridSkeleton />
+              ) : filteredSmpServices.length === 0 ? (
+                <p className="text-center py-10 text-sm text-gray-400">No services found.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  {filteredSmpServices.map((service) => (
+                    <button
+                      key={service.code}
+                      onClick={() => selectService(service)}
+                      className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-gray-100 dark:border-gray-700 hover:border-[#7C5CFC] hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all"
+                    >
+                      <ServiceIcon code={service.code} name={service.name} color={service.color || "#7C5CFC"} />
+                      <span className="text-xs font-bold text-gray-700 dark:text-gray-200 text-center leading-tight line-clamp-2">
+                        {service.name}
+                      </span>
+                      <span className="text-[10px] text-gray-400">
+                        {service.totalAvailable.toLocaleString()} avail.
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )
             )}
           </div>
         )}
 
-        {/* ── Step 2: Select Country ──────────────────────────────────────────── */}
-        {step === "country" && selectedService && (
+        {/* ── Step 2 (Other): Select Country ─────────────────────────────────── */}
+        {step === "country" && region === "other" && selectedService && (
           <div className="space-y-4">
-            {/* Selected service summary */}
             <div className="flex items-center gap-3 bg-violet-50 dark:bg-violet-900/20 border border-[#7C5CFC]/30 rounded-xl px-4 py-3">
-              <ServiceIcon code={selectedService.code} name={selectedService.name} color={selectedService.color || "#7C5CFC"} />
+              <ServiceIcon
+                code={(selectedService as SmsPoolService).code}
+                name={(selectedService as SmsPoolService).name}
+                color={(selectedService as SmsPoolService).color || "#7C5CFC"}
+              />
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Selected service</p>
-                <p className="font-bold text-gray-800 dark:text-gray-100">{selectedService.name}</p>
+                <p className="font-bold text-gray-800 dark:text-gray-100">{(selectedService as SmsPoolService).name}</p>
               </div>
               <button onClick={() => setStep("service")} className="ml-auto text-xs text-[#7C5CFC] font-semibold hover:underline">
                 Change
@@ -418,49 +627,96 @@ export default function NumbersPage() {
           </div>
         )}
 
-        {/* ── Step 3: Confirm ─────────────────────────────────────────────────── */}
-        {step === "confirm" && selectedService && selectedCountry && (
+        {/* ── Confirm ──────────────────────────────────────────────────────────── */}
+        {step === "confirm" && selectedService && (
           <div className="max-w-md mx-auto space-y-4">
             <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-5">
               <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Order Summary
               </h2>
 
+              {/* Service row */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <ServiceIcon code={selectedService.code} name={selectedService.name} color={selectedService.color || "#7C5CFC"} />
-                  <span className="font-bold text-gray-800 dark:text-gray-100">{selectedService.name}</span>
+                  {region === "us" ? (
+                    <ServiceIcon
+                      code={(selectedService as TvService).serviceName}
+                      name={(selectedService as TvService).serviceName}
+                      color="#7C5CFC"
+                    />
+                  ) : (
+                    <ServiceIcon
+                      code={(selectedService as SmsPoolService).code}
+                      name={(selectedService as SmsPoolService).name}
+                      color={(selectedService as SmsPoolService).color || "#7C5CFC"}
+                    />
+                  )}
+                  <span className="font-bold text-gray-800 dark:text-gray-100">
+                    {region === "us"
+                      ? (selectedService as TvService).serviceName
+                      : (selectedService as SmsPoolService).name}
+                  </span>
                 </div>
                 <button onClick={() => setStep("service")} className="text-xs text-[#7C5CFC] font-semibold hover:underline">Change</button>
               </div>
 
+              {/* Country row */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">{selectedCountry.flag}</span>
-                  <span className="font-bold text-gray-800 dark:text-gray-100">{selectedCountry.name}</span>
+                  <span className="text-2xl">{region === "us" ? "🇺🇸" : selectedCountry?.flag}</span>
+                  <span className="font-bold text-gray-800 dark:text-gray-100">
+                    {region === "us" ? "United States" : selectedCountry?.name}
+                  </span>
                 </div>
-                <button onClick={() => setStep("country")} className="text-xs text-[#7C5CFC] font-semibold hover:underline">Change</button>
+                {region === "other" && (
+                  <button onClick={() => setStep("country")} className="text-xs text-[#7C5CFC] font-semibold hover:underline">Change</button>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-1.5 text-xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-3 py-1 rounded-full">
                   <Clock className="h-3 w-3" /> One-Time (20 min)
                 </span>
+                <span className={cn(
+                  "text-[10px] font-bold px-2.5 py-1 rounded-full",
+                  region === "us"
+                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                    : "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300"
+                )}>
+                  {region === "us" ? "TextVerified" : "SMSPool"}
+                </span>
               </div>
 
               <div className="border-t border-gray-100 dark:border-gray-700 pt-4 space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Price</span>
-                  <span className="text-2xl font-black text-[#7C5CFC]">
-                    {userPrice !== null ? formatCurrency(convert(userPrice)) : "—"}
-                  </span>
+                  {region === "us" ? (
+                    loadingTvPrice ? (
+                      <span className="flex items-center gap-1.5 text-gray-400">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Fetching price…</span>
+                      </span>
+                    ) : tvPrice !== null ? (
+                      <span className="text-2xl font-black text-[#7C5CFC]">
+                        {formatCurrency(convert(tvPrice))}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-red-500">Price unavailable</span>
+                    )
+                  ) : (
+                    <span className="text-2xl font-black text-[#7C5CFC]">
+                      {userPrice !== null ? formatCurrency(convert(userPrice)) : "—"}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Available now</span>
-                  <span className={cn("font-bold", selectedCountry.available > 0 ? "text-green-600" : "text-red-500")}>
-                    {selectedCountry.available.toLocaleString()} online
-                  </span>
-                </div>
+                {region === "other" && selectedCountry && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">Available now</span>
+                    <span className={cn("font-bold", selectedCountry.available > 0 ? "text-green-600" : "text-red-500")}>
+                      {selectedCountry.available.toLocaleString()} online
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-100 dark:border-gray-700">
                   <span className="text-gray-500">Your balance</span>
                   <span className="font-bold text-gray-700 dark:text-gray-200">
@@ -473,13 +729,24 @@ export default function NumbersPage() {
             <div className="space-y-2">
               <Button
                 onClick={handlePurchase}
-                disabled={purchasing || selectedCountry.available === 0}
+                disabled={
+                  purchasing ||
+                  loadingTvPrice ||
+                  (region === "us" && tvPrice === null) ||
+                  (region === "other" && selectedCountry?.available === 0)
+                }
                 className="w-full bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white h-14 text-base font-bold shadow-lg shadow-violet-200 dark:shadow-none rounded-2xl"
               >
                 {purchasing ? (
                   <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Processing…</>
+                ) : region === "us" ? (
+                  loadingTvPrice
+                    ? "Fetching price…"
+                    : tvPrice !== null
+                      ? `Buy Number — ${formatCurrency(convert(tvPrice))}`
+                      : "Price unavailable"
                 ) : userPrice !== null ? (
-                  `Buy ${selectedService.name} Number — ${formatCurrency(convert(userPrice))}`
+                  `Buy Number — ${formatCurrency(convert(userPrice))}`
                 ) : (
                   "Select options above"
                 )}
@@ -488,10 +755,10 @@ export default function NumbersPage() {
                 type="button"
                 variant="outline"
                 disabled={purchasing}
-                onClick={() => { setSelectedCountry(null); setStep("country"); }}
+                onClick={goBack}
                 className="w-full h-11 rounded-2xl border-gray-200 dark:border-gray-700"
               >
-                Find another number
+                {region === "us" ? "Choose a different service" : "Find another number"}
               </Button>
             </div>
           </div>

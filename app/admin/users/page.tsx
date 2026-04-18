@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
-import Link from "next/link";
-import { ArrowLeft, Loader2, Search, User, Wallet, Phone, Package } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Loader2, Search, User, Wallet, Phone, Package, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface User {
+interface UserRecord {
   id: string;
   email: string;
   full_name: string | null;
@@ -18,36 +16,61 @@ interface User {
   created_at: string;
   numbers_count?: number;
   orders_count?: number;
+  social_orders_count?: number;
+  number_orders_count?: number;
+  esim_orders_count?: number;
   total_spent?: number;
+}
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ElementType;
+  color: "violet" | "green" | "blue" | "amber";
+}) {
+  const colors = {
+    violet: { bg: "bg-violet-50 dark:bg-violet-900/20", icon: "text-violet-500" },
+    green:  { bg: "bg-green-50 dark:bg-green-900/20",   icon: "text-green-500"  },
+    blue:   { bg: "bg-blue-50 dark:bg-blue-900/20",     icon: "text-blue-500"   },
+    amber:  { bg: "bg-amber-50 dark:bg-amber-900/20",   icon: "text-amber-500"  },
+  };
+  const c = colors[color];
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", c.bg)}>
+          <Icon className={cn("h-4 w-4", c.icon)} />
+        </div>
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</p>
+      </div>
+      <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{value}</p>
+    </div>
+  );
 }
 
 export default function AdminUsersPage() {
   const { toast } = useToast();
   const { format, convert } = useCurrency();
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const response = await fetch("/api/admin/users");
-      if (!response.ok) {
-        throw new Error("Failed to fetch users");
-      }
-
+      if (!response.ok) throw new Error("Failed to fetch users");
       const data = await response.json();
       setUsers(data.users || []);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load users",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to load users", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -55,156 +78,145 @@ export default function AdminUsersPage() {
 
   const filteredUsers = users.filter((user) => {
     if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      user.email.toLowerCase().includes(query) ||
-      (user.full_name?.toLowerCase().includes(query) || false)
-    );
+    const q = searchQuery.toLowerCase();
+    return user.email.toLowerCase().includes(q) || (user.full_name?.toLowerCase().includes(q) ?? false);
   });
 
-  const stats = {
-    totalUsers: users.length,
-    totalBalance: users.reduce((sum, u) => sum + parseFloat(u.wallet_balance?.toString() || "0"), 0),
-    totalNumbers: users.reduce((sum, u) => sum + (u.numbers_count || 0), 0),
-    totalOrders: users.reduce((sum, u) => sum + (u.orders_count || 0), 0),
-  };
+  const totalBalance = users.reduce((s, u) => s + parseFloat(u.wallet_balance?.toString() || "0"), 0);
+  const totalNumbers = users.reduce((s, u) => s + (u.numbers_count || 0), 0);
+  const totalOrders  = users.reduce((s, u) => s + (u.orders_count  || 0), 0);
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-[#7C5CFC]" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/admin">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-muted-foreground">Manage users and monitor activity</p>
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="Total Users"     value={users.length}                  icon={User}    color="violet" />
+        <StatCard label="Wallet Balance"  value={format(convert(totalBalance))} icon={Wallet}  color="green"  />
+        <StatCard label="Total Numbers"   value={totalNumbers}                  icon={Phone}   color="blue"   />
+        <StatCard label="Total Orders"    value={totalOrders}                   icon={Package} color="amber"  />
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Users</CardDescription>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <User className="h-5 w-5" />
-              {stats.totalUsers}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Wallet Balance</CardDescription>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <Wallet className="h-5 w-5" />
-              {format(convert(stats.totalBalance))}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Numbers</CardDescription>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <Phone className="h-5 w-5" />
-              {stats.totalNumbers}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Orders</CardDescription>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              {stats.totalOrders}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      {/* Search */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by email or name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+      {/* Users list */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+          <div>
+            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">All Users</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              {filteredUsers.length} of {users.length} shown
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+              <Input
+                placeholder="Search by email or name…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 rounded-xl border-gray-200 dark:border-gray-700 text-sm w-56"
+              />
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchUsers} className="rounded-xl h-9 px-3">
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
 
-      {/* Users List */}
-      {filteredUsers.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">No users found</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Users ({filteredUsers.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
+        {filteredUsers.length === 0 ? (
+          <div className="py-16 text-center">
+            <User className="h-10 w-10 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+            <p className="text-sm text-gray-400">No users found</p>
+          </div>
+        ) : (
+          <>
+            {/* Mobile cards */}
+            <div className="sm:hidden divide-y divide-gray-100 dark:divide-gray-700/50">
+              {filteredUsers.map((user) => (
+                <div key={user.id} className="p-4 space-y-2.5">
+                  <div className="flex justify-between items-start">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{user.email}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{user.full_name || "—"}</p>
+                    </div>
+                    <p className="text-xs text-gray-400 flex-shrink-0 ml-2">
+                      {new Date(user.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {[
+                      { label: "Balance",     value: format(convert(parseFloat(user.wallet_balance?.toString() || "0"))) },
+                      { label: "Total Spent", value: format(convert(user.total_spent || 0)) },
+                      { label: "Numbers",     value: user.numbers_count || 0 },
+                      { label: "Orders",      value: `${user.orders_count || 0} (S:${user.social_orders_count || 0} N:${user.number_orders_count || 0} E:${user.esim_orders_count || 0})` },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-2">
+                        <p className="text-gray-400 mb-0.5">{label}</p>
+                        <p className="font-semibold text-gray-700 dark:text-gray-200 truncate">{String(value)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm min-w-[750px]">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">Email</th>
-                    <th className="text-left p-2">Name</th>
-                    <th className="text-right p-2">Wallet Balance</th>
-                    <th className="text-right p-2">Numbers</th>
-                    <th className="text-right p-2">Orders</th>
-                    <th className="text-right p-2">Total Spent</th>
-                    <th className="text-left p-2">Joined</th>
+                  <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+                    {["User", "Balance", "Numbers", "Orders", "Total Spent", "Joined"].map((h, i) => (
+                      <th key={h} className={cn(
+                        "px-5 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide",
+                        i === 0 ? "text-left" : "text-right"
+                      )}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                   {filteredUsers.map((user) => (
-                    <tr key={user.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="p-2">
-                        <div className="font-medium">{user.email}</div>
+                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
+                      <td className="px-5 py-3">
+                        <p className="font-semibold text-gray-800 dark:text-gray-100">{user.email}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{user.full_name || "—"}</p>
                       </td>
-                      <td className="p-2 text-sm text-muted-foreground">
-                        {user.full_name || "-"}
-                      </td>
-                      <td className="p-2 text-right font-medium">
+                      <td className="px-5 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">
                         {format(convert(parseFloat(user.wallet_balance?.toString() || "0")))}
                       </td>
-                      <td className="p-2 text-right">
-                        <Badge variant="outline">{user.numbers_count || 0}</Badge>
+                      <td className="px-5 py-3 text-right">
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                          {user.numbers_count || 0}
+                        </span>
                       </td>
-                      <td className="p-2 text-right">
-                        <Badge variant="outline">{user.orders_count || 0}</Badge>
+                      <td className="px-5 py-3 text-right">
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                          {user.orders_count || 0}
+                        </span>
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          S:{user.social_orders_count || 0} N:{user.number_orders_count || 0} E:{user.esim_orders_count || 0}
+                        </p>
                       </td>
-                      <td className="p-2 text-right font-medium">
+                      <td className="px-5 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">
                         {format(convert(user.total_spent || 0))}
                       </td>
-                      <td className="p-2 text-sm text-muted-foreground">
+                      <td className="px-5 py-3 text-right text-sm text-gray-500 dark:text-gray-400">
                         {new Date(user.created_at).toLocaleDateString()}
                       </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
-    );
-  }
+    </div>
+  );
+}

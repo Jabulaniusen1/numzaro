@@ -3,6 +3,26 @@ import { authenticateRequest } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { smsPoolClient } from "@/lib/smspool/client";
 import { platfoneClient } from "@/lib/platfone/client";
+import { textverifiedClient } from "@/lib/textverified/client";
+
+type ProviderName = "smspool" | "textverified" | "platfone" | "system";
+
+function providerError(
+  provider: ProviderName,
+  error: string,
+  status: number = 400,
+  extras?: Record<string, unknown>
+) {
+  return NextResponse.json(
+    {
+      error,
+      provider,
+      errorSource: provider,
+      ...extras,
+    },
+    { status }
+  );
+}
 
 async function getMarkupMultiplier() {
   try {
@@ -101,10 +121,7 @@ async function handlePlatfonePurchase(
   const serviceName = String(body?.serviceName || service).trim();
 
   if (!service || !country) {
-    return NextResponse.json(
-      { error: "service and country are required for Platfone" },
-      { status: 400 }
-    );
+    return providerError("platfone", "service and country are required for Platfone", 400);
   }
 
   const markupMultiplier = await getMarkupMultiplier();
@@ -115,10 +132,10 @@ async function handlePlatfonePurchase(
     const priceData = await platfoneClient.getPrice(service, country);
     priceInCents = priceData?.price?.suggested ?? priceData?.price?.min ?? 0;
     if (!Number.isFinite(priceInCents) || priceInCents <= 0) {
-      return NextResponse.json({ error: "Price not available for this service and country" }, { status: 400 });
+      return providerError("platfone", "Price not available for this service and country", 400);
     }
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to get Platfone price" }, { status: 400 });
+    return providerError("platfone", err.message || "Failed to get Platfone price", 400);
   }
 
   // Convert cents → USD for our internal billing
@@ -146,10 +163,7 @@ async function handlePlatfonePurchase(
     await ensurePlatfoneCustomer(user.id);
   } catch (err: any) {
     console.error("[platfone purchase] Failed to ensure customer:", err.message);
-    return NextResponse.json(
-      { error: "Failed to initialise Platfone account. Please try again." },
-      { status: 503 }
-    );
+    return providerError("platfone", "Failed to initialise Platfone account. Please try again.", 503);
   }
 
   // Top up Platfone customer balance with the exact cost (in cents)
@@ -158,10 +172,7 @@ async function handlePlatfonePurchase(
     await platfoneClient.addCustomerBalance(platfoneCustomerId(user.id), priceInCents, txId);
   } catch (err: any) {
     console.error("[platfone purchase] Failed to top up customer balance:", err.message);
-    return NextResponse.json(
-      { error: "Failed to fund Platfone account. Please try again." },
-      { status: 503 }
-    );
+    return providerError("platfone", "Failed to fund Platfone account. Please try again.", 503);
   }
 
   // Order the activation — retry once if price has moved
@@ -179,28 +190,30 @@ async function handlePlatfonePurchase(
           await platfoneClient.addCustomerBalance(platfoneCustomerId(user.id), diff, retryTxId);
         } catch (topUpErr: any) {
           console.error("[platfone purchase] Failed to top up for retry:", topUpErr.message);
-          return NextResponse.json({ error: "Failed to fund Platfone account for retry." }, { status: 503 });
+          return providerError("platfone", "Failed to fund Platfone account for retry.", 503);
         }
       }
       try {
         activation = await platfoneClient.createActivation(platfoneCustomerId(user.id), service, country, newPriceCents);
         priceInCents = newPriceCents;
       } catch (retryErr: any) {
-        return NextResponse.json({ error: retryErr.message || "Failed to purchase number" }, { status: 400 });
+        return providerError("platfone", retryErr.message || "Failed to purchase number", 400);
       }
     } else if (typeof err.message === "string" && err.message.startsWith("PLATFONE_BALANCE:")) {
       console.error("[platfone purchase] PROVIDER BALANCE LOW:", err.message);
-      return NextResponse.json(
-        { error: "This service is temporarily unavailable. Please try again later or contact support." },
-        { status: 503 }
+      return providerError(
+        "platfone",
+        "This service is temporarily unavailable. Please try again later or contact support.",
+        503
       );
     } else if (err.platfoneCode === "no_numbers") {
-      return NextResponse.json(
-        { error: "No numbers available for this service in the selected country. Please try another country." },
-        { status: 400 }
+      return providerError(
+        "platfone",
+        "No numbers available for this service in the selected country. Please try another country.",
+        400
       );
     } else {
-      return NextResponse.json({ error: err.message || "Failed to purchase number" }, { status: 400 });
+      return providerError("platfone", err.message || "Failed to purchase number", 400);
     }
   }
 
@@ -212,13 +225,13 @@ async function handlePlatfonePurchase(
     if (activationId) {
       try { await platfoneClient.cancelActivation(platfoneCustomerId(user.id), activationId); } catch {}
     }
-    return NextResponse.json({ error: "Platfone purchase returned invalid activation data" }, { status: 500 });
+    return providerError("platfone", "Platfone purchase returned invalid activation data", 500);
   }
 
   const phoneNumber = normalizePhone(rawPhone);
   if (!phoneNumber) {
     try { await platfoneClient.cancelActivation(platfoneCustomerId(user.id), activationId); } catch {}
-    return NextResponse.json({ error: "Platfone purchase returned invalid phone number" }, { status: 500 });
+    return providerError("platfone", "Platfone purchase returned invalid phone number", 500);
   }
 
   // `price` in the activation response is in cents; convert to USD
@@ -255,7 +268,7 @@ async function handlePlatfonePurchase(
   if (numberError) {
     console.error("[platfone purchase] DB error:", numberError);
     try { await platfoneClient.cancelActivation(platfoneCustomerId(user.id), activationId); } catch {}
-    return NextResponse.json({ error: `Database error: ${numberError.message}` }, { status: 500 });
+    return providerError("system", `Database error: ${numberError.message}`, 500);
   }
 
   // Deduct from SocialBooster wallet
@@ -288,8 +301,155 @@ async function handlePlatfonePurchase(
     user_id: user.id,
     type:    "transaction",
     title:   "Number Purchased",
-    message: `${phoneNumber} — ${serviceName} via Platfone`,
+    message: `${phoneNumber} — ${serviceName}`,
     data: { type: "number_purchased", number_id: virtualNumber.id, provider: "platfone", mode: "activation" },
+  });
+
+  return NextResponse.json({ success: true, number: virtualNumber });
+}
+
+// ─── TextVerified: US one-time activation ─────────────────────────────────────
+async function handleTextverifiedActivation(
+  body: any,
+  user: { id: string },
+  supabase: any
+): Promise<NextResponse> {
+  const serviceName = String(body?.serviceName || "").trim();
+
+  if (!serviceName) {
+    return providerError("textverified", "serviceName is required for US numbers", 400);
+  }
+
+  const markupMultiplier = await getMarkupMultiplier();
+
+  // Get price from TextVerified
+  let tvPrice: number;
+  try {
+    const priceData = await textverifiedClient.getVerificationPrice({ serviceName });
+    tvPrice = priceData.price;
+    if (!Number.isFinite(tvPrice) || tvPrice <= 0) {
+      return NextResponse.json(
+        {
+          error: `${serviceName} is not available for US numbers. Please try another service or country.`,
+          provider: "textverified",
+          errorSource: "textverified",
+        },
+        { status: 400 }
+      );
+    }
+  } catch {
+    return providerError(
+      "textverified",
+      `${serviceName} is not available for US numbers. Please try another service or country.`,
+      400
+    );
+  }
+
+  const userCharged = parseFloat((tvPrice * markupMultiplier).toFixed(2));
+
+  const { data: userData } = await supabase
+    .from("users")
+    .select("wallet_balance")
+    .eq("id", user.id)
+    .single();
+
+  const userBalance = parseFloat(userData?.wallet_balance || "0");
+  if (userBalance < userCharged) {
+    return NextResponse.json(
+      { error: `Insufficient balance. Required: ${formatNairaFromUsd(userCharged)}, Available: ${formatNairaFromUsd(userBalance)}` },
+      { status: 402 }
+    );
+  }
+
+  // Create the TextVerified verification (one-time activation)
+  let verification;
+  try {
+    verification = await textverifiedClient.createVerification({
+      serviceName,
+      capability: "sms",
+    });
+  } catch (err: any) {
+    return providerError("textverified", err.message || "Failed to create US number", 400);
+  }
+
+  const verificationId = verification.id;
+  const phoneNumber = normalizePhone(verification.number, "1");
+
+  if (!phoneNumber || !verificationId) {
+    if (verificationId) {
+      try { await textverifiedClient.cancelVerification(verificationId); } catch {}
+    }
+    return providerError("textverified", "Provider returned invalid number data", 500);
+  }
+
+  const actualCost =
+    typeof verification.totalCost === "number" && verification.totalCost > 0
+      ? verification.totalCost
+      : tvPrice;
+
+  const expiresAt = verification.endsAt
+    ? new Date(verification.endsAt).toISOString()
+    : new Date(Date.now() + 20 * 60 * 1000).toISOString();
+
+  const { data: virtualNumber, error: numberError } = await supabase
+    .from("virtual_numbers")
+    .insert({
+      user_id:             user.id,
+      phone_number:        phoneNumber,
+      country_code:        "US",
+      country_name:        "United States",
+      textverified_id:     verificationId,
+      status:              "active",
+      capabilities:        ["sms"],
+      twilio_monthly_cost: actualCost,
+      monthly_cost:        userCharged,
+      number_type:         "activation",
+      provider:            "textverified",
+      product:             serviceName,
+      product_code:        serviceName.toLowerCase().replace(/\s+/g, "_"),
+      product_type:        "activation",
+      expires_at:          expiresAt,
+    })
+    .select()
+    .single();
+
+  if (numberError) {
+    console.error("[textverified purchase] DB error:", numberError);
+    try { await textverifiedClient.cancelVerification(verificationId); } catch {}
+    return providerError("system", `Database error: ${numberError.message}`, 500);
+  }
+
+  await supabase
+    .from("users")
+    .update({ wallet_balance: userBalance - userCharged })
+    .eq("id", user.id);
+
+  await supabase.from("wallet_transactions").insert({
+    user_id:        user.id,
+    type:           "order_payment",
+    amount:         -userCharged,
+    balance_before: userBalance,
+    balance_after:  userBalance - userCharged,
+    description:    `US Number — ${serviceName}: ${phoneNumber}`,
+  });
+
+  await supabase.from("number_purchases").insert({
+    user_id:           user.id,
+    virtual_number_id: virtualNumber.id,
+    amount:            userCharged,
+    actual_cost:       actualCost,
+    profit:            parseFloat((userCharged - actualCost).toFixed(2)),
+    currency:          "USD",
+    status:            "completed",
+  });
+
+  const supabaseAdmin = createServiceRoleClient();
+  await supabaseAdmin.from("notifications").insert({
+    user_id: user.id,
+    type:    "transaction",
+    title:   "Number Purchased",
+    message: `${phoneNumber} — ${serviceName}`,
+    data: { type: "number_purchased", number_id: virtualNumber.id, provider: "textverified", mode: "activation" },
   });
 
   return NextResponse.json({ success: true, number: virtualNumber });
@@ -316,7 +476,17 @@ export async function POST(request: NextRequest) {
     const maxPrice = typeof body?.maxPrice === "number" ? body.maxPrice : undefined;
 
     if (!serviceCode || !countryId) {
-      return NextResponse.json({ error: "serviceCode and country are required" }, { status: 400 });
+      return providerError("system", "serviceCode and country are required", 400);
+    }
+
+    // US one-time numbers → TextVerified
+    const isUS =
+      countryShortCode.toUpperCase() === "US" ||
+      countryName.toLowerCase().includes("united states") ||
+      countryName.toLowerCase() === "usa";
+
+    if (isUS) {
+      return handleTextverifiedActivation(body, user, supabase);
     }
 
     const markupMultiplier = await getMarkupMultiplier();
@@ -324,7 +494,7 @@ export async function POST(request: NextRequest) {
     const pricing = await smsPoolClient.getSMSServicePrice(countryId, serviceCode);
     const baseRawPrice = parseFloat(String(pricing.high_price ?? pricing.price));
     if (Number.isNaN(baseRawPrice)) {
-      return NextResponse.json({ error: "Invalid price returned from provider" }, { status: 400 });
+      return providerError("smspool", "Invalid price returned from provider", 400);
     }
     let rawPrice = baseRawPrice;
     let userCharged = parseFloat((rawPrice * markupMultiplier).toFixed(2));
@@ -353,12 +523,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!purchase.success) {
-      return NextResponse.json({ error: extractSmsPoolError(purchase) }, { status: 400 });
+      return providerError("smspool", extractSmsPoolError(purchase), 400);
     }
 
     const activationId = purchase.order_id;
     if (!activationId) {
-      return NextResponse.json({ error: "Purchase returned invalid order id" }, { status: 500 });
+      return providerError("smspool", "Purchase returned invalid order id", 500);
     }
 
     const phoneNumber = normalizePhone(purchase.number ?? purchase.phonenumber, purchase.cc);
@@ -366,7 +536,7 @@ export async function POST(request: NextRequest) {
       try {
         await smsPoolClient.cancelSMS(activationId);
       } catch {}
-      return NextResponse.json({ error: "Purchase returned invalid phone number" }, { status: 500 });
+      return providerError("smspool", "Purchase returned invalid phone number", 500);
     }
 
     const purchaseCost = parseFloat(String(purchase.cost ?? rawPrice));
@@ -439,7 +609,7 @@ export async function POST(request: NextRequest) {
       } catch (cancelError) {
         console.error("[purchase] failed to cancel SMSPool order after DB error:", cancelError);
       }
-      return NextResponse.json({ error: `Database error: ${numberError.message}` }, { status: 500 });
+      return providerError("system", `Database error: ${numberError.message}`, 500);
     }
 
     await supabase
@@ -471,13 +641,13 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       type: "transaction",
       title: "Number Purchased",
-      message: `${phoneNumber} — ${displayName} via SMSPool`,
+      message: `${phoneNumber} — ${displayName}`,
       data: { type: "number_purchased", number_id: virtualNumber.id, provider: "smspool", mode: "activation" },
     });
 
     return NextResponse.json({ success: true, number: virtualNumber });
   } catch (error: any) {
     console.error("Purchase route error:", error);
-    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
+    return providerError("system", error.message || "Internal server error", 500);
   }
 }

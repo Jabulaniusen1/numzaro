@@ -161,6 +161,14 @@ export default function RentalsPage() {
     if (!selectedService || !selectedArea || !selectedOption) return;
     setPurchasing(true);
     try {
+      const providerLabel = (provider?: string) => {
+        if (!provider) return null;
+        if (provider === "smspool") return "SMSPool";
+        if (provider === "textverified") return "TextVerified";
+        if (provider === "platfone") return "Platfone";
+        return provider;
+      };
+
       const body = {
         serviceName: selectedService.code,
         areaCode: selectedArea.code === "any" ? null : selectedArea.code,
@@ -175,7 +183,11 @@ export default function RentalsPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Purchase failed");
+      if (!res.ok) {
+        const label = providerLabel(data.provider || data.errorSource);
+        const prefix = label ? `${label}: ` : "";
+        throw new Error(`${prefix}${data.error || "Purchase failed"}`);
+      }
 
       toast({
         title: "Rental Purchased!",

@@ -39,6 +39,14 @@ export function NumberPurchaseModal({
   const [oneTimePrice, setOneTimePrice] = useState<number | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
 
+  const providerLabel = (provider?: string) => {
+    if (!provider) return null;
+    if (provider === "smspool") return "SMSPool";
+    if (provider === "textverified") return "TextVerified";
+    if (provider === "platfone") return "Platfone";
+    return provider;
+  };
+
   // Check if country is Israel (IL) - one-time OTP not allowed
   const isIsrael = number?.countryCode?.toUpperCase() === "IL";
 
@@ -104,7 +112,9 @@ export function NumberPurchaseModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to purchase number");
+        const label = providerLabel(data.provider || data.errorSource);
+        const prefix = label ? `${label}: ` : "";
+        throw new Error(`${prefix}${data.error || "Failed to purchase number"}`);
       }
 
       toast({
@@ -265,7 +275,6 @@ export function NumberPurchaseModal({
     </Dialog>
   );
 }
-
 
 
 

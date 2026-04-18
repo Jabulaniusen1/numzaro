@@ -3,6 +3,17 @@ import { authenticateRequest } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { textverifiedClient } from "@/lib/textverified/client";
 
+function providerError(
+  provider: "textverified" | "system",
+  error: string,
+  status: number = 400
+) {
+  return NextResponse.json(
+    { error, provider, errorSource: provider },
+    { status }
+  );
+}
+
 const RENTAL_DURATIONS = new Set([
   "oneDay",
   "threeDay",
@@ -68,7 +79,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     if (!serviceName || !duration || !RENTAL_DURATIONS.has(duration)) {
-      return NextResponse.json({ error: "serviceName and valid duration are required" }, { status: 400 });
+      return providerError("system", "serviceName and valid duration are required", 400);
     }
 
     const areaCodeValue = typeof areaCode === "string" && /^\d{3}$/.test(areaCode) ? areaCode : null;
@@ -85,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     let rawPrice = parseFloat(String(pricing.price));
     if (Number.isNaN(rawPrice)) {
-      return NextResponse.json({ error: "Invalid price returned from provider" }, { status: 400 });
+      return providerError("textverified", "Invalid price returned from provider", 400);
     }
 
     const markupMultiplier = await getMarkupMultiplier();
@@ -117,12 +128,12 @@ export async function POST(request: NextRequest) {
 
     const phoneNumber = normalizePhone(rental.number);
     if (!phoneNumber) {
-      return NextResponse.json({ error: "Rental returned invalid phone number" }, { status: 500 });
+      return providerError("textverified", "Rental returned invalid phone number", 500);
     }
 
     const reservationId = rental.reservationId;
     if (!reservationId) {
-      return NextResponse.json({ error: "Rental returned invalid reservation id" }, { status: 500 });
+      return providerError("textverified", "Rental returned invalid reservation id", 500);
     }
 
     if (typeof rental.totalCost === "number" && rental.totalCost > 0) {
@@ -168,7 +179,7 @@ export async function POST(request: NextRequest) {
 
     if (numberError) {
       console.error("DB error creating virtual_number:", numberError);
-      return NextResponse.json({ error: `Database error: ${numberError.message}` }, { status: 500 });
+      return providerError("system", `Database error: ${numberError.message}`, 500);
     }
 
     await supabase
@@ -200,13 +211,13 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       type: "transaction",
       title: "Rental Purchased",
-      message: `${phoneNumber} — ${serviceName} (Rental) via Textverified`,
+      message: `${phoneNumber} — ${serviceName} (Rental)`,
       data: { type: "rental_purchased", number_id: virtualNumber.id, provider: "textverified", mode: "rental" },
     });
 
     return NextResponse.json({ success: true, number: virtualNumber });
   } catch (error: any) {
     console.error("Rental purchase error:", error);
-    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
+    return providerError("system", error.message || "Internal server error", 500);
   }
 }
