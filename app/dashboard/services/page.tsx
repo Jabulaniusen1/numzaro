@@ -10,7 +10,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import {
   Loader2, Clock, ChevronRight, ShoppingBag, X,
   Users, Heart, Eye, MessageCircle, Share2, Play, Star, Zap, Search,
-  ArrowLeft, ChevronLeft, Timer, Gauge, ShieldCheck, FileText,
+  ArrowLeft, ChevronLeft, Timer, Gauge, ShieldCheck, FileText, LayoutGrid,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -58,6 +58,7 @@ const PLATFORMS = [
   { id: "medium",      name: "Medium",       Icon: SiMedium,      bg: "bg-gradient-to-br from-[#000000] to-[#333333]",               color: "#000000",  keywords: ["medium"] },
   { id: "quora",       name: "Quora",        Icon: SiQuora,       bg: "bg-gradient-to-br from-[#B92B27] to-[#8a1f1c]",               color: "#B92B27",  keywords: ["quora"] },
   { id: "reddit",      name: "Reddit",       Icon: SiReddit,      bg: "bg-gradient-to-br from-[#FF4500] to-[#cc3700]",               color: "#FF4500",  keywords: ["reddit"] },
+  { id: "other",       name: "Others",       Icon: LayoutGrid,    bg: "bg-gradient-to-br from-[#6B7280] to-[#4B5563]",               color: "#6B7280",  keywords: [] },
 ];
 
 const TYPE_META: Record<string, { Icon: React.ElementType; label: string }> = {
@@ -130,22 +131,6 @@ function PlatformGridSkeleton() {
   );
 }
 
-function CategoryListSkeleton() {
-  return (
-    <div className="space-y-2">
-      {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="rounded-2xl p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex items-center gap-3">
-          <Skeleton className="w-9 h-9 rounded-xl flex-shrink-0" />
-          <div className="flex-1 space-y-1.5">
-            <Skeleton className="h-3 w-3/4" />
-            <Skeleton className="h-2.5 w-1/4" />
-          </div>
-          <Skeleton className="w-4 h-4 rounded" />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function ServiceListSkeleton() {
   return (
@@ -172,7 +157,6 @@ export default function ServicesPage() {
 
   // Navigation state
   const [activePlatform, setActivePlatform] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [servicePage, setServicePage]       = useState(1);
   const [searchTerm, setSearchTerm]         = useState("");
 
@@ -236,39 +220,22 @@ export default function ServicesPage() {
     [byPlatform]
   );
 
-  // Categories for the active platform, grouped
-  const categoriesForPlatform = useMemo(() => {
-    if (!activePlatform) return {};
-    const map: Record<string, Service[]> = {};
-    for (const s of byPlatform[activePlatform] ?? []) {
-      (map[s.category] ??= []).push(s);
-    }
-    return map;
-  }, [byPlatform, activePlatform]);
-
-  // Filtered category entries (search within category names)
-  const filteredCategories = useMemo(() => {
-    const entries = Object.entries(categoriesForPlatform);
-    const q = searchTerm.trim().toLowerCase();
-    if (!q) return entries;
-    return entries.filter(([cat]) => cat.toLowerCase().includes(q));
-  }, [categoriesForPlatform, searchTerm]);
-
-  // Services in the active category, with search + pagination
-  const servicesInCategory = useMemo(() => {
-    if (!activeCategory) return [];
-    const all = categoriesForPlatform[activeCategory] ?? [];
+  // All services for the active platform, with search
+  const servicesForPlatform = useMemo(() => {
+    if (!activePlatform) return [];
+    const all = byPlatform[activePlatform] ?? [];
     const q = searchTerm.trim().toLowerCase();
     if (!q) return all;
     return all.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q) ||
         s.type.toLowerCase().includes(q)
     );
-  }, [categoriesForPlatform, activeCategory, searchTerm]);
+  }, [byPlatform, activePlatform, searchTerm]);
 
-  const totalPages   = Math.max(1, Math.ceil(servicesInCategory.length / SERVICES_PER_PAGE));
-  const pagedServices = servicesInCategory.slice(
+  const totalPages   = Math.max(1, Math.ceil(servicesForPlatform.length / SERVICES_PER_PAGE));
+  const pagedServices = servicesForPlatform.slice(
     (servicePage - 1) * SERVICES_PER_PAGE,
     servicePage * SERVICES_PER_PAGE
   );
@@ -290,14 +257,6 @@ export default function ServicesPage() {
   // ── Navigation helpers ───────────────────────────────────────────────────────
   function selectPlatform(id: string) {
     setActivePlatform(id);
-    setActiveCategory(null);
-    setServicePage(1);
-    setSearchTerm("");
-    closeOrder();
-  }
-
-  function selectCategory(cat: string) {
-    setActiveCategory(cat);
     setServicePage(1);
     setSearchTerm("");
     closeOrder();
@@ -305,14 +264,6 @@ export default function ServicesPage() {
 
   function goBackToPlatforms() {
     setActivePlatform(null);
-    setActiveCategory(null);
-    setServicePage(1);
-    setSearchTerm("");
-    closeOrder();
-  }
-
-  function goBackToCategories() {
-    setActiveCategory(null);
     setServicePage(1);
     setSearchTerm("");
     closeOrder();
@@ -386,27 +337,21 @@ export default function ServicesPage() {
           {activePlatform && (
             <button
               type="button"
-              onClick={activeCategory ? goBackToCategories : goBackToPlatforms}
+              onClick={goBackToPlatforms}
               className="flex items-center gap-1.5 text-xs font-semibold text-[#7C5CFC] mb-3 hover:opacity-75 transition-opacity"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              {activeCategory ? activePlatformDef?.name ?? "Back" : "All Platforms"}
+              All Platforms
             </button>
           )}
 
           <h1 className="text-2xl font-extrabold bg-gradient-to-r from-violet-600 to-indigo-500 bg-clip-text text-transparent leading-tight">
-            {activeCategory
-              ? activeCategory
-              : activePlatformDef
-              ? activePlatformDef.name
-              : "Boost Socials"}
+            {activePlatformDef ? activePlatformDef.name : "Boost Socials"}
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            {activeCategory
-              ? `${servicesInCategory.length} service${servicesInCategory.length !== 1 ? "s" : ""}`
-              : activePlatformDef
-              ? `${Object.keys(categoriesForPlatform).length} categories`
-              : "Select a platform then choose your service"}
+            {activePlatformDef
+              ? `${servicesForPlatform.length} service${servicesForPlatform.length !== 1 ? "s" : ""}`
+              : "Select a platform to see all available services"}
           </p>
         </div>
 
@@ -429,7 +374,7 @@ export default function ServicesPage() {
                   setSearchTerm(e.target.value);
                   setServicePage(1);
                 }}
-                placeholder={activeCategory ? "Search services…" : "Search categories…"}
+                placeholder="Search services…"
                 className="h-11 rounded-full pl-9 pr-10 border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
               />
               {searchTerm && (
@@ -476,46 +421,12 @@ export default function ServicesPage() {
         )}
 
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {/* LEVEL 1 — Category list                                            */}
+        {/* LEVEL 1 — Service list (paginated)                                 */}
         {/* ════════════════════════════════════════════════════════════════════ */}
-        {activePlatform && !activeCategory && (
-          loading ? (
-            <CategoryListSkeleton />
-          ) : filteredCategories.length === 0 ? (
-            <div className="text-center py-16 text-gray-400 text-sm">
-              {searchTerm.trim() ? "No categories match your search." : "No categories available."}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredCategories.map(([cat, items]) => (
-                <button
-                  key={cat}
-                  onClick={() => selectCategory(cat)}
-                  className="w-full group rounded-2xl p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-violet-300 dark:hover:border-violet-700 hover:shadow-sm transition-all flex items-center gap-3 text-left"
-                >
-                  {activePlatformDef && (
-                    <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0", activePlatformDef.bg)}>
-                      <activePlatformDef.Icon className="h-4 w-4" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{cat}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">{items.length} service{items.length !== 1 ? "s" : ""}</p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-[#7C5CFC] flex-shrink-0 transition-colors" />
-                </button>
-              ))}
-            </div>
-          )
-        )}
-
-        {/* ════════════════════════════════════════════════════════════════════ */}
-        {/* LEVEL 2 — Service list (paginated)                                 */}
-        {/* ════════════════════════════════════════════════════════════════════ */}
-        {activePlatform && activeCategory && (
+        {activePlatform && (
           loading ? (
             <ServiceListSkeleton />
-          ) : servicesInCategory.length === 0 ? (
+          ) : servicesForPlatform.length === 0 ? (
             <div className="text-center py-16 text-gray-400 text-sm">
               {searchTerm.trim() ? "No services match your search." : "No services available."}
             </div>
