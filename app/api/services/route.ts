@@ -15,6 +15,27 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category") || null;
     const type = searchParams.get("type") || null;
 
+    // Fetch all DB services by paginating in chunks of 1000 (Supabase default cap)
+    async function fetchAllServices() {
+      const PAGE = 1000;
+      const rows: any[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from("services")
+          .select("service_id, id, name, category, type, cost_rate, min_quantity, max_quantity, refill_allowed, cancel_allowed")
+          .eq("is_hidden", false)
+          .order("name", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) return { data: null, error };
+        if (!data || data.length === 0) break;
+        rows.push(...data);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      return { data: rows, error: null };
+    }
+
     // Fetch markup and DB services in parallel
     const [{ data: markupSetting }, { data: dbServices, error: dbError }, apiServicesResult] =
       await Promise.all([
@@ -23,11 +44,7 @@ export async function GET(request: NextRequest) {
           .select("value")
           .eq("key", "default_markup_percentage")
           .single(),
-        supabase
-          .from("services")
-          .select("service_id, id, name, category, type, cost_rate, min_quantity, max_quantity, refill_allowed, cancel_allowed")
-          .eq("is_hidden", false)
-          .order("name", { ascending: true }),
+        fetchAllServices(),
         getServices().catch(() => null),
       ]);
 

@@ -73,10 +73,11 @@ const TYPE_META: Record<string, { Icon: React.ElementType; label: string }> = {
   saves:       { Icon: Star,          label: "Saves"       },
 };
 
-function detectPlatform(category: string) {
-  const c = category.toLowerCase();
+function detectPlatform(category: string, name = "") {
+  const haystack = (category + " " + name).toLowerCase();
   for (const p of PLATFORMS) {
-    if (p.keywords.some((k) => c.includes(k))) return p.id;
+    if (p.id === "other" || p.id === "all") continue;
+    if (p.keywords.some((k) => haystack.includes(k))) return p.id;
   }
   return "other";
 }
@@ -208,7 +209,7 @@ export default function ServicesPage() {
   const byPlatform = useMemo(() => {
     const map: Record<string, Service[]> = {};
     for (const s of services) {
-      const pid = detectPlatform(s.category);
+      const pid = detectPlatform(s.category, s.name);
       (map[pid] ??= []).push(s);
     }
     return map;
@@ -349,7 +350,7 @@ export default function ServicesPage() {
             {activePlatformDef ? activePlatformDef.name : "Boost Socials"}
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            {activePlatformDef
+            {activePlatform
               ? `${servicesForPlatform.length} service${servicesForPlatform.length !== 1 ? "s" : ""}`
               : "Select a platform to see all available services"}
           </p>
@@ -439,6 +440,8 @@ export default function ServicesPage() {
                   const isSelected = selectedService?.id === s.id;
                   const sm         = parseServiceMeta(s.name);
 
+                  const cardPlatDef = activePlatformDef;
+
                   return (
                     <button
                       key={s.id}
@@ -452,7 +455,7 @@ export default function ServicesPage() {
                     >
                       <div className={cn(
                         "w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center text-white shadow-sm",
-                        activePlatformDef ? activePlatformDef.bg : "bg-[#7C5CFC]"
+                        cardPlatDef ? cardPlatDef.bg : "bg-[#7C5CFC]"
                       )}>
                         {meta ? <meta.Icon className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
                       </div>
