@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     const countries = (suggested || [])
       .map((item) => {
-        const rawPrice = parseFloat(String(item.price || "0"));
+        const rawPrice = parseFloat(String(item.high_price ?? item.price ?? "0"));
         const sellPrice = Number.isFinite(rawPrice) && rawPrice > 0
           ? parseFloat((rawPrice * markupMultiplier).toFixed(2))
           : 0;

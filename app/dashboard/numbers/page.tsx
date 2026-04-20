@@ -508,7 +508,7 @@ export default function NumbersPage() {
                   ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                   : "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300"
               )}>
-                {region === "us" ? "🇺🇸 US · TextVerified" : "🌍 International · SMSPool"}
+                {region === "us" ? "🇺🇸 US Numbers" : "🌍 International Numbers"}
               </span>
             </div>
             <div className="relative mb-4">
@@ -677,14 +677,6 @@ export default function NumbersPage() {
                 <span className="flex items-center gap-1.5 text-xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-3 py-1 rounded-full">
                   <Clock className="h-3 w-3" /> One-Time (20 min)
                 </span>
-                <span className={cn(
-                  "text-[10px] font-bold px-2.5 py-1 rounded-full",
-                  region === "us"
-                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                    : "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300"
-                )}>
-                  {region === "us" ? "TextVerified" : "SMSPool"}
-                </span>
               </div>
               <div className="rounded-xl border border-amber-200/80 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
                 <p className="text-xs text-amber-700 dark:text-amber-300">
@@ -725,7 +717,7 @@ export default function NumbersPage() {
                 <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-100 dark:border-gray-700">
                   <span className="text-gray-500">Your balance</span>
                   <span className="font-bold text-gray-700 dark:text-gray-200">
-                    {balance !== null ? formatCurrency(balance) : "—"}
+                    {balance !== null ? formatCurrency(convert(balance)) : "—"}
                   </span>
                 </div>
               </div>

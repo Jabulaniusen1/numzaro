@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { smsPoolClient } from "@/lib/smspool/client";
 import { platfoneClient } from "@/lib/platfone/client";
 import { textverifiedClient } from "@/lib/textverified/client";
+import { getLiveFxRate } from "@/lib/currency/rates";
 
 type ProviderName = "smspool" | "textverified" | "platfone" | "system";
 
@@ -65,8 +66,10 @@ function parseExpiryFromUnix(unixSeconds?: number) {
   return new Date(unixSeconds * 1000).toISOString();
 }
 
-function formatNairaFromUsd(usdAmount: number, usdToNgnRate: number = 1500) {
-  const ngnAmount = usdAmount * usdToNgnRate;
+async function formatNairaFromUsd(usdAmount: number) {
+  let rate = 1500;
+  try { rate = await getLiveFxRate("USD", "NGN"); } catch {}
+  const ngnAmount = usdAmount * rate;
   return `₦${ngnAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -152,7 +155,7 @@ async function handlePlatfonePurchase(
   if (userBalance < userCharged) {
     return NextResponse.json(
       {
-        error: `Insufficient balance. Required: ${formatNairaFromUsd(userCharged)}, Available: ${formatNairaFromUsd(userBalance)}`,
+        error: `Insufficient balance. Required: ${await formatNairaFromUsd(userCharged)}, Available: ${await formatNairaFromUsd(userBalance)}`,
       },
       { status: 402 }
     );
@@ -509,7 +512,7 @@ export async function POST(request: NextRequest) {
     if (userBalance < userCharged) {
       return NextResponse.json(
         {
-          error: `Insufficient balance. Required: ${formatNairaFromUsd(userCharged)}, Available: ${formatNairaFromUsd(userBalance)}`,
+          error: `Insufficient balance. Required: ${await formatNairaFromUsd(userCharged)}, Available: ${await formatNairaFromUsd(userBalance)}`,
         },
         { status: 402 }
       );
@@ -553,7 +556,7 @@ export async function POST(request: NextRequest) {
       }
       return NextResponse.json(
         {
-          error: `Insufficient balance after purchase. Required: ${formatNairaFromUsd(userCharged)}, Available: ${formatNairaFromUsd(userBalance)}`,
+          error: `Insufficient balance after purchase. Required: ${await formatNairaFromUsd(userCharged)}, Available: ${await formatNairaFromUsd(userBalance)}`,
         },
         { status: 402 }
       );
