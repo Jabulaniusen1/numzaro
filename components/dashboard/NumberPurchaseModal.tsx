@@ -235,6 +235,9 @@ export function NumberPurchaseModal({
                     Number will be released automatically after first OTP is received
                   </p>
                 )}
+                <p className="text-xs mt-2 text-amber-700 dark:text-amber-300">
+                  Tip: If you use a VPN set to the country you want to receive OTPs from, it can increase your success rate.
+                </p>
               </>
             )}
           </div>
@@ -275,6 +278,5 @@ export function NumberPurchaseModal({
     </Dialog>
   );
 }
-
 
 

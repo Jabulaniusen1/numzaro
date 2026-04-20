@@ -686,6 +686,11 @@ export default function NumbersPage() {
                   {region === "us" ? "TextVerified" : "SMSPool"}
                 </span>
               </div>
+              <div className="rounded-xl border border-amber-200/80 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Tip: If you use a VPN set to the country you want to receive OTPs from, it can increase your success rate.
+                </p>
+              </div>
 
               <div className="border-t border-gray-100 dark:border-gray-700 pt-4 space-y-3">
                 <div className="flex items-center justify-between text-sm">

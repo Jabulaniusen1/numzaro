@@ -1,0 +1,420 @@
+================================================================================
+MOBILE APP INSTRUCTIONS (V5) — LATEST BACKEND CONTRACT
+As of: April 20, 2026
+================================================================================
+
+This file is the latest consolidated instruction set for mobile integration.
+It supersedes assumptions in older files when there is any conflict.
+
+
+================================================================================
+1) AUTH MODEL (WEB + MOBILE)
+================================================================================
+
+Most user routes require auth.
+
+Mobile auth method:
+- Send Supabase access token in header:
+  Authorization: Bearer <SUPABASE_JWT>
+
+Server behavior:
+- `authenticateRequest()` accepts either cookie session (web) or Bearer token (mobile).
+
+Unauthenticated responses:
+- Usually: HTTP 401 with `{ "error": "Unauthorized" }`
+
+
+================================================================================
+2) CURRENCY + WALLET RULES (IMPORTANT)
+================================================================================
+
+Canonical wallet currency in DB:
+- USD (`users.wallet_balance` is stored in USD)
+
+Display currency:
+- Some endpoints return converted NGN values for display.
+
+Critical route behavior:
+1. `GET /api/user/balance`
+   - Auth required
+   - Returns user wallet balance converted to NGN for UI display
+   - Example:
+     {
+       "balance": "14500.22",
+       "currency": "NGN"
+     }
+
+2. `GET /api/balance`
+   - Not user wallet
+   - Returns TextVerified account balance (provider-side)
+   - Do NOT use as user wallet in mobile
+
+Implementation guidance:
+- Treat server-calculated pricing and insufficiency checks as authoritative.
+- For purchases, mobile should rely on API responses instead of local price math.
+
+
+================================================================================
+3) NUMBERS (ONE-TIME ACTIVATION) — CURRENT FLOW
+================================================================================
+
+Primary purchase endpoint:
+- `POST /api/numbers/purchase` (auth required)
+
+This route auto-selects provider by country:
+- US => TextVerified activation flow
+- Non-US => SMSPool activation flow
+- Optional explicit Platfone flow via `provider: "platfone"`
+
+Standard success:
+{
+  "success": true,
+  "number": { ...virtual_numbers row... }
+}
+
+Standard error shape:
+{
+  "error": "...",
+  "provider": "smspool|textverified|platfone|system",
+  "errorSource": "smspool|textverified|platfone|system"
+}
+
+Insufficient balance:
+- HTTP 402
+- error string includes required/available amounts
+
+
+3A) US ONE-TIME ACTIVATION (TextVerified)
+-----------------------------------------
+
+Service discovery:
+- `GET /api/numbers/tv-services` (auth)
+
+Price lookup:
+- `GET /api/numbers/tv-price?service=<serviceName>` (auth)
+- Response: `{ "price": <userPriceUsd>, "rawPrice": <providerUsd> }`
+
+Purchase body example:
+{
+  "serviceName": "WhatsApp",
+  "serviceCode": "WhatsApp",
+  "country": "1",
+  "countryName": "United States",
+  "countryShortCode": "US"
+}
+
+
+3B) INTERNATIONAL ONE-TIME ACTIVATION (SMSPool)
+------------------------------------------------
+
+Service discovery:
+- `GET /api/smspool/services?mode=activation&page=1&limit=24`
+
+Best country list for selected service (recommended path):
+- `GET /api/smspool/suggested-countries?service=<serviceCode>` (auth)
+
+Optional pricing endpoint:
+- `GET /api/smspool/pricing?mode=activation&service=<serviceCode>&country=<countryId>`
+
+Purchase body example:
+{
+  "serviceCode": "395",
+  "serviceName": "WhatsApp",
+  "country": "6",
+  "countryName": "United Kingdom",
+  "countryShortCode": "GB"
+}
+
+Note:
+- Backend buys with highest-success setting (`pricingOption: 1`).
+
+
+3C) OPTIONAL PLATFONE ACTIVATION
+--------------------------------
+
+Discovery endpoints:
+- `GET /api/platfone/services` (auth)
+- `GET /api/platfone/countries?service=<serviceId>` (auth)
+- `GET /api/platfone/pricing?service=<serviceId>&country=<countryId>` (auth)
+
+Purchase body:
+{
+  "provider": "platfone",
+  "service": "whatsapp",
+  "serviceName": "WhatsApp",
+  "country": "uk",
+  "countryName": "United Kingdom"
+}
+
+Optional history endpoint:
+- `GET /api/platfone/activations?type=active|history&page=1&per_page=25` (auth)
+
+
+3D) ONE-TIME PRICE HELPER (LEGACY UI)
+--------------------------------------
+
+- `GET /api/numbers/one-time-price?monthlyCost=<number>`
+- Returns: `{ "price": monthlyCost * 1.5 }`
+- This is a helper calculation endpoint, not the core activation flow.
+
+
+3E) UX NOTE TO KEEP IN MOBILE
+-----------------------------
+
+Add this suggestion near purchase confirmation:
+- "If you use a VPN set to the country you want to receive OTPs from, it can increase your success rate."
+
+
+================================================================================
+4) RENTALS (TEXTVERIFIED VIA GRIZZLY ROUTES)
+================================================================================
+
+Current rentals UI uses these routes:
+
+1. `GET /api/grizzly/services?page=1&limit=24&reservationType=renewable|nonrenewable`
+2. `GET /api/grizzly/countries`
+3. `GET /api/grizzly/pricing?mode=rental&service=<serviceName>&country=<areaCode|any>&isRenewable=true|false`
+4. `POST /api/rentals/purchase` (auth)
+
+Purchase body:
+{
+  "serviceName": "WhatsApp",
+  "areaCode": "212" | null,
+  "isRenewable": true,
+  "duration": "oneDay|threeDay|sevenDay|fourteenDay|thirtyDay|ninetyDay|oneYear"
+}
+
+Success:
+- `{ "success": true, "number": { ... } }`
+
+Insufficient balance:
+- HTTP 402
+
+
+================================================================================
+5) MY NUMBERS + DETAIL + MESSAGES + OTPS
+================================================================================
+
+List numbers:
+- `GET /api/numbers?status=<optional>&limit=50&offset=0` (auth)
+- Returns `numbers[]` with derived fields like `message_count`, `pending_otp_count`, `otp_code`.
+
+Get single number:
+- `GET /api/numbers/:id` (auth)
+- Performs provider sync before returning latest data.
+
+Actions on number:
+- `PATCH /api/numbers/:id` with `{ "action": "sync" }` or `{ "action": "cancel" }` (auth)
+- `DELETE /api/numbers/:id` also cancels + marks status cancelled (auth)
+
+Messages:
+- `GET /api/numbers/:id/messages?limit=50&offset=0&is_otp=true|false` (auth)
+
+OTPs:
+- `GET /api/numbers/:id/otps?limit=50&offset=0&status=<optional>` (auth)
+- `PATCH /api/numbers/:id/otps` with:
+  {
+    "otp_id": "<otp_uuid>",
+    "status": "pending|used|expired"
+  }
+
+
+================================================================================
+6) eSIM (SMSPOOL-BACKED) — AUTHORITATIVE CONTRACT
+================================================================================
+
+All routes auth-required.
+
+Countries:
+- `GET /api/esim/countries`
+- Returns `countries[]` with:
+  - `code`, `name`, `flag`
+  - `startingPriceUsd` (provider raw)
+  - `startingChargedUsd` (after markup)
+
+Packages:
+- `POST /api/esim/packages`
+- Body optional: `{ "locationCode": "JP" }`
+- Returns `packages[]` with:
+  - `packageCode`, `name`, `location`
+  - `price` (provider USD decimal)
+  - `chargedUsd` (user price)
+  - `dataFormatted`, etc.
+
+Order:
+- `POST /api/esim/order`
+- Required body:
+  {
+    "packageCode": "...",
+    "packageName": "...",
+    "providerPrice": 1.5,
+    "location": "...",      // optional but recommended
+    "duration": "...",      // optional but recommended
+    "dataVolume": "..."     // optional but recommended
+  }
+
+Important eSIM rule:
+- `providerPrice` must be the raw `package.price` from `/api/esim/packages`
+  (USD decimal), not `chargedUsd`.
+
+Order response:
+- `qr_code_url`, `iccid`, `order_no` can be `null` initially.
+- Mobile must handle nullable activation fields.
+
+Usage:
+- `POST /api/esim/usage`
+- Body with one of:
+  - `{ "orderId": "<uuid>" }`
+  - `{ "esimTranNo": "<provider_txn>" }`
+
+Orders list:
+- `GET /api/esim/orders?page=1&limit=20`
+
+Insufficient balance for purchase:
+- HTTP 402
+
+
+================================================================================
+7) SOCIAL BOOST ORDERS (SMM)
+================================================================================
+
+Services catalog:
+- `GET /api/services?search=&category=&type=` (auth)
+- Returns enriched services with marked-up `rate`.
+
+Create order:
+- `POST /api/orders/create` (auth)
+- Required:
+  {
+    "service_id": <db service id>,
+    "link": "https://...",
+    "quantity": <number>,
+    "comments": "..." // optional
+  }
+
+Orders list:
+- `GET /api/orders?page=1&limit=20&status=Pending|Completed|...` (auth)
+
+Unified transaction feed:
+- `GET /api/transactions` (auth)
+- Merges wallet transactions, number purchases, SMS/OTP charges, payments.
+
+
+================================================================================
+8) WALLET FUNDING (KORAPAY)
+================================================================================
+
+Popup/inline flow (recommended for mobile):
+1. `POST /api/wallet/fund` with `{ "amount": <number>, "currency": "NGN" }` (auth)
+   - Returns `reference`, `email`, `name`, `amount`, `currency`
+2. Complete payment in Korapay SDK
+3. `POST /api/payments/verify-popup` with `{ "reference": "...", "type": "wallet" }` (auth)
+
+Alternative redirect flow:
+1. `POST /api/payments/create` (auth)
+2. Open returned `checkout_url`
+3. Backend callback URL ends at `/api/payments/verify`
+
+Wallet transaction history:
+- `GET /api/wallet/transactions?limit=50&offset=0` (auth)
+
+
+================================================================================
+9) NOTIFICATIONS
+================================================================================
+
+Fetch:
+- `GET /api/notifications?unread_only=true|false&type=<optional>&limit=50&offset=0` (auth)
+- Returns:
+  {
+    "notifications": [...],
+    "unreadCount": <number>
+  }
+
+Mark read (bulk):
+- `POST /api/notifications` (auth)
+- Either:
+  - `{ "markAll": true }`
+  - `{ "notificationIds": ["id1", "id2"] }`
+
+Mark read (single):
+- `POST /api/notifications/:id/read` (auth)
+
+Notification deep-link types currently used include:
+- `number_purchased`
+- `rental_purchased`
+- `wallet_funded`
+- `esim_purchased`
+- plus transaction/status update variants in metadata.
+
+
+================================================================================
+10) ERROR-HANDLING CONTRACT FOR MOBILE
+================================================================================
+
+Minimum behavior:
+1. Treat non-2xx as failure and always parse `error` when present.
+2. If `provider` or `errorSource` exists, prepend provider label in UI.
+3. Handle 402 specially with wallet top-up CTA.
+4. Keep purchase screens resilient when optional fields are null.
+
+
+================================================================================
+11) API HELPER LIST (LATEST RECOMMENDED)
+================================================================================
+
+Core:
+- fetchUserBalanceNGN() -> GET `/api/user/balance`
+- fetchNotifications(), markNotificationsRead(), markOneNotificationRead()
+- fetchTransactions()
+
+Numbers:
+- fetchTvServices(), fetchTvPrice(serviceName)
+- fetchSmsPoolServices(page, limit)
+- fetchSmsPoolSuggestedCountries(serviceCode)
+- purchaseNumber(payload)
+- fetchMyNumbers(), fetchNumberById(id), syncNumber(id), cancelNumber(id)
+- fetchNumberMessages(id, filters), fetchNumberOtps(id, filters), updateOtpStatus(id, otpId, status)
+
+Rentals:
+- fetchRentalServices(reservationType)
+- fetchRentalAreaCodes()
+- fetchRentalOptions(service, areaCode, isRenewable)
+- purchaseRental(payload)
+
+eSIM:
+- fetchEsimCountries()
+- fetchEsimPackages(locationCode?)
+- purchaseEsim(payload)
+- fetchEsimOrders(page, limit)
+- fetchEsimUsage({ orderId?, esimTranNo? })
+
+Wallet/Payments:
+- createWalletFundingReference()
+- verifyWalletFundingPopup(reference)
+
+SMM:
+- fetchSocialServices(filters)
+- createSocialOrder(payload)
+- fetchOrders(page, limit, status)
+
+
+================================================================================
+12) QA CHECKLIST (MUST PASS)
+================================================================================
+
+1. Bearer token auth works across all auth-required endpoints.
+2. Wallet shown from `/api/user/balance` (not `/api/balance`).
+3. US number purchase uses TV service + TV price + purchase endpoint.
+4. International number purchase uses SMSPool suggested countries flow.
+5. 402 errors surface clear top-up path on numbers, rentals, and eSIM.
+6. Number detail, messages, and OTP screens update after manual sync.
+7. eSIM purchase sends raw `package.price` as `providerPrice`.
+8. eSIM detail handles null `qr_code_url`/`iccid` gracefully.
+9. Popup wallet flow verifies with `/api/payments/verify-popup`.
+10. Notifications open correct deep-linked screens.
+
+
+================================================================================
+END OF V5
+================================================================================

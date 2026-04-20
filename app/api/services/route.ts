@@ -36,13 +36,18 @@ export async function GET(request: NextRequest) {
       return { data: rows, error: null };
     }
 
-    // Fetch markup and DB services in parallel
-    const [{ data: markupSetting }, { data: dbServices, error: dbError }, apiServicesResult] =
+    // Fetch markup, exchange rate, and DB services in parallel
+    const [{ data: markupSetting }, { data: exchangeRateSetting }, { data: dbServices, error: dbError }, apiServicesResult] =
       await Promise.all([
         supabase
           .from("admin_settings")
           .select("value")
           .eq("key", "default_markup_percentage")
+          .single(),
+        supabase
+          .from("admin_settings")
+          .select("value")
+          .eq("key", "usd_to_ngn_rate")
           .single(),
         fetchAllServices(),
         getServices().catch(() => null),
@@ -64,6 +69,10 @@ export async function GET(request: NextRequest) {
     const markupPercentage =
       Number.isFinite(rawMarkup) && rawMarkup >= 0 ? Math.min(rawMarkup, 10000) : 30.0;
     const markupMultiplier = 1 + markupPercentage / 100;
+
+    // USD → NGN exchange rate (default 1400 if not set)
+    const rawRate = exchangeRateSetting ? parseFloat(exchangeRateSetting.value) : 1400;
+    const usdToNgn = Number.isFinite(rawRate) && rawRate > 0 ? rawRate : 1400;
 
     // Build a map of live API rates keyed by provider service_id
     const liveRateMap: Record<string, number> = {};
@@ -88,7 +97,7 @@ export async function GET(request: NextRequest) {
         category: service.category || "",
         type: service.type || "",
         cost_rate: costRate,
-        rate: parseFloat((costRate * markupMultiplier).toFixed(4)),
+        rate: parseFloat((costRate * usdToNgn * markupMultiplier).toFixed(4)),
         markup_percentage: markupPercentage,
         min_quantity: service.min_quantity || 1,
         max_quantity: service.max_quantity || 1000000,
