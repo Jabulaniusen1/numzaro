@@ -273,7 +273,7 @@ export default function ServicesPage() {
   // ── Order helpers ────────────────────────────────────────────────────────────
   function openService(s: Service) {
     setSelectedService(s);
-    setQuantity(String(s.min_quantity));
+    setQuantity("");
     setLink("");
     setComments("");
   }
@@ -642,7 +642,7 @@ export default function ServicesPage() {
                       onChange={(e) => setQuantity(e.target.value)}
                       onBlur={(e) => {
                         if (!e.target.value || isNaN(parseInt(e.target.value)))
-                          setQuantity(String(selectedService.min_quantity));
+                          setQuantity("");
                       }}
                       required
                       disabled={submitting}

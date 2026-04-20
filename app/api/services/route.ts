@@ -2,6 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
 import { getServices } from "@/lib/api/socialboost";
 
+// In-memory cache for the exchange rate (1 hour TTL)
+let rateCache: { value: number; expiresAt: number } | null = null;
+
+async function getUsdToNgnRate(fallback: number): Promise<number> {
+  if (rateCache && Date.now() < rateCache.expiresAt) return rateCache.value;
+
+  try {
+    const res = await fetch("https://api.frankfurter.app/latest?from=USD&to=NGN", {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const rate = data?.rates?.NGN;
+    if (!rate || !Number.isFinite(rate) || rate <= 0) throw new Error("Invalid rate");
+    rateCache = { value: rate, expiresAt: Date.now() + 60 * 60 * 1000 };
+    return rate;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { user, supabase } = await authenticateRequest(request);
@@ -36,19 +57,11 @@ export async function GET(request: NextRequest) {
       return { data: rows, error: null };
     }
 
-    // Fetch markup, exchange rate, and DB services in parallel
-    const [{ data: markupSetting }, { data: exchangeRateSetting }, { data: dbServices, error: dbError }, apiServicesResult] =
+    // Fetch markup, fallback rate, DB services, and live API services in parallel
+    const [{ data: markupSetting }, { data: fallbackRateSetting }, { data: dbServices, error: dbError }, apiServicesResult] =
       await Promise.all([
-        supabase
-          .from("admin_settings")
-          .select("value")
-          .eq("key", "default_markup_percentage")
-          .single(),
-        supabase
-          .from("admin_settings")
-          .select("value")
-          .eq("key", "usd_to_ngn_rate")
-          .single(),
+        supabase.from("admin_settings").select("value").eq("key", "default_markup_percentage").single(),
+        supabase.from("admin_settings").select("value").eq("key", "usd_to_ngn_rate").single(),
         fetchAllServices(),
         getServices().catch(() => null),
       ]);
@@ -70,9 +83,10 @@ export async function GET(request: NextRequest) {
       Number.isFinite(rawMarkup) && rawMarkup >= 0 ? Math.min(rawMarkup, 10000) : 30.0;
     const markupMultiplier = 1 + markupPercentage / 100;
 
-    // USD → NGN exchange rate (default 1400 if not set)
-    const rawRate = exchangeRateSetting ? parseFloat(exchangeRateSetting.value) : 1400;
-    const usdToNgn = Number.isFinite(rawRate) && rawRate > 0 ? rawRate : 1400;
+    // USD → NGN: live rate with admin_settings value as fallback
+    const rawFallback = fallbackRateSetting ? parseFloat(fallbackRateSetting.value) : 1400;
+    const fallbackRate = Number.isFinite(rawFallback) && rawFallback > 0 ? rawFallback : 1400;
+    const usdToNgn = await getUsdToNgnRate(fallbackRate);
 
     // Build a map of live API rates keyed by provider service_id
     const liveRateMap: Record<string, number> = {};
@@ -86,7 +100,6 @@ export async function GET(request: NextRequest) {
     }
 
     let normalizedServices = dbServices.map((service: any) => {
-      // Prefer live API rate; fall back to stored cost_rate
       const liveRate = liveRateMap[String(service.service_id)];
       const costRate = liveRate ?? parseFloat(service.cost_rate) ?? 0;
 
