@@ -18,11 +18,13 @@ import {
   Users,
   ListOrdered,
   Boxes,
+  BarChart3,
 } from "lucide-react";
 import AdminServicesPage from "@/app/admin/page";
 import AdminUsersPage from "@/app/admin/users/page";
 import AdminOrdersPage from "@/app/admin/orders/page";
 import AdminNumbersPage from "@/app/admin/numbers/page";
+import AdminAnalyticsPage from "@/app/admin/analytics/page";
 
 const SETTINGS_CONFIG = [
   {
@@ -241,13 +243,13 @@ function MarkupCard({
   );
 }
 
-type AdminSection = "settings" | "services" | "users" | "orders" | "numbers";
+type AdminSection = "analytics" | "settings" | "services" | "users" | "orders" | "numbers";
 
 export default function DashboardAdminPage() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
-  const [section, setSection] = useState<AdminSection>("settings");
+  const [section, setSection] = useState<AdminSection>("analytics");
 
   useEffect(() => {
     fetch("/api/admin/markup")
@@ -288,6 +290,16 @@ export default function DashboardAdminPage() {
         </div>
 
         <div className="flex flex-wrap gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={section === "analytics" ? "default" : "outline"}
+            onClick={() => setSection("analytics")}
+            className={section === "analytics" ? "bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white" : ""}
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Analytics
+          </Button>
           <Button
             type="button"
             size="sm"
@@ -339,6 +351,8 @@ export default function DashboardAdminPage() {
             Numbers
           </Button>
         </div>
+
+        {section === "analytics" ? <AdminAnalyticsPage /> : null}
 
         {section === "settings" ? (
           <div className="space-y-4">
