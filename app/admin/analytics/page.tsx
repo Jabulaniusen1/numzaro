@@ -38,6 +38,12 @@ interface AnalyticsPayload {
     signups: number;
     previousSignups: number;
     growthSignupsPct: number;
+    countryBreakdown: Array<{
+      country: string;
+      code: string;
+      count: number;
+      percentage: number;
+    }>;
   };
   bySource: {
     social_boost: { count: number; revenue: number };
@@ -351,6 +357,38 @@ export default function AdminAnalyticsPage() {
               );
             })}
           </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
+          <p className="text-sm font-bold text-gray-800 dark:text-gray-100 mb-4">
+            Top Signup Countries
+          </p>
+          {data.userMetrics.countryBreakdown.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              No signup country data for this window yet.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {data.userMetrics.countryBreakdown.map((item) => (
+                <div key={`${item.code}-${item.country}`}>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <p className="text-sm text-gray-700 dark:text-gray-200">
+                      {item.country} ({item.code})
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {item.count} users • {item.percentage.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-amber-500"
+                      style={{ width: `${Math.min(100, item.percentage)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

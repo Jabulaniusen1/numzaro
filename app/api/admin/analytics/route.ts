@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
         .gte("created_at", windowConfig.previousStart.toISOString()),
       supabase
         .from("users")
-        .select("created_at")
+        .select("created_at, country_name, country_code")
         .gte("created_at", windowConfig.previousStart.toISOString()),
       supabase
         .from("users")
@@ -237,10 +237,34 @@ export async function GET(request: NextRequest) {
       statusCounts[normalizeStatus(order.status)] += 1;
     }
 
-    const usersInSpan = (usersWindowResult.data || []).map((u: any) => new Date(u.created_at));
+    const usersWindowRows = usersWindowResult.data || [];
+    const usersInSpan = usersWindowRows.map((u: any) => new Date(u.created_at));
     const totalUsers = usersCountResult.count || 0;
     const currentSignups = usersInSpan.filter((date) => inCurrentRange(date)).length;
     const previousSignups = usersInSpan.filter((date) => inPreviousRange(date)).length;
+    const currentCountryMap = new Map<string, { country: string; code: string; count: number }>();
+
+    for (const row of usersWindowRows as any[]) {
+      const signupAt = new Date(row.created_at);
+      if (!inCurrentRange(signupAt)) continue;
+      const country = String(row.country_name || "Unknown");
+      const code = String(row.country_code || "XX");
+      const key = `${code}:${country}`;
+      const existing = currentCountryMap.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        currentCountryMap.set(key, { country, code, count: 1 });
+      }
+    }
+
+    const countryBreakdown = Array.from(currentCountryMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+      .map((item) => ({
+        ...item,
+        percentage: currentSignups > 0 ? Number(((item.count / currentSignups) * 100).toFixed(2)) : 0,
+      }));
 
     const trendMap = new Map<
       string,
@@ -361,6 +385,7 @@ export async function GET(request: NextRequest) {
         signups: currentSignups,
         previousSignups,
         growthSignupsPct: Number(pctChange(currentSignups, previousSignups).toFixed(2)),
+        countryBreakdown,
       },
       bySource,
       statusCounts,
