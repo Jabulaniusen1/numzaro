@@ -6,7 +6,57 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
+import { Combobox } from "@/components/ui/combobox";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+
+const COUNTRY_PHONE_OPTIONS = [
+  { code: "US", name: "United States", dial: "+1" },
+  { code: "CA", name: "Canada", dial: "+1" },
+  { code: "GB", name: "United Kingdom", dial: "+44" },
+  { code: "NG", name: "Nigeria", dial: "+234" },
+  { code: "GH", name: "Ghana", dial: "+233" },
+  { code: "KE", name: "Kenya", dial: "+254" },
+  { code: "ZA", name: "South Africa", dial: "+27" },
+  { code: "AE", name: "United Arab Emirates", dial: "+971" },
+  { code: "SA", name: "Saudi Arabia", dial: "+966" },
+  { code: "IN", name: "India", dial: "+91" },
+  { code: "PK", name: "Pakistan", dial: "+92" },
+  { code: "BD", name: "Bangladesh", dial: "+880" },
+  { code: "TR", name: "Turkey", dial: "+90" },
+  { code: "DE", name: "Germany", dial: "+49" },
+  { code: "FR", name: "France", dial: "+33" },
+  { code: "IT", name: "Italy", dial: "+39" },
+  { code: "ES", name: "Spain", dial: "+34" },
+  { code: "NL", name: "Netherlands", dial: "+31" },
+  { code: "PT", name: "Portugal", dial: "+351" },
+  { code: "BE", name: "Belgium", dial: "+32" },
+  { code: "SE", name: "Sweden", dial: "+46" },
+  { code: "NO", name: "Norway", dial: "+47" },
+  { code: "DK", name: "Denmark", dial: "+45" },
+  { code: "IE", name: "Ireland", dial: "+353" },
+  { code: "CH", name: "Switzerland", dial: "+41" },
+  { code: "AT", name: "Austria", dial: "+43" },
+  { code: "PL", name: "Poland", dial: "+48" },
+  { code: "RU", name: "Russia", dial: "+7" },
+  { code: "UA", name: "Ukraine", dial: "+380" },
+  { code: "BR", name: "Brazil", dial: "+55" },
+  { code: "MX", name: "Mexico", dial: "+52" },
+  { code: "AR", name: "Argentina", dial: "+54" },
+  { code: "CO", name: "Colombia", dial: "+57" },
+  { code: "CL", name: "Chile", dial: "+56" },
+  { code: "PE", name: "Peru", dial: "+51" },
+  { code: "AU", name: "Australia", dial: "+61" },
+  { code: "NZ", name: "New Zealand", dial: "+64" },
+  { code: "SG", name: "Singapore", dial: "+65" },
+  { code: "MY", name: "Malaysia", dial: "+60" },
+  { code: "TH", name: "Thailand", dial: "+66" },
+  { code: "VN", name: "Vietnam", dial: "+84" },
+  { code: "ID", name: "Indonesia", dial: "+62" },
+  { code: "PH", name: "Philippines", dial: "+63" },
+  { code: "JP", name: "Japan", dial: "+81" },
+  { code: "KR", name: "South Korea", dial: "+82" },
+  { code: "CN", name: "China", dial: "+86" },
+];
 
 const reviews = [
   {
@@ -44,6 +94,8 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [countryCode, setCountryCode] = useState("US");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,12 +110,48 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    const selectedCountry = COUNTRY_PHONE_OPTIONS.find((c) => c.code === countryCode);
+    if (!selectedCountry) {
+      setError("Please select a valid country.");
+      setLoading(false);
+      return;
+    }
+    const sanitizedPhone = phoneNumber.replace(/[^\d]/g, "");
+    if (sanitizedPhone.length < 6) {
+      setError("Please enter a valid phone number.");
+      setLoading(false);
+      return;
+    }
+    const phoneE164 = `${selectedCountry.dial}${sanitizedPhone}`;
+
     const supabase = createClient();
-    const { error: signUpError } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          country_code: selectedCountry.code,
+          country_name: selectedCountry.name,
+          phone_country_code: selectedCountry.dial,
+          phone_number: sanitizedPhone,
+          phone_e164: phoneE164,
+        },
+      },
+    });
     if (signUpError) { setError(signUpError.message); setLoading(false); return; }
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      await supabase.from("users").insert({ id: user.id, email: user.email!, full_name: fullName });
+      await supabase.from("users").insert({
+        id: user.id,
+        email: user.email!,
+        full_name: fullName,
+        country_code: selectedCountry.code,
+        country_name: selectedCountry.name,
+        phone_country_code: selectedCountry.dial,
+        phone_number: sanitizedPhone,
+        phone_e164: phoneE164,
+      });
     }
     const redirectPath = typeof window !== "undefined" ? localStorage.getItem("redirectAfterAuth") : null;
     if (redirectPath) { localStorage.removeItem("redirectAfterAuth"); router.push(redirectPath); }
@@ -132,6 +220,47 @@ return (
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-11 rounded-2xl border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide" htmlFor="country">
+                Country
+              </label>
+              <Combobox
+                options={COUNTRY_PHONE_OPTIONS.map((country) => ({
+                  value: country.code,
+                  label: `${country.name} (${country.dial})`,
+                }))}
+                value={countryCode}
+                onValueChange={setCountryCode}
+                placeholder="Select country"
+                searchPlaceholder="Search country or code..."
+                emptyMessage="No country found."
+                className="h-11 rounded-2xl border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 justify-between"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide" htmlFor="phoneNumber">
+                Phone Number
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  value={COUNTRY_PHONE_OPTIONS.find((c) => c.code === countryCode)?.dial || ""}
+                  readOnly
+                  className="h-11 w-24 rounded-2xl border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  autoComplete="tel-national"
+                  required
+                  placeholder="8012345678"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="h-11 rounded-2xl border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus-visible:ring-[#7C5CFC]"
+                />
+              </div>
             </div>
 
             <div className="space-y-1.5">
