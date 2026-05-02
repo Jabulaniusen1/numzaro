@@ -11,9 +11,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { amount, currency: requestCurrency } = body;
-
-    const currency = requestCurrency || "NGN";
+    const { amount } = body;
+    // Korapay wallet-funding popup is configured for NGN in this app.
+    // Keep the charge currency fixed to prevent unsupported-currency failures.
+    const currency = "NGN";
 
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });

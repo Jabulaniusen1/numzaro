@@ -20,9 +20,6 @@ import { TrendingUp, Eye, EyeOff } from "lucide-react";
 function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
-  const [cryptoCurrency, setCryptoCurrency] = useState("usdttrc20");
-  const [cryptoAssets, setCryptoAssets] = useState<Array<{ code: string; label: string }>>([]);
-  const [cryptoMinUSD, setCryptoMinUSD] = useState<number | null>(null);
   const [cryptoPending, setCryptoPending] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -71,44 +68,6 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
       }
     });
 
-  useEffect(() => {
-    if (!open) return;
-    const loadAssets = async () => {
-      try {
-        const response = await fetch("/api/crypto/assets");
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Failed to load crypto assets");
-        const assets = data.assets || [];
-        setCryptoAssets(assets);
-        if (assets.length > 0 && !assets.some((a: any) => a.code === cryptoCurrency)) {
-          setCryptoCurrency(assets[0].code);
-        }
-      } catch (error: any) {
-        toast({
-          title: "Asset load failed",
-          description: error.message || "Could not load crypto assets",
-          variant: "destructive",
-        });
-      }
-    };
-    loadAssets();
-  }, [open]);
-
-  useEffect(() => {
-    const loadMin = async () => {
-      if (!cryptoCurrency) return;
-      try {
-        const response = await fetch(`/api/crypto/minimum?asset=${encodeURIComponent(cryptoCurrency)}`);
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Failed to load minimum amount");
-        setCryptoMinUSD(Number(data.minAmountUSD || 0));
-      } catch {
-        setCryptoMinUSD(null);
-      }
-    };
-    if (open) loadMin();
-  }, [cryptoCurrency, open]);
-
   const handleFund = async () => {
     const fundAmount = parseFloat(amount);
     if (!fundAmount || fundAmount <= 0) {
@@ -121,11 +80,12 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
     }
 
     setLoading(true);
+    setOpen(false);
     try {
       const response = await fetch("/api/wallet/fund", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: fundAmount, currency }),
+        body: JSON.stringify({ amount: fundAmount }),
       });
 
       if (!response.ok) {
@@ -133,43 +93,57 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
         throw new Error(error.error || "Failed to initialize payment");
       }
 
-      const { reference, email: userEmail, name: userName } = await response.json();
+      const {
+        reference,
+        email: userEmail,
+        name: userName,
+        amount: payableAmount,
+        currency: payableCurrency,
+      } = await response.json();
 
       const Korapay = await loadKoraSDK();
+      const publicKey = process.env.NEXT_PUBLIC_KORAPAY_PUBLIC_KEY || "";
+      if (!publicKey) {
+        throw new Error("Missing Korapay public key. Set NEXT_PUBLIC_KORAPAY_PUBLIC_KEY.");
+      }
+
+      const handlePaymentSuccess = async (data: any) => {
+        try {
+          const verifyResponse = await fetch("/api/payments/verify-popup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reference: data?.reference ?? reference, type: "wallet" }),
+          });
+
+          const verifyData = await verifyResponse.json();
+
+          if (verifyData.status === "success") {
+            toast({ title: "Payment successful!", description: "Your wallet has been funded." });
+            if (onFunded) onFunded();
+            setOpen(false);
+          } else {
+            throw new Error(verifyData.error || "Payment verification failed");
+          }
+        } catch (err: any) {
+          toast({
+            title: "Verification error",
+            description: err.message || "Payment received but verification failed. Contact support.",
+            variant: "destructive",
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
 
       Korapay.initialize({
-        key: process.env.NEXT_PUBLIC_KORAPAY_PUBLIC_KEY || "",
+        key: publicKey,
         reference,
-        amount: fundAmount,
-        currency,
+        amount: payableAmount ?? fundAmount,
+        currency: payableCurrency ?? "NGN",
         customer: { email: userEmail, name: userName },
-        onSuccess: async (data: any) => {
-          try {
-            const verifyResponse = await fetch("/api/payments/verify-popup", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ reference: data.reference ?? reference, type: "wallet" }),
-            });
-
-            const verifyData = await verifyResponse.json();
-
-            if (verifyData.status === "success") {
-              toast({ title: "Payment successful!", description: "Your wallet has been funded." });
-              if (onFunded) onFunded();
-              setOpen(false);
-            } else {
-              throw new Error(verifyData.error || "Payment verification failed");
-            }
-          } catch (err: any) {
-            toast({
-              title: "Verification error",
-              description: err.message || "Payment received but verification failed. Contact support.",
-              variant: "destructive",
-            });
-          } finally {
-            setLoading(false);
-          }
-        },
+        // Some Korapay SDK versions use `callback`; others use `onSuccess`.
+        callback: handlePaymentSuccess,
+        onSuccess: handlePaymentSuccess,
         onFailed: (_data: any) => {
           toast({ title: "Payment failed", description: "Your payment was not completed.", variant: "destructive" });
           setLoading(false);
@@ -195,21 +169,12 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
       });
       return;
     }
-    if (cryptoMinUSD !== null && fundAmount < cryptoMinUSD) {
-      toast({
-        title: "Amount too low",
-        description: `Minimum for ${cryptoCurrency.toUpperCase()} is $${cryptoMinUSD.toFixed(2)}.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
     try {
       const response = await fetch("/api/crypto/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: fundAmount, payCurrency: cryptoCurrency }),
+        body: JSON.stringify({ amount: fundAmount }),
       });
 
       const data = await response.json();
@@ -229,14 +194,14 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
         description: "Complete payment in the new tab. We are checking for confirmation.",
       });
 
-      if (data.paymentId) {
+      if (data.invoiceId) {
         let confirmed = false;
         for (let i = 0; i < 30; i++) {
           await new Promise((resolve) => setTimeout(resolve, 5000));
           const verifyResponse = await fetch("/api/crypto/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paymentId: data.paymentId }),
+            body: JSON.stringify({ invoiceId: data.invoiceId }),
           });
           const verifyData = await verifyResponse.json();
           if (verifyData.status === "success") {
@@ -344,32 +309,9 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
                 onChange={(e) => setAmount(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <label htmlFor="crypto-currency" className="text-sm font-medium">
-                Crypto Currency
-              </label>
-              <select
-                id="crypto-currency"
-                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                value={cryptoCurrency}
-                onChange={(e) => setCryptoCurrency(e.target.value)}
-              >
-                {cryptoAssets.length === 0 ? (
-                  <option value="usdttrc20">Loading assets...</option>
-                ) : (
-                  cryptoAssets.map((asset) => (
-                    <option key={asset.code} value={asset.code}>
-                      {asset.label}
-                    </option>
-                  ))
-                )}
-              </select>
-              {cryptoMinUSD !== null && (
-                <p className="text-xs text-muted-foreground">
-                  Minimum: ${cryptoMinUSD.toFixed(2)} for {cryptoCurrency.toUpperCase()}
-                </p>
-              )}
-            </div>
+            <p className="text-xs text-muted-foreground">
+              BTCPay checkout will let users choose available crypto at payment time.
+            </p>
             <Button onClick={handleCryptoFund} disabled={loading || !amount} className="w-full">
               {loading ? (cryptoPending ? "Checking payment..." : "Creating Invoice...") : "Pay with Crypto"}
             </Button>

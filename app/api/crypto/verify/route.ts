@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
-import { getCryptoPayment } from "@/lib/nowpayments/client";
+import { getBTCPayInvoice } from "@/lib/btcpay/client";
 import { creditWalletFromSuccessfulPayment } from "@/lib/wallet/credit";
 
 export async function POST(request: NextRequest) {
@@ -12,18 +12,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const paymentId = body?.paymentId;
+    const invoiceId = body?.invoiceId;
 
-    if (!paymentId) {
-      return NextResponse.json({ error: "paymentId is required" }, { status: 400 });
+    if (!invoiceId) {
+      return NextResponse.json({ error: "invoiceId is required" }, { status: 400 });
     }
 
-    const cryptoPayment = await getCryptoPayment(paymentId);
-    const status = String(cryptoPayment.payment_status || "").toLowerCase();
-    const isPaid = ["finished", "confirmed", "sending", "partially_paid"].includes(status);
+    const invoice = await getBTCPayInvoice(String(invoiceId));
+    const status = String(invoice.status || "").toLowerCase();
+    const isPaid = ["settled", "processing", "paid"].includes(status);
 
-    const orderId = cryptoPayment.order_id || "";
-    const ownerId = orderId.split("_")[1];
+    const ownerId = String(invoice.metadata?.userId || "");
     if (ownerId !== user.id) {
       return NextResponse.json({ error: "Payment does not belong to this user" }, { status: 403 });
     }
@@ -31,8 +30,8 @@ export async function POST(request: NextRequest) {
     const existingPayment = await supabase
       .from("payments")
       .select("id, status")
-      .eq("payment_provider", "nowpayments")
-      .eq("provider_transaction_id", String(cryptoPayment.payment_id))
+      .eq("payment_provider", "btcpay")
+      .eq("provider_transaction_id", String(invoice.id))
       .maybeSingle();
 
     let paymentIdDb = existingPayment.data?.id;
@@ -42,10 +41,10 @@ export async function POST(request: NextRequest) {
         .from("payments")
         .insert({
           user_id: user.id,
-          amount: cryptoPayment.price_amount,
-          currency: String(cryptoPayment.price_currency || "USD").toUpperCase(),
-          payment_provider: "nowpayments",
-          provider_transaction_id: String(cryptoPayment.payment_id),
+          amount: Number(invoice.amount || 0),
+          currency: String(invoice.currency || "USD").toUpperCase(),
+          payment_provider: "btcpay",
+          provider_transaction_id: String(invoice.id),
           status: isPaid ? "Success" : "Pending",
         })
         .select("id")
@@ -70,11 +69,11 @@ export async function POST(request: NextRequest) {
       supabase,
       userId: user.id,
       paymentId: paymentIdDb,
-      provider: "nowpayments",
-      providerTransactionId: String(cryptoPayment.payment_id),
-      paidAmount: cryptoPayment.price_amount,
-      paidCurrency: String(cryptoPayment.price_currency || "USD").toUpperCase(),
-      description: "Wallet deposit via NOWPayments",
+      provider: "btcpay",
+      providerTransactionId: String(invoice.id),
+      paidAmount: Number(invoice.amount || 0),
+      paidCurrency: String(invoice.currency || "USD").toUpperCase(),
+      description: "Wallet deposit via BTCPay",
     });
 
     return NextResponse.json({
