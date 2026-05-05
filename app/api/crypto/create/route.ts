@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { authenticateRequest } from "@/lib/supabase/server";
-import { createBTCPayInvoice, BTCPayError } from "@/lib/btcpay/client";
+import { createHeleketInvoice, HeleketError } from "@/lib/heleket/client";
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,15 +24,15 @@ export async function POST(request: NextRequest) {
     }
 
     const orderId = `wallet_${user.id}_${randomUUID().slice(0, 8)}`;
-    const invoice = await createBTCPayInvoice({
+    const invoice = await createHeleketInvoice({
       amount,
       currency: "USD",
       orderId,
-      userId: user.id,
-      redirectUrl: `${appUrl}/dashboard?payment=success&type=crypto`,
+      urlCallback: `${appUrl}/api/webhooks/heleket`,
+      urlSuccess: `${appUrl}/dashboard?payment=success&type=crypto`,
     });
 
-    const checkoutUrl = invoice.checkoutLink || null;
+    const checkoutUrl = invoice.url || null;
     if (!checkoutUrl) {
       return NextResponse.json(
         { error: "Provider did not return invoice URL. Please try another asset/network." },
@@ -41,13 +41,13 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      invoiceId: String(invoice.id),
+      invoiceId: String(invoice.uuid),
       invoiceUrl: checkoutUrl,
       orderId,
       status: invoice.status || "new",
     });
   } catch (error) {
-    if (error instanceof BTCPayError) {
+    if (error instanceof HeleketError) {
       return NextResponse.json({ error: error.message }, { status: error.statusCode || 500 });
     }
     console.error("Crypto payment create error:", error);

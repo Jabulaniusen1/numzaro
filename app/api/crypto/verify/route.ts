@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
-import { getBTCPayInvoice } from "@/lib/btcpay/client";
+import { getHeleketPaymentInfo } from "@/lib/heleket/client";
 import { creditWalletFromSuccessfulPayment } from "@/lib/wallet/credit";
 
 export async function POST(request: NextRequest) {
@@ -18,11 +18,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "invoiceId is required" }, { status: 400 });
     }
 
-    const invoice = await getBTCPayInvoice(String(invoiceId));
-    const status = String(invoice.status || "").toLowerCase();
-    const isPaid = ["settled", "processing", "paid"].includes(status);
+    const invoice = await getHeleketPaymentInfo({ uuid: String(invoiceId) });
+    const status = String(invoice.status || invoice.payment_status || "").toLowerCase();
+    const isPaid = ["paid", "paid_over"].includes(status);
 
-    const ownerId = String(invoice.metadata?.userId || "");
+    const orderId = String(invoice.order_id || "");
+    const ownerId = orderId.split("_")[1] || "";
     if (ownerId !== user.id) {
       return NextResponse.json({ error: "Payment does not belong to this user" }, { status: 403 });
     }
@@ -30,8 +31,8 @@ export async function POST(request: NextRequest) {
     const existingPayment = await supabase
       .from("payments")
       .select("id, status")
-      .eq("payment_provider", "btcpay")
-      .eq("provider_transaction_id", String(invoice.id))
+      .eq("payment_provider", "heleket")
+      .eq("provider_transaction_id", String(invoice.uuid))
       .maybeSingle();
 
     let paymentIdDb = existingPayment.data?.id;
@@ -43,8 +44,8 @@ export async function POST(request: NextRequest) {
           user_id: user.id,
           amount: Number(invoice.amount || 0),
           currency: String(invoice.currency || "USD").toUpperCase(),
-          payment_provider: "btcpay",
-          provider_transaction_id: String(invoice.id),
+          payment_provider: "heleket",
+          provider_transaction_id: String(invoice.uuid),
           status: isPaid ? "Success" : "Pending",
         })
         .select("id")
@@ -69,11 +70,11 @@ export async function POST(request: NextRequest) {
       supabase,
       userId: user.id,
       paymentId: paymentIdDb,
-      provider: "btcpay",
-      providerTransactionId: String(invoice.id),
-      paidAmount: Number(invoice.amount || 0),
+      provider: "heleket",
+      providerTransactionId: String(invoice.uuid),
+      paidAmount: Number(invoice.payment_amount || invoice.amount || 0),
       paidCurrency: String(invoice.currency || "USD").toUpperCase(),
-      description: "Wallet deposit via BTCPay",
+      description: "Wallet deposit via Heleket",
     });
 
     return NextResponse.json({

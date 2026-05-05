@@ -310,7 +310,7 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              BTCPay checkout will let users choose available crypto at payment time.
+              Heleket checkout will let users choose available crypto at payment time.
             </p>
             <Button onClick={handleCryptoFund} disabled={loading || !amount} className="w-full">
               {loading ? (cryptoPending ? "Checking payment..." : "Creating Invoice...") : "Pay with Crypto"}
