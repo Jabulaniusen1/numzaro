@@ -7,7 +7,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/ui/combobox";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, Mail } from "lucide-react";
 
 const COUNTRY_PHONE_OPTIONS = [
   { code: "US", name: "United States", dial: "+1" },
@@ -99,6 +99,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [currentReview, setCurrentReview] = useState(0);
 
   useEffect(() => {
@@ -110,6 +111,7 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
     const selectedCountry = COUNTRY_PHONE_OPTIONS.find((c) => c.code === countryCode);
     if (!selectedCountry) {
       setError("Please select a valid country.");
@@ -125,7 +127,7 @@ export default function SignupPage() {
     const phoneE164 = `${selectedCountry.dial}${sanitizedPhone}`;
 
     const supabase = createClient();
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -139,12 +141,18 @@ export default function SignupPage() {
         },
       },
     });
-    if (signUpError) { setError(signUpError.message); setLoading(false); return; }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
+
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
+      return;
+    }
+
+    // Use user directly from signUp response — more reliable than a follow-up getUser()
+    if (data.user) {
       await supabase.from("users").insert({
-        id: user.id,
-        email: user.email!,
+        id: data.user.id,
+        email: data.user.email!,
         full_name: fullName,
         country_code: selectedCountry.code,
         country_name: selectedCountry.name,
@@ -153,13 +161,56 @@ export default function SignupPage() {
         phone_e164: phoneE164,
       });
     }
-    const redirectPath = typeof window !== "undefined" ? localStorage.getItem("redirectAfterAuth") : null;
-    if (redirectPath) { localStorage.removeItem("redirectAfterAuth"); router.push(redirectPath); }
-    else router.push("/dashboard");
-    router.refresh();
+
+    // session is null when email confirmation is required
+    if (data.session) {
+      const redirectPath = typeof window !== "undefined" ? localStorage.getItem("redirectAfterAuth") : null;
+      if (redirectPath) localStorage.removeItem("redirectAfterAuth");
+      router.push(redirectPath || "/dashboard");
+      router.refresh();
+    } else {
+      setSuccess(true);
+    }
+
+    setLoading(false);
   };
 
-return (
+  // ── Email confirmation screen ──────────────────────────────────────────────
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F0F2FA] dark:bg-gray-950 px-4">
+        <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-10 flex flex-col items-center text-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
+            <Mail className="w-8 h-8 text-[#7C5CFC]" />
+          </div>
+          <h1 className="text-2xl font-black text-gray-900 dark:text-white">Check your email</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+            We sent a confirmation link to{" "}
+            <span className="font-semibold text-[#7C5CFC]">{email}</span>.
+            <br />Click it to activate your account.
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            Didn&apos;t receive it? Check your spam folder or{" "}
+            <button
+              onClick={() => setSuccess(false)}
+              className="text-[#7C5CFC] hover:underline font-medium"
+            >
+              try again
+            </button>
+            .
+          </p>
+          <Link
+            href="/auth/login"
+            className="mt-2 text-sm font-semibold text-[#7C5CFC] hover:underline"
+          >
+            Back to Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
     <div className="min-h-screen flex bg-[#F0F2FA] dark:bg-gray-950">
 
       {/* ── Left: Form ──────────────────────────────────────────────────────── */}
@@ -298,8 +349,8 @@ return (
 
             <p className="text-center text-xs text-gray-400">
               By signing up you agree to our{" "}
-              <span className="text-[#7C5CFC] cursor-pointer hover:underline">Terms</span> and{" "}
-              <span className="text-[#7C5CFC] cursor-pointer hover:underline">Privacy Policy</span>
+              <Link href="/terms" className="text-[#7C5CFC] hover:underline">Terms</Link>{" "}and{" "}
+              <Link href="/privacy" className="text-[#7C5CFC] hover:underline">Privacy Policy</Link>
             </p>
           </form>
         </div>
@@ -353,7 +404,7 @@ return (
                 ))}
               </div>
             </div>
-            <p className="text-sm text-white/85 leading-relaxed">"{reviews[currentReview].text}"</p>
+            <p className="text-sm text-white/85 leading-relaxed">&ldquo;{reviews[currentReview].text}&rdquo;</p>
             {/* Dots */}
             <div className="flex gap-1.5 pt-1">
               {reviews.map((_, i) => (

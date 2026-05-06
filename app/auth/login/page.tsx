@@ -115,9 +115,14 @@ return (
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide" htmlFor="password">
-                Password
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide" htmlFor="password">
+                  Password
+                </label>
+                <Link href="/auth/forgot-password" className="text-xs font-semibold text-[#7C5CFC] hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Input
                   id="password"

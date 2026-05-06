@@ -79,7 +79,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from auth pages
-  if (request.nextUrl.pathname.startsWith("/auth")) {
+  // Exempt /auth/reset-password — user arrives with a live recovery session
+  const isResetPage = request.nextUrl.pathname.startsWith("/auth/reset-password");
+  if (request.nextUrl.pathname.startsWith("/auth") && !isResetPage) {
     if (user) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
