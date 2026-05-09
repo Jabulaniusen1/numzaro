@@ -29,27 +29,47 @@ export async function POST(request: NextRequest) {
 
     const charge = result.data;
     const isSuccess = charge.status === "success";
+    const rawAmount = charge.amount;
+    const paidAmount =
+      typeof rawAmount === "number" ? rawAmount : parseFloat(String(rawAmount ?? "0"));
 
-    // Upsert payment record — prevents duplicate errors if the SDK fires callback twice
-    const { data: payment, error: paymentError } = await supabase
+    // Read-first payment write to avoid requiring a unique constraint on provider_transaction_id.
+    // This also handles duplicate SDK callbacks idempotently.
+    let payment: any = null;
+    const { data: existingPayment, error: existingPaymentError } = await supabase
       .from("payments")
-      .upsert(
-        {
+      .select("*")
+      .eq("provider_transaction_id", charge.reference)
+      .eq("payment_provider", "korapay")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existingPaymentError) {
+      console.error("Error checking existing payment:", existingPaymentError);
+      return NextResponse.json({ error: "Error storing payment", status: "error" }, { status: 500 });
+    }
+
+    if (existingPayment) {
+      payment = existingPayment;
+    } else {
+      const { data: insertedPayment, error: insertPaymentError } = await supabase
+        .from("payments")
+        .insert({
           user_id: user.id,
-          amount: charge.amount,
+          amount: paidAmount,
           currency: charge.currency,
           payment_provider: "korapay",
           provider_transaction_id: charge.reference,
           status: isSuccess ? "Success" : "Failed",
-        },
-        { onConflict: "provider_transaction_id", ignoreDuplicates: false }
-      )
-      .select()
-      .single();
+        })
+        .select()
+        .single();
 
-    if (paymentError) {
-      console.error("Error storing payment:", paymentError);
-      return NextResponse.json({ error: "Error storing payment", status: "error" }, { status: 500 });
+      if (insertPaymentError) {
+        console.error("Error inserting payment:", insertPaymentError);
+        return NextResponse.json({ error: "Error storing payment", status: "error" }, { status: 500 });
+      }
+      payment = insertedPayment;
     }
 
     if (isSuccess && payment) {
@@ -84,7 +104,12 @@ export async function POST(request: NextRequest) {
           .single();
 
         const balanceBefore = parseFloat(userProfile?.wallet_balance || "0.00");
-        const paidAmount = charge.amount;
+        if (!Number.isFinite(paidAmount) || paidAmount <= 0) {
+          return NextResponse.json(
+            { error: "Invalid payment amount from gateway", status: "failed" },
+            { status: 400 }
+          );
+        }
         const paidCurrency = charge.currency || metadata.currency || "NGN";
 
         let depositAmountUSD = paidAmount;
