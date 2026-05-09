@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
             status,
             created_at,
             users(email, full_name),
-            virtual_numbers(phone_number, country_name, provider, product_type)
+            virtual_numbers(phone_number, country_name, provider, product_type, status, otp_codes(code, status, created_at))
           `,
           { count: "exact" }
         )
@@ -121,24 +121,34 @@ export async function GET(request: NextRequest) {
       },
     }));
 
-    const numberOrders = (numberResult.data || []).map((order: any) => ({
-      id: order.id,
-      source: "number",
-      display_id: order.virtual_number_id || order.id,
-      user_id: order.user_id,
-      user_email: order.users?.email || null,
-      user_full_name: order.users?.full_name || null,
-      status: order.status || "completed",
-      amount: toNumber(order.amount),
-      currency: order.currency || "USD",
-      created_at: order.created_at,
-      details: {
-        phone_number: order.virtual_numbers?.phone_number || null,
-        country_name: order.virtual_numbers?.country_name || null,
-        provider: order.virtual_numbers?.provider || null,
-        product_type: order.virtual_numbers?.product_type || null,
-      },
-    }));
+    const numberOrders = (numberResult.data || []).map((order: any) => {
+      const otpCodes: { code: string; status: string; created_at: string }[] =
+        (order.virtual_numbers?.otp_codes || []).sort(
+          (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      const vnStatus = (order.virtual_numbers?.status || "").toLowerCase();
+      const isCancelled = ["cancelled", "canceled", "cancelled"].includes(vnStatus);
+      return {
+        id: order.id,
+        source: "number",
+        display_id: order.virtual_number_id || order.id,
+        user_id: order.user_id,
+        user_email: order.users?.email || null,
+        user_full_name: order.users?.full_name || null,
+        status: isCancelled ? "cancelled" : (order.status || "completed"),
+        amount: toNumber(order.amount),
+        currency: order.currency || "USD",
+        created_at: order.created_at,
+        details: {
+          phone_number: order.virtual_numbers?.phone_number || null,
+          country_name: order.virtual_numbers?.country_name || null,
+          provider: order.virtual_numbers?.provider || null,
+          product_type: order.virtual_numbers?.product_type || null,
+          otp_codes: otpCodes,
+          latest_otp: otpCodes[0]?.code || null,
+        },
+      };
+    });
 
     const esimOrders = (esimResult.data || []).map((order: any) => ({
       id: order.id,

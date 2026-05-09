@@ -5,8 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
-import { Loader2, Search, ShoppingBag, Phone, Wifi, Package, RefreshCw } from "lucide-react";
+import {
+  Loader2, Search, ShoppingBag, Phone, Wifi, Package,
+  RefreshCw, KeyRound, RotateCcw,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 type SourceType = "social_boost" | "number" | "esim";
 
@@ -14,6 +24,7 @@ interface OrderRecord {
   id: string;
   source: SourceType;
   display_id: string;
+  user_id: string;
   user_email: string | null;
   user_full_name: string | null;
   status: string;
@@ -45,20 +56,25 @@ const SOURCE_COLOR: Record<SourceType, string> = {
 
 function statusColor(status: string) {
   const s = status.toLowerCase();
-  if (["completed", "success"].includes(s))                           return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300";
-  if (["pending", "processing", "in_progress"].includes(s))          return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
-  if (["failed", "cancelled", "canceled", "refunded"].includes(s))   return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300";
+  if (["completed", "success"].includes(s))
+    return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300";
+  if (["pending", "processing", "in_progress"].includes(s))
+    return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
+  if (["failed", "cancelled", "canceled", "refunded"].includes(s))
+    return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300";
   return "bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:text-gray-300";
 }
 
 type TabValue = "all" | SourceType;
 
 const TABS: { value: TabValue; label: string; icon: React.ElementType }[] = [
-  { value: "all",          label: "All",    icon: Package    },
-  { value: "social_boost", label: "Social", icon: ShoppingBag },
-  { value: "number",       label: "Numbers",icon: Phone      },
-  { value: "esim",         label: "eSIM",   icon: Wifi       },
+  { value: "all",          label: "All",     icon: Package     },
+  { value: "social_boost", label: "Social",  icon: ShoppingBag },
+  { value: "number",       label: "Numbers", icon: Phone       },
+  { value: "esim",         label: "eSIM",    icon: Wifi        },
 ];
+
+const ALREADY_REFUNDED = ["refunded"];
 
 export default function AdminOrdersPage() {
   const { toast } = useToast();
@@ -70,6 +86,9 @@ export default function AdminOrdersPage() {
     allOrders: [], socialBoostOrders: [], numberOrders: [], esimOrders: [],
     totals: { all: 0, socialBoost: 0, number: 0, esim: 0 },
   });
+
+  const [refundTarget, setRefundTarget] = useState<OrderRecord | null>(null);
+  const [refundLoading, setRefundLoading] = useState(false);
 
   useEffect(() => { fetchOrders(); }, []);
 
@@ -83,6 +102,30 @@ export default function AdminOrdersPage() {
       toast({ title: "Error", description: error.message || "Failed to load orders", variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefund = async () => {
+    if (!refundTarget) return;
+    setRefundLoading(true);
+    try {
+      const res = await fetch("/api/admin/orders/refund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: refundTarget.id, source: refundTarget.source }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Refund failed");
+      toast({
+        title: "Refund issued",
+        description: `${format(convert(refundTarget.amount))} refunded to ${refundTarget.user_email}.`,
+      });
+      setRefundTarget(null);
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setRefundLoading(false);
     }
   };
 
@@ -121,6 +164,42 @@ export default function AdminOrdersPage() {
     const loc = o.details?.location ? ` • ${o.details.location}` : "";
     const data = o.details?.data_volume ? ` • ${o.details.data_volume}` : "";
     return `${o.details?.package_name || "eSIM Package"}${loc}${data}`;
+  };
+
+  const OTPBadges = ({ o }: { o: OrderRecord }) => {
+    if (o.source !== "number") return null;
+    const codes: { code: string; status: string }[] = o.details?.otp_codes || [];
+    if (codes.length === 0)
+      return <span className="text-[10px] text-gray-400 italic">No OTP yet</span>;
+    return (
+      <div className="flex flex-wrap gap-1 mt-1">
+        {codes.map((otp, i) => (
+          <span
+            key={i}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-300 font-mono font-bold text-xs"
+          >
+            <KeyRound className="h-2.5 w-2.5" />
+            {otp.code}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  const RefundButton = ({ o }: { o: OrderRecord }) => {
+    const alreadyRefunded = ALREADY_REFUNDED.includes(o.status.toLowerCase());
+    if (alreadyRefunded) return null;
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 px-2.5 text-xs rounded-lg border-orange-200 text-orange-600 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20 whitespace-nowrap"
+        onClick={() => setRefundTarget(o)}
+      >
+        <RotateCcw className="h-3 w-3 mr-1" />
+        Refund
+      </Button>
+    );
   };
 
   const tabCount = (v: TabValue) => {
@@ -219,7 +298,10 @@ export default function AdminOrdersPage() {
                       {o.status}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-300">{getDetails(o)}</p>
+                  <div>
+                    <p className="text-xs text-gray-600 dark:text-gray-300">{getDetails(o)}</p>
+                    <OTPBadges o={o} />
+                  </div>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-1.5">
                       <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", SOURCE_COLOR[o.source])}>
@@ -229,18 +311,21 @@ export default function AdminOrdersPage() {
                     </div>
                     <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{format(convert(o.amount))}</p>
                   </div>
-                  <p className="text-[10px] text-gray-400">{new Date(o.created_at).toLocaleString()}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] text-gray-400">{new Date(o.created_at).toLocaleString()}</p>
+                    <RefundButton o={o} />
+                  </div>
                 </div>
               ))}
             </div>
 
             {/* Desktop table */}
             <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full text-sm min-w-[820px]">
+              <table className="w-full text-sm min-w-[900px]">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
-                    {["Date", "Type", "Order ID", "User", "Details", "Status", "Amount"].map((h, i) => (
-                      <th key={h} className={cn(
+                    {["Date", "Type", "Order ID", "User", "Details", "Status", "Amount", ""].map((h, i) => (
+                      <th key={i} className={cn(
                         "px-5 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide",
                         i === 6 ? "text-right" : "text-left"
                       )}>{h}</th>
@@ -263,7 +348,10 @@ export default function AdminOrdersPage() {
                         <p className="font-semibold text-gray-800 dark:text-gray-100">{o.user_email || "Unknown"}</p>
                         <p className="text-xs text-gray-500">{o.user_full_name || "—"}</p>
                       </td>
-                      <td className="px-5 py-3 text-xs text-gray-600 dark:text-gray-300 max-w-[200px] truncate">{getDetails(o)}</td>
+                      <td className="px-5 py-3 text-xs text-gray-600 dark:text-gray-300 max-w-[220px]">
+                        <span className="truncate block">{getDetails(o)}</span>
+                        <OTPBadges o={o} />
+                      </td>
                       <td className="px-5 py-3">
                         <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full", statusColor(o.status))}>
                           {o.status}
@@ -275,6 +363,9 @@ export default function AdminOrdersPage() {
                           <span className="ml-1 text-[10px] text-gray-400">({o.currency})</span>
                         )}
                       </td>
+                      <td className="px-5 py-3 text-right">
+                        <RefundButton o={o} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -283,6 +374,42 @@ export default function AdminOrdersPage() {
           </>
         )}
       </div>
+
+      {/* Refund confirmation dialog */}
+      <Dialog open={!!refundTarget} onOpenChange={(open) => { if (!open) setRefundTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-4 w-4 text-orange-500" />
+              Confirm Refund
+            </DialogTitle>
+            <DialogDescription>
+              This will credit{" "}
+              <span className="font-semibold">{refundTarget ? format(convert(refundTarget.amount)) : ""}</span>{" "}
+              back to{" "}
+              <span className="font-semibold">{refundTarget?.user_email}</span>&apos;s wallet and mark the order as refunded.
+              This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 pt-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setRefundTarget(null)}
+              disabled={refundLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
+              onClick={handleRefund}
+              disabled={refundLoading}
+            >
+              {refundLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Issue Refund"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

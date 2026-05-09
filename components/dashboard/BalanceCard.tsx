@@ -107,7 +107,10 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
         throw new Error("Missing Korapay public key. Set NEXT_PUBLIC_KORAPAY_PUBLIC_KEY.");
       }
 
+      let callbackFired = false;
       const handlePaymentSuccess = async (data: any) => {
+        if (callbackFired) return;
+        callbackFired = true;
         try {
           const verifyResponse = await fetch("/api/payments/verify-popup", {
             method: "POST",

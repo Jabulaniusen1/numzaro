@@ -5,8 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
-import { Loader2, Search, User, Wallet, Phone, Package, RefreshCw } from "lucide-react";
+import { Loader2, Search, User, Wallet, Phone, Package, RefreshCw, PlusCircle, MinusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface UserRecord {
   id: string;
@@ -60,6 +67,12 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [fundTarget, setFundTarget] = useState<UserRecord | null>(null);
+  const [fundType, setFundType] = useState<"credit" | "debit">("credit");
+  const [fundAmount, setFundAmount] = useState("");
+  const [fundNote, setFundNote] = useState("");
+  const [fundLoading, setFundLoading] = useState(false);
+
   useEffect(() => { fetchUsers(); }, []);
 
   const fetchUsers = async () => {
@@ -73,6 +86,37 @@ export default function AdminUsersPage() {
       toast({ title: "Error", description: error.message || "Failed to load users", variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleWalletAction = async () => {
+    if (!fundTarget) return;
+    const amount = parseFloat(fundAmount);
+    if (!amount || amount <= 0) {
+      toast({ title: "Invalid amount", description: "Enter a positive NGN amount.", variant: "destructive" });
+      return;
+    }
+    setFundLoading(true);
+    try {
+      const res = await fetch("/api/admin/wallet/fund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: fundTarget.id, amount, type: fundType, note: fundNote || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Action failed");
+      toast({
+        title: fundType === "credit" ? "Wallet credited" : "Wallet debited",
+        description: `₦${amount.toLocaleString()} ${fundType === "credit" ? "added to" : "deducted from"} ${fundTarget.email}.`,
+      });
+      setFundTarget(null);
+      setFundAmount("");
+      setFundNote("");
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setFundLoading(false);
     }
   };
 
@@ -163,17 +207,37 @@ export default function AdminUsersPage() {
                       </div>
                     ))}
                   </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 h-8 text-xs rounded-lg border-violet-200 text-violet-600 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400"
+                      onClick={() => { setFundTarget(user); setFundType("credit"); setFundAmount(""); setFundNote(""); }}
+                    >
+                      <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
+                      Credit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 h-8 text-xs rounded-lg border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400"
+                      onClick={() => { setFundTarget(user); setFundType("debit"); setFundAmount(""); setFundNote(""); }}
+                    >
+                      <MinusCircle className="h-3.5 w-3.5 mr-1.5" />
+                      Deduct
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
 
             {/* Desktop table */}
             <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full text-sm min-w-[750px]">
+              <table className="w-full text-sm min-w-[850px]">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
-                    {["User", "Balance", "Numbers", "Orders", "Total Spent", "Joined"].map((h, i) => (
-                      <th key={h} className={cn(
+                    {["User", "Balance", "Numbers", "Orders", "Total Spent", "Joined", ""].map((h, i) => (
+                      <th key={i} className={cn(
                         "px-5 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide",
                         i === 0 ? "text-left" : "text-right"
                       )}>{h}</th>
@@ -209,6 +273,28 @@ export default function AdminUsersPage() {
                       <td className="px-5 py-3 text-right text-sm text-gray-500 dark:text-gray-400">
                         {new Date(user.created_at).toLocaleDateString()}
                       </td>
+                      <td className="px-5 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2.5 text-xs rounded-lg border-violet-200 text-violet-600 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400"
+                            onClick={() => { setFundTarget(user); setFundType("credit"); setFundAmount(""); setFundNote(""); }}
+                          >
+                            <PlusCircle className="h-3 w-3 mr-1" />
+                            Credit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2.5 text-xs rounded-lg border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400"
+                            onClick={() => { setFundTarget(user); setFundType("debit"); setFundAmount(""); setFundNote(""); }}
+                          >
+                            <MinusCircle className="h-3 w-3 mr-1" />
+                            Deduct
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -217,6 +303,122 @@ export default function AdminUsersPage() {
           </>
         )}
       </div>
+
+      {/* Credit / Deduct Dialog */}
+      <Dialog open={!!fundTarget} onOpenChange={(open) => { if (!open) setFundTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {fundType === "credit" ? (
+                <PlusCircle className="h-4 w-4 text-violet-500" />
+              ) : (
+                <MinusCircle className="h-4 w-4 text-red-500" />
+              )}
+              {fundType === "credit" ? "Credit Wallet" : "Deduct from Wallet"}
+            </DialogTitle>
+            <DialogDescription>
+              {fundType === "credit" ? "Add" : "Remove"} USD {fundType === "credit" ? "to" : "from"}{" "}
+              <span className="font-semibold">{fundTarget?.email}</span>.{" "}
+              Current balance:{" "}
+              <span className="font-semibold">
+                {format(convert(parseFloat(fundTarget?.wallet_balance?.toString() || "0")))}
+              </span>.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Toggle */}
+          <div className="flex rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <button
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors",
+                fundType === "credit"
+                  ? "bg-violet-600 text-white"
+                  : "bg-transparent text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+              )}
+              onClick={() => { setFundType("credit"); setFundAmount(""); }}
+            >
+              <PlusCircle className="h-3.5 w-3.5" /> Credit
+            </button>
+            <button
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors",
+                fundType === "debit"
+                  ? "bg-red-500 text-white"
+                  : "bg-transparent text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+              )}
+              onClick={() => { setFundType("debit"); setFundAmount(""); }}
+            >
+              <MinusCircle className="h-3.5 w-3.5" /> Deduct
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (NGN ₦)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">₦</span>
+                <Input
+                  type="number"
+                  min={1}
+                  step="1"
+                  placeholder="e.g. 5000"
+                  value={fundAmount}
+                  onChange={(e) => setFundAmount(e.target.value)}
+                  className="pl-7"
+                />
+              </div>
+              {fundType === "debit" && fundAmount && (
+                <p className="text-xs text-red-500">
+                  Balance after deduction:{" "}
+                  {format(
+                    Math.max(
+                      0,
+                      convert(parseFloat(fundTarget?.wallet_balance?.toString() || "0")) -
+                        parseFloat(fundAmount || "0")
+                    )
+                  )}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Note (optional)</label>
+              <Input
+                placeholder={fundType === "credit" ? "e.g. Compensation, bonus…" : "e.g. Fraud reversal, adjustment…"}
+                value={fundNote}
+                onChange={(e) => setFundNote(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setFundTarget(null)}
+                disabled={fundLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                className={cn(
+                  "flex-1 text-white",
+                  fundType === "credit"
+                    ? "bg-violet-600 hover:bg-violet-700"
+                    : "bg-red-500 hover:bg-red-600"
+                )}
+                onClick={handleWalletAction}
+                disabled={fundLoading || !fundAmount}
+              >
+                {fundLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : fundType === "credit" ? (
+                  "Credit Wallet"
+                ) : (
+                  "Deduct Balance"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

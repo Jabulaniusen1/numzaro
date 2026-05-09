@@ -30,17 +30,20 @@ export async function POST(request: NextRequest) {
     const charge = result.data;
     const isSuccess = charge.status === "success";
 
-    // Store payment record
+    // Upsert payment record — prevents duplicate errors if the SDK fires callback twice
     const { data: payment, error: paymentError } = await supabase
       .from("payments")
-      .insert({
-        user_id: user.id,
-        amount: charge.amount,
-        currency: charge.currency,
-        payment_provider: "korapay",
-        provider_transaction_id: charge.reference,
-        status: isSuccess ? "Success" : "Failed",
-      })
+      .upsert(
+        {
+          user_id: user.id,
+          amount: charge.amount,
+          currency: charge.currency,
+          payment_provider: "korapay",
+          provider_transaction_id: charge.reference,
+          status: isSuccess ? "Success" : "Failed",
+        },
+        { onConflict: "provider_transaction_id", ignoreDuplicates: false }
+      )
       .select()
       .single();
 
@@ -54,6 +57,26 @@ export async function POST(request: NextRequest) {
       const isWalletFunding = type === "wallet" || metadata.type === "wallet_funding";
 
       if (isWalletFunding) {
+        // Guard against double-credit if the SDK fires callback twice
+        const { data: existingTx } = await supabase
+          .from("wallet_transactions")
+          .select("id")
+          .eq("payment_id", payment.id)
+          .maybeSingle();
+
+        if (existingTx) {
+          const { data: userProfile } = await supabase
+            .from("users")
+            .select("wallet_balance")
+            .eq("id", user.id)
+            .single();
+          return NextResponse.json({
+            status: "success",
+            type: "wallet",
+            reference,
+            balanceAfter: parseFloat(userProfile?.wallet_balance || "0"),
+          });
+        }
         const { data: userProfile } = await supabase
           .from("users")
           .select("wallet_balance")

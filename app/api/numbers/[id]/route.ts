@@ -1,6 +1,60 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
+
+async function refundNumberPurchase(
+  virtualNumberId: string,
+  userId: string,
+  supabase: any
+): Promise<void> {
+  const { data: purchase } = await supabase
+    .from("number_purchases")
+    .select("id, amount")
+    .eq("virtual_number_id", virtualNumberId)
+    .eq("status", "completed")
+    .maybeSingle();
+
+  if (!purchase) return;
+
+  const { data: userProfile } = await supabase
+    .from("users")
+    .select("wallet_balance")
+    .eq("id", userId)
+    .single();
+
+  const balanceBefore = parseFloat(userProfile?.wallet_balance || "0");
+  const refundAmount = parseFloat(purchase.amount);
+  const balanceAfter = balanceBefore + refundAmount;
+
+  await supabase
+    .from("users")
+    .update({ wallet_balance: balanceAfter })
+    .eq("id", userId);
+
+  await supabase.from("wallet_transactions").insert({
+    user_id: userId,
+    type: "refund",
+    amount: refundAmount,
+    balance_before: balanceBefore,
+    balance_after: balanceAfter,
+    description: "Refund for cancelled number order",
+  });
+
+  await supabase
+    .from("number_purchases")
+    .update({ status: "refunded" })
+    .eq("id", purchase.id);
+
+  const supabaseAdmin = createServiceRoleClient();
+  await supabaseAdmin.from("notifications").insert({
+    user_id: userId,
+    type: "transaction",
+    title: "Refund Issued",
+    message: `Your wallet has been refunded $${refundAmount.toFixed(2)} for a cancelled number order.`,
+    data: { type: "refund", virtual_number_id: virtualNumberId },
+  });
+}
 
 export async function GET(
   request: NextRequest,
@@ -179,6 +233,12 @@ export async function DELETE(
       .update({ status: "cancelled" })
       .eq("id", id);
 
+    try {
+      await refundNumberPurchase(id, number.user_id, supabase);
+    } catch (refundError) {
+      console.error("Refund error after cancellation:", refundError);
+    }
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Error in DELETE /api/numbers/[id]:", error);
@@ -297,6 +357,13 @@ export async function PATCH(
         .from("virtual_numbers")
         .update({ status: "CANCELLED" })
         .eq("id", id);
+
+      try {
+        await refundNumberPurchase(id, number.user_id, supabase);
+      } catch (refundError) {
+        console.error("Refund error after cancellation:", refundError);
+      }
+
       return NextResponse.json({ success: true });
     }
 
