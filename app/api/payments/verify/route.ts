@@ -62,16 +62,16 @@ export async function GET(request: NextRequest) {
         const paidAmount = charge.amount;
         const paidCurrency = charge.currency || metadata.currency || "NGN";
 
-        let depositAmountUSD = paidAmount;
-        if (paidCurrency !== "USD") {
+        let depositAmountNGN = paidAmount;
+        if (paidCurrency !== "NGN") {
           try {
-            depositAmountUSD = await convertCurrency(paidAmount, paidCurrency, "USD");
+            depositAmountNGN = await convertCurrency(paidAmount, paidCurrency, "NGN");
           } catch (err) {
             console.error("Currency conversion error:", err);
           }
         }
 
-        const balanceAfter = balanceBefore + depositAmountUSD;
+        const balanceAfter = balanceBefore + depositAmountNGN;
 
         await supabase
           .from("users")
@@ -81,15 +81,15 @@ export async function GET(request: NextRequest) {
         await supabase.from("wallet_transactions").insert({
           user_id: user.id,
           type: "deposit",
-          amount: depositAmountUSD,
+          amount: depositAmountNGN,
           balance_before: balanceBefore,
           balance_after: balanceAfter,
           payment_id: payment.id,
           description: `Wallet deposit via Korapay (${paidCurrency} ${paidAmount.toFixed(2)})`,
         });
 
-        await createTransactionNotification(user.id, "wallet_funded", depositAmountUSD, {
-          currency: "USD",
+        await createTransactionNotification(user.id, "wallet_funded", depositAmountNGN, {
+          currency: "NGN",
           payment_id: payment.id,
           description: "Wallet funded via Korapay",
         });

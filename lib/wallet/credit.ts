@@ -30,28 +30,28 @@ export async function creditWalletFromSuccessfulPayment(params: CreditWalletPara
 
   const balanceBefore = parseFloat(userProfile?.wallet_balance || "0.00");
 
-  let depositAmountUSD = params.paidAmount;
-  if (params.paidCurrency !== "USD") {
+  let depositAmountNGN = params.paidAmount;
+  if (params.paidCurrency !== "NGN") {
     try {
-      depositAmountUSD = await convertCurrency(params.paidAmount, params.paidCurrency, "USD");
+      depositAmountNGN = await convertCurrency(params.paidAmount, params.paidCurrency, "NGN");
     } catch (err) {
       console.error("Currency conversion error:", err);
     }
   }
 
-  const balanceAfter = balanceBefore + depositAmountUSD;
+  const balanceAfter = balanceBefore + depositAmountNGN;
 
   await params.supabase.from("users").update({ wallet_balance: balanceAfter }).eq("id", params.userId);
 
   await params.supabase.from("wallet_transactions").insert({
     user_id: params.userId,
     type: "deposit",
-    amount: depositAmountUSD,
+    amount: depositAmountNGN,
     balance_before: balanceBefore,
     balance_after: balanceAfter,
     payment_id: params.paymentId,
     description: `${params.description} (${params.paidCurrency} ${params.paidAmount.toFixed(2)})`,
   });
 
-  return { credited: true, balanceAfter, depositAmountUSD };
+  return { credited: true, balanceAfter, depositAmountNGN };
 }

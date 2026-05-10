@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
-import { convertCurrency } from "@/lib/currency/rates";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,7 +9,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user's wallet balance from users table (stored in USD)
+    // Wallet balance is stored in NGN.
     const { data: userData, error } = await supabase
       .from("users")
       .select("wallet_balance")
@@ -25,17 +24,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    let balanceNGN = parseFloat(userData?.wallet_balance || "0");
-    
-    // Convert from USD to NGN for display
-    if (balanceNGN > 0) {
-      try {
-        balanceNGN = await convertCurrency(balanceNGN, "USD", "NGN");
-      } catch (error) {
-        console.error("Error converting USD to NGN:", error);
-        balanceNGN = balanceNGN * 1500;
-      }
-    }
+    const balanceNGN = parseFloat(userData?.wallet_balance || "0");
 
     return NextResponse.json({ 
       balance: balanceNGN.toString(),

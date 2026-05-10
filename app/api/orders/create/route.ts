@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
 import { createOrder, getServices } from "@/lib/api/socialboost";
-import { getLiveFxRate } from "@/lib/currency/rates";
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,11 +75,7 @@ export async function POST(request: NextRequest) {
     const sellingRateNGN = costRate * (1 + markupPercentage / 100);
     const chargeNGN = (quantityNum / 1000) * sellingRateNGN;
 
-    // Wallet is stored in USD — convert NGN charge to USD for deduction
-    const usdNgnRate = await getLiveFxRate("USD", "NGN");
-    const chargeUSD = chargeNGN / usdNgnRate;
-
-    // Check user wallet balance (stored in USD)
+    // Check user wallet balance (stored in NGN)
     const { data: userProfile } = await supabase
       .from("users")
       .select("wallet_balance")
@@ -89,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     const balance = parseFloat(userProfile?.wallet_balance || "0.00");
 
-    if (chargeUSD > balance) {
+    if (chargeNGN > balance) {
       return NextResponse.json(
         { error: "Insufficient balance. Please fund your wallet." },
         { status: 400 }
@@ -115,12 +110,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Deduct USD charge from wallet (wallet is stored in USD)
-    const newBalance = balance - chargeUSD;
+    // Deduct NGN charge from wallet
+    const newBalance = balance - chargeNGN;
 
     const { error: balanceError } = await supabase
       .from("users")
-      .update({ wallet_balance: newBalance.toFixed(6) })
+      .update({ wallet_balance: parseFloat(newBalance.toFixed(2)) })
       .eq("id", user.id);
 
     if (balanceError) {
@@ -131,13 +126,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create wallet transaction record (amounts in USD to match wallet)
+    // Create wallet transaction record (amounts in NGN to match wallet)
     const { error: transactionError } = await supabase
       .from("wallet_transactions")
       .insert({
         user_id: user.id,
-        type: "debit",
-        amount: chargeUSD,
+        type: "order_payment",
+        amount: -chargeNGN,
         description: `Order for ${service.name}`,
         balance_before: balance,
         balance_after: newBalance,

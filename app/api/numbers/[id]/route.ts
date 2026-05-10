@@ -117,7 +117,10 @@ export async function GET(
           await syncSmsPoolRental(number.id, number.rental_code, supabase);
         } else if (number.textverified_id) {
           const { syncSmsPoolActivation } = await import("@/lib/smspool/adapter");
-          await syncSmsPoolActivation(number.id, number.textverified_id, supabase);
+          await syncSmsPoolActivation(number.id, number.textverified_id, supabase, {
+            attempts: 8,
+            delayMs: 1500,
+          });
         }
       } catch (syncError) {
         console.error("Failed to sync SMSPool messages:", syncError);
@@ -298,7 +301,10 @@ export async function PATCH(
           return NextResponse.json({ success: true });
         }
         const { syncSmsPoolActivation } = await import("@/lib/smspool/adapter");
-        await syncSmsPoolActivation(number.id, number.textverified_id, supabase);
+        await syncSmsPoolActivation(number.id, number.textverified_id, supabase, {
+          attempts: 8,
+          delayMs: 1500,
+        });
         return NextResponse.json({ success: true });
       }
       if (number.provider === "platfone" && number.textverified_id) {

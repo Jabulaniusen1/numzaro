@@ -19,11 +19,27 @@ function parseTimestamp(value?: string): string {
 export async function syncSmsPoolActivation(
   numberId: string,
   orderId: string,
-  supabase: any
+  supabase: any,
+  options?: {
+    attempts?: number;
+    delayMs?: number;
+  }
 ) {
   try {
-    const result = await smsPoolClient.checkSMS(orderId);
-    const content = result.full_sms || result.sms;
+    const attempts = Math.max(1, options?.attempts ?? 6);
+    const delayMs = Math.max(250, options?.delayMs ?? 2000);
+
+    let content: string | undefined;
+
+    for (let i = 0; i < attempts; i++) {
+      const result = await smsPoolClient.checkSMS(orderId);
+      content = result.full_sms || result.sms;
+      if (content) break;
+      if (i < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
     if (!content) return;
     const code = extractCode(content);
 

@@ -66,10 +66,13 @@ function parseExpiryFromUnix(unixSeconds?: number) {
   return new Date(unixSeconds * 1000).toISOString();
 }
 
-async function formatNairaFromUsd(usdAmount: number) {
+async function usdToNgn(usdAmount: number): Promise<number> {
   let rate = 1500;
   try { rate = await getLiveFxRate("USD", "NGN"); } catch {}
-  const ngnAmount = usdAmount * rate;
+  return usdAmount * rate;
+}
+
+function formatNaira(ngnAmount: number) {
   return `₦${ngnAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -143,7 +146,8 @@ async function handlePlatfonePurchase(
 
   // Convert cents → USD for our internal billing
   const sellPrice = priceInCents / 100;
-  const userCharged = parseFloat((sellPrice * markupMultiplier).toFixed(2));
+  const userChargedUsd = parseFloat((sellPrice * markupMultiplier).toFixed(2));
+  const userCharged = parseFloat((await usdToNgn(userChargedUsd)).toFixed(2));
 
   const { data: userData } = await supabase
     .from("users")
@@ -155,7 +159,7 @@ async function handlePlatfonePurchase(
   if (userBalance < userCharged) {
     return NextResponse.json(
       {
-        error: `Insufficient balance. Required: ${await formatNairaFromUsd(userCharged)}, Available: ${await formatNairaFromUsd(userBalance)}`,
+        error: `Insufficient balance. Required: ${formatNaira(userCharged)}, Available: ${formatNaira(userBalance)}`,
       },
       { status: 402 }
     );
@@ -294,8 +298,8 @@ async function handlePlatfonePurchase(
     virtual_number_id: virtualNumber.id,
     amount:            userCharged,
     actual_cost:       actualCost,
-    profit:            parseFloat((userCharged - actualCost).toFixed(2)),
-    currency:          "USD",
+    profit:            parseFloat((userCharged - (await usdToNgn(actualCost))).toFixed(2)),
+    currency:          "NGN",
     status:            "completed",
   });
 
@@ -348,7 +352,8 @@ async function handleTextverifiedActivation(
     );
   }
 
-  const userCharged = parseFloat((tvPrice * markupMultiplier).toFixed(2));
+  const userChargedUsd = parseFloat((tvPrice * markupMultiplier).toFixed(2));
+  const userCharged = parseFloat((await usdToNgn(userChargedUsd)).toFixed(2));
 
   const { data: userData } = await supabase
     .from("users")
@@ -359,7 +364,7 @@ async function handleTextverifiedActivation(
   const userBalance = parseFloat(userData?.wallet_balance || "0");
   if (userBalance < userCharged) {
     return NextResponse.json(
-      { error: `Insufficient balance. Required: ${formatNairaFromUsd(userCharged)}, Available: ${formatNairaFromUsd(userBalance)}` },
+      { error: `Insufficient balance. Required: ${formatNaira(userCharged)}, Available: ${formatNaira(userBalance)}` },
       { status: 402 }
     );
   }
@@ -441,8 +446,8 @@ async function handleTextverifiedActivation(
     virtual_number_id: virtualNumber.id,
     amount:            userCharged,
     actual_cost:       actualCost,
-    profit:            parseFloat((userCharged - actualCost).toFixed(2)),
-    currency:          "USD",
+    profit:            parseFloat((userCharged - (await usdToNgn(actualCost))).toFixed(2)),
+    currency:          "NGN",
     status:            "completed",
   });
 
@@ -500,7 +505,8 @@ export async function POST(request: NextRequest) {
       return providerError("smspool", "Invalid price returned from provider", 400);
     }
     let rawPrice = baseRawPrice;
-    let userCharged = parseFloat((rawPrice * markupMultiplier).toFixed(2));
+    let userChargedUsd = parseFloat((rawPrice * markupMultiplier).toFixed(2));
+    let userCharged = parseFloat((await usdToNgn(userChargedUsd)).toFixed(2));
 
     const { data: userData } = await supabase
       .from("users")
@@ -512,7 +518,7 @@ export async function POST(request: NextRequest) {
     if (userBalance < userCharged) {
       return NextResponse.json(
         {
-          error: `Insufficient balance. Required: ${await formatNairaFromUsd(userCharged)}, Available: ${await formatNairaFromUsd(userBalance)}`,
+          error: `Insufficient balance. Required: ${formatNaira(userCharged)}, Available: ${formatNaira(userBalance)}`,
         },
         { status: 402 }
       );
@@ -545,7 +551,8 @@ export async function POST(request: NextRequest) {
     const purchaseCost = parseFloat(String(purchase.cost ?? rawPrice));
     if (!Number.isNaN(purchaseCost) && purchaseCost > 0) {
       rawPrice = purchaseCost;
-      userCharged = parseFloat((rawPrice * markupMultiplier).toFixed(2));
+      userChargedUsd = parseFloat((rawPrice * markupMultiplier).toFixed(2));
+      userCharged = parseFloat((await usdToNgn(userChargedUsd)).toFixed(2));
     }
 
     if (userBalance < userCharged) {
@@ -556,7 +563,7 @@ export async function POST(request: NextRequest) {
       }
       return NextResponse.json(
         {
-          error: `Insufficient balance after purchase. Required: ${await formatNairaFromUsd(userCharged)}, Available: ${await formatNairaFromUsd(userBalance)}`,
+          error: `Insufficient balance after purchase. Required: ${formatNaira(userCharged)}, Available: ${formatNaira(userBalance)}`,
         },
         { status: 402 }
       );
@@ -634,8 +641,8 @@ export async function POST(request: NextRequest) {
       virtual_number_id: virtualNumber.id,
       amount: userCharged,
       actual_cost: rawPrice,
-      profit: parseFloat((userCharged - rawPrice).toFixed(2)),
-      currency: "USD",
+      profit: parseFloat((userCharged - (await usdToNgn(rawPrice))).toFixed(2)),
+      currency: "NGN",
       status: "completed",
     });
 

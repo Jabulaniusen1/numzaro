@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { convertCurrency } from "@/lib/currency/rates";
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,26 +46,22 @@ export async function POST(request: NextRequest) {
 
     const balanceBefore = parseFloat(targetUser.wallet_balance || "0");
 
-    // Use a single rate call so both sides of the comparison are consistent
-    const balanceNGN = await convertCurrency(balanceBefore, "USD", "NGN");
-    const amountUSD = (parsedNGN / balanceNGN) * balanceBefore; // same effective rate
-
     if (type === "debit") {
-      if (parsedNGN > balanceNGN) {
+      if (parsedNGN > balanceBefore) {
         return NextResponse.json(
-          { error: `Insufficient balance. User only has ₦${balanceNGN.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.` },
+          { error: `Insufficient balance. User only has ₦${balanceBefore.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.` },
           { status: 400 }
         );
       }
 
-      const balanceAfter = balanceBefore - amountUSD;
+      const balanceAfter = balanceBefore - parsedNGN;
 
       await supabase.from("users").update({ wallet_balance: balanceAfter }).eq("id", userId);
 
       await supabase.from("wallet_transactions").insert({
         user_id: userId,
         type: "withdrawal",
-        amount: -amountUSD,
+        amount: -parsedNGN,
         balance_before: balanceBefore,
         balance_after: balanceAfter,
         description: note
@@ -79,28 +74,27 @@ export async function POST(request: NextRequest) {
         type: "transaction",
         title: "Wallet Adjusted",
         message: `₦${parsedNGN.toLocaleString()} has been deducted from your wallet by admin.`,
-        data: { type: "admin_debit", amount_ngn: parsedNGN, amount_usd: amountUSD },
+        data: { type: "admin_debit", amount_ngn: parsedNGN },
       });
 
       return NextResponse.json({
         success: true,
         userId,
         debited_ngn: parsedNGN,
-        debited_usd: amountUSD,
         balanceBefore,
         balanceAfter,
       });
     }
 
     // type === "credit"
-    const balanceAfter = balanceBefore + amountUSD;
+    const balanceAfter = balanceBefore + parsedNGN;
 
     await supabase.from("users").update({ wallet_balance: balanceAfter }).eq("id", userId);
 
     await supabase.from("wallet_transactions").insert({
       user_id: userId,
       type: "deposit",
-      amount: amountUSD,
+      amount: parsedNGN,
       balance_before: balanceBefore,
       balance_after: balanceAfter,
       description: note
@@ -113,14 +107,13 @@ export async function POST(request: NextRequest) {
       type: "transaction",
       title: "Wallet Funded",
       message: `₦${parsedNGN.toLocaleString()} has been added to your wallet by admin.`,
-      data: { type: "admin_credit", amount_ngn: parsedNGN, amount_usd: amountUSD },
+      data: { type: "admin_credit", amount_ngn: parsedNGN },
     });
 
     return NextResponse.json({
       success: true,
       userId,
       credited_ngn: parsedNGN,
-      credited_usd: amountUSD,
       balanceBefore,
       balanceAfter,
     });
