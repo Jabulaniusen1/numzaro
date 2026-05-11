@@ -150,7 +150,7 @@ function ServiceIcon({ code, name, color }: { code: string; name: string; color:
 
 export default function NumbersPage() {
   const { toast }  = useToast();
-  const { format: formatCurrency, convert } = useCurrency();
+  const { format: formatCurrency, convert, convertFromUSD } = useCurrency();
   const router     = useRouter();
 
   const [balance, setBalance]               = useState<number | null>(null);
@@ -695,14 +695,14 @@ export default function NumbersPage() {
                       </span>
                     ) : tvPrice !== null ? (
                       <span className="text-2xl font-black text-[#7C5CFC]">
-                        {formatCurrency(convert(tvPrice))}
+                        {formatCurrency(convertFromUSD(tvPrice))}
                       </span>
                     ) : (
                       <span className="text-sm text-red-500">Price unavailable</span>
                     )
                   ) : (
                     <span className="text-2xl font-black text-[#7C5CFC]">
-                      {userPrice !== null ? formatCurrency(convert(userPrice)) : "—"}
+                      {userPrice !== null ? formatCurrency(convertFromUSD(userPrice)) : "—"}
                     </span>
                   )}
                 </div>
@@ -740,10 +740,10 @@ export default function NumbersPage() {
                   loadingTvPrice
                     ? "Fetching price…"
                     : tvPrice !== null
-                      ? `Buy Number — ${formatCurrency(convert(tvPrice))}`
+                      ? `Buy Number — ${formatCurrency(convertFromUSD(tvPrice))}`
                       : "Price unavailable"
                 ) : userPrice !== null ? (
-                  `Buy Number — ${formatCurrency(convert(userPrice))}`
+                  `Buy Number — ${formatCurrency(convertFromUSD(userPrice))}`
                 ) : (
                   "Select options above"
                 )}

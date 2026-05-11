@@ -7,7 +7,7 @@ import { Navbar } from "@/components/Navbar"
 import { useCurrency } from "@/lib/hooks/use-currency"
 
 export default function PricingPage() {
-  const { format, convert } = useCurrency();
+  const { format, convertFromUSD } = useCurrency();
   
   const prices = {
     followers: 0.90,
@@ -36,7 +36,7 @@ export default function PricingPage() {
             </CardHeader>
             <CardContent>
               <div className="mb-4">
-                <span className="text-3xl font-bold text-[#1877F2]">{format(convert(prices.followers))}</span>
+                <span className="text-3xl font-bold text-[#1877F2]">{format(convertFromUSD(prices.followers))}</span>
                 <span className="text-gray-600"> per 1000</span>
               </div>
               <ul className="space-y-2 mb-6 text-sm">
@@ -58,7 +58,7 @@ export default function PricingPage() {
             </CardHeader>
             <CardContent>
               <div className="mb-4">
-                <span className="text-3xl font-bold text-[#1877F2]">{format(convert(prices.likes))}</span>
+                <span className="text-3xl font-bold text-[#1877F2]">{format(convertFromUSD(prices.likes))}</span>
                 <span className="text-gray-600"> per 1000</span>
               </div>
               <ul className="space-y-2 mb-6 text-sm">
@@ -80,7 +80,7 @@ export default function PricingPage() {
             </CardHeader>
             <CardContent>
               <div className="mb-4">
-                <span className="text-3xl font-bold text-[#1877F2]">{format(convert(prices.comments))}</span>
+                <span className="text-3xl font-bold text-[#1877F2]">{format(convertFromUSD(prices.comments))}</span>
                 <span className="text-gray-600"> per 100</span>
               </div>
               <ul className="space-y-2 mb-6 text-sm">

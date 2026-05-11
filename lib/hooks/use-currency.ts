@@ -65,7 +65,13 @@ export function useCurrency() {
     return `${state.symbol}${formatted}`;
   }, [state.symbol]);
 
+  // All stored amounts are in NGN — no conversion needed.
   const convert = useCallback((amount: number): number => {
+    return amount;
+  }, []);
+
+  // Use this only for values that are genuinely in USD (e.g. provider API prices).
+  const convertFromUSD = useCallback((amount: number): number => {
     return amount * state.rate;
   }, [state.rate]);
 
@@ -76,6 +82,7 @@ export function useCurrency() {
     country: "Nigeria",
     loading: state.loading,
     convert,
+    convertFromUSD,
     format,
     switchCurrency,
   };

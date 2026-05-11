@@ -58,7 +58,7 @@ function ServiceLogo({ logo, name }: { logo: string | null; name: string }) {
 
 export default function RentalsPage() {
   const { toast } = useToast();
-  const { format: formatCurrency, convert } = useCurrency();
+  const { format: formatCurrency, convert, convertFromUSD } = useCurrency();
   const router = useRouter();
 
   const [balance, setBalance] = useState<number | null>(null);
@@ -433,7 +433,7 @@ export default function RentalsPage() {
                     >
                       <div className="text-sm font-bold text-gray-800 dark:text-gray-100">{opt.label}</div>
                       <div className="text-xs text-gray-400">{opt.days} days</div>
-                      <div className="text-lg font-black text-[#7C5CFC]">{formatCurrency(convert(opt.price))}</div>
+                      <div className="text-lg font-black text-[#7C5CFC]">{formatCurrency(convertFromUSD(opt.price))}</div>
                     </button>
                   ))}
                 </div>
@@ -476,7 +476,7 @@ export default function RentalsPage() {
               <div className="border-t border-gray-100 dark:border-gray-700 pt-4 space-y-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Price</span>
-                  <span className="text-2xl font-black text-[#7C5CFC]">{formatCurrency(convert(selectedOption.price))}</span>
+                  <span className="text-2xl font-black text-[#7C5CFC]">{formatCurrency(convertFromUSD(selectedOption.price))}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-100 dark:border-gray-700">
