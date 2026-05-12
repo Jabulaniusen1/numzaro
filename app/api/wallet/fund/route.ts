@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     // via initializeCharge would cause a "duplicate payment reference" error.
     const reference = `NMZ-${randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`;
 
-    return NextResponse.json({ reference, email, name, amount, currency });
+    return NextResponse.json({ reference, email, name, amount, currency, userId: user.id });
   } catch (error) {
     console.error("Wallet funding error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

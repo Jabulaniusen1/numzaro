@@ -98,6 +98,40 @@ function extractSmsPoolError(result: any): string {
   return "Failed to purchase number from SMSPool.";
 }
 
+function extractTextverifiedCreateErrorMessage(error: unknown): string {
+  const fallback = "Number unavailable right now for this service. Please try another service or retry shortly.";
+  const raw = String((error as any)?.message || "").trim();
+  if (!raw) return fallback;
+
+  const normalized = raw.toLowerCase();
+  if (normalized.includes("out of stock") || normalized.includes("unavailable")) {
+    return fallback;
+  }
+
+  const bodyStart = raw.indexOf("{");
+  if (bodyStart >= 0) {
+    const possibleJson = raw.slice(bodyStart).trim();
+    try {
+      const parsed = JSON.parse(possibleJson);
+      const description = String(parsed?.errorDescription || parsed?.message || "").trim();
+      const code = String(parsed?.errorCode || "").trim().toLowerCase();
+      const combined = `${code} ${description}`.toLowerCase();
+      if (
+        combined.includes("out of stock") ||
+        combined.includes("unavailable") ||
+        code === "unavailable"
+      ) {
+        return fallback;
+      }
+      if (description) return description;
+    } catch {
+      // ignore malformed provider payloads
+    }
+  }
+
+  return raw;
+}
+
 // Platfone customer_id must match ^[a-zA-Z0-9]+$ — strip UUID hyphens
 function platfoneCustomerId(userId: string): string {
   return userId.replace(/-/g, "");
@@ -377,7 +411,9 @@ async function handleTextverifiedActivation(
       capability: "sms",
     });
   } catch (err: any) {
-    return providerError("textverified", err.message || "Failed to create US number", 400);
+    const message = extractTextverifiedCreateErrorMessage(err);
+    const status = message.includes("Number unavailable right now") ? 409 : 400;
+    return providerError("textverified", message, status);
   }
 
   const verificationId = verification.id;

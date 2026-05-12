@@ -99,6 +99,7 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
         name: userName,
         amount: payableAmount,
         currency: payableCurrency,
+        userId,
       } = await response.json();
 
       const Korapay = await loadKoraSDK();
@@ -144,6 +145,8 @@ function FundWalletButton({ onFunded }: { onFunded?: () => void }) {
         amount: payableAmount ?? fundAmount,
         currency: payableCurrency ?? "NGN",
         customer: { email: userEmail, name: userName },
+        merchant_bears_cost: false,
+        metadata: { type: "wallet_funding", user_id: userId },
         // Some Korapay SDK versions use `callback`; others use `onSuccess`.
         callback: handlePaymentSuccess,
         onSuccess: handlePaymentSuccess,

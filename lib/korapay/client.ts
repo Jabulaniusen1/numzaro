@@ -17,6 +17,7 @@ export interface InitializeChargeParams {
   reference: string;
   redirect_url?: string;
   notification_url?: string;
+  merchant_bears_cost?: boolean;
   metadata?: Record<string, any>;
 }
 
@@ -106,6 +107,7 @@ export async function initializeCharge(
     currency: params.currency,
     reference: params.reference,
     customer: { email: params.email },
+    merchant_bears_cost: params.merchant_bears_cost ?? false,
     ...(params.redirect_url && { redirect_url: params.redirect_url }),
     ...(params.notification_url && { notification_url: params.notification_url }),
     ...(params.metadata && { metadata: params.metadata }),

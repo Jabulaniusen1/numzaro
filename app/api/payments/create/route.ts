@@ -30,7 +30,9 @@ export async function POST(request: NextRequest) {
     }
 
     const reference = `NMZ-${randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`;
-    const redirect_url = `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/verify`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const redirect_url = `${appUrl}/api/payments/verify`;
+    const notification_url = `${appUrl}/api/webhooks/korapay`;
 
     const result = await initializeCharge({
       email,
@@ -38,7 +40,8 @@ export async function POST(request: NextRequest) {
       currency: "NGN",
       reference,
       redirect_url,
-      metadata: { ...metadata, user_id: user.id },
+      notification_url,
+      metadata: { ...metadata, user_id: user.id, type: "wallet_funding" },
     });
 
     return NextResponse.json({
