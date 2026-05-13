@@ -1,108 +1,124 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCharge } from "@/lib/korapay/client";
+import { verifyTransaction } from "@/lib/paystack/client";
 import { authenticateRequest } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createTransactionNotification } from "@/lib/notifications/create";
-import { convertCurrency } from "@/lib/currency/rates";
+import { creditWalletFromSuccessfulPayment } from "@/lib/wallet/credit";
+import { parsePaystackMetadata, paystackAmountToMajorUnit } from "@/lib/paystack/utils";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const reference = searchParams.get("reference");
-    const paymentType = searchParams.get("type"); // 'wallet' or null
+    const reference = searchParams.get("reference") || searchParams.get("trxref");
+    const paymentType = searchParams.get("type");
 
     if (!reference) {
       return NextResponse.redirect(new URL("/dashboard?payment=error", request.url));
     }
 
-    const result = await verifyCharge(reference);
-
+    const result = await verifyTransaction(reference);
     if (!result.status) {
       return NextResponse.redirect(new URL("/dashboard?payment=error", request.url));
     }
 
-    const { user, supabase } = await authenticateRequest(request);
+    const transaction = result.data;
+    const metadata = parsePaystackMetadata(transaction.metadata);
+    const providerReference = String(transaction.reference || reference);
+    const isSuccess = String(transaction.status || "").toLowerCase() === "success";
+    const paidAmount = paystackAmountToMajorUnit(transaction.amount);
+    const paidCurrency = String(transaction.currency || "NGN").toUpperCase();
 
-    if (!user) {
-      return NextResponse.redirect(new URL("/auth/login", request.url));
+    const { user } = await authenticateRequest(request);
+    const metadataUserId =
+      typeof metadata.user_id === "string" && metadata.user_id ? metadata.user_id : null;
+    const userId = metadataUserId || user?.id || null;
+
+    if (!userId) {
+      return NextResponse.redirect(new URL("/auth/login?redirect=/dashboard", request.url));
     }
 
-    const charge = result.data;
-    const isSuccess = charge.status === "success";
+    const supabase = createServiceRoleClient();
 
-    // Store payment record
-    const { data: payment, error: paymentError } = await supabase
+    const { data: existingPayment, error: existingPaymentError } = await supabase
       .from("payments")
-      .insert({
-        user_id: user.id,
-        amount: charge.amount,       // Korapay returns main unit (not kobo)
-        currency: charge.currency,
-        payment_provider: "korapay",
-        provider_transaction_id: charge.reference,
-        status: isSuccess ? "Success" : "Failed",
-      })
-      .select()
-      .single();
+      .select("id, user_id, status")
+      .eq("provider_transaction_id", providerReference)
+      .eq("payment_provider", "paystack")
+      .maybeSingle();
 
-    if (paymentError) {
-      console.error("Error storing payment:", paymentError);
+    if (existingPaymentError) {
+      console.error("Error checking existing payment:", existingPaymentError);
+      return NextResponse.redirect(new URL("/dashboard?payment=error", request.url));
+    }
+
+    if (existingPayment?.user_id && existingPayment.user_id !== userId) {
+      console.warn(
+        `Paystack reference ${providerReference} already belongs to another user (${existingPayment.user_id})`
+      );
+    }
+
+    let payment = existingPayment;
+    const paymentOwnerId = existingPayment?.user_id || userId;
+
+    if (!payment) {
+      const { data: insertedPayment, error: insertPaymentError } = await supabase
+        .from("payments")
+        .insert({
+          user_id: paymentOwnerId,
+          amount: paidAmount,
+          currency: paidCurrency,
+          payment_provider: "paystack",
+          provider_transaction_id: providerReference,
+          status: isSuccess ? "Success" : "Failed",
+        })
+        .select("id, user_id, status")
+        .single();
+
+      if (insertPaymentError) {
+        console.error("Error storing payment:", insertPaymentError);
+        return NextResponse.redirect(new URL("/dashboard?payment=error", request.url));
+      }
+
+      payment = insertedPayment;
+    } else if (isSuccess && payment.status !== "Success") {
+      await supabase.from("payments").update({ status: "Success" }).eq("id", payment.id);
+      payment = { ...payment, status: "Success" };
     }
 
     if (isSuccess && payment) {
-      const metadata = charge.metadata ?? {};
       const isWalletFunding = paymentType === "wallet" || metadata.type === "wallet_funding";
-
       if (isWalletFunding) {
-        const { data: userProfile } = await supabase
-          .from("users")
-          .select("wallet_balance")
-          .eq("id", user.id)
-          .single();
+        const creditResult = await creditWalletFromSuccessfulPayment({
+          supabase,
+          userId: paymentOwnerId,
+          paymentId: payment.id,
+          provider: "paystack",
+          providerTransactionId: providerReference,
+          paidAmount,
+          paidCurrency,
+          description: "Wallet deposit via Paystack",
+        });
 
-        const balanceBefore = parseFloat(userProfile?.wallet_balance || "0.00");
-        const paidAmount = charge.amount;
-        const paidCurrency = charge.currency || metadata.currency || "NGN";
-
-        let depositAmountNGN = paidAmount;
-        if (paidCurrency !== "NGN") {
-          try {
-            depositAmountNGN = await convertCurrency(paidAmount, paidCurrency, "NGN");
-          } catch (err) {
-            console.error("Currency conversion error:", err);
-          }
+        if (creditResult.credited) {
+          const fundedAmount = Number(creditResult.depositAmountNGN || 0);
+          await createTransactionNotification(paymentOwnerId, "wallet_funded", fundedAmount, {
+            currency: "NGN",
+            payment_id: payment.id,
+            description: "Wallet funded via Paystack",
+          });
         }
 
-        const balanceAfter = balanceBefore + depositAmountNGN;
-
-        await supabase
-          .from("users")
-          .update({ wallet_balance: balanceAfter })
-          .eq("id", user.id);
-
-        await supabase.from("wallet_transactions").insert({
-          user_id: user.id,
-          type: "deposit",
-          amount: depositAmountNGN,
-          balance_before: balanceBefore,
-          balance_after: balanceAfter,
-          payment_id: payment.id,
-          description: `Wallet deposit via Korapay (${paidCurrency} ${paidAmount.toFixed(2)})`,
-        });
-
-        await createTransactionNotification(user.id, "wallet_funded", depositAmountNGN, {
-          currency: "NGN",
-          payment_id: payment.id,
-          description: "Wallet funded via Korapay",
-        });
-
         return NextResponse.redirect(
-          new URL(`/dashboard?payment=success&type=wallet&reference=${reference}`, request.url)
+          new URL(`/dashboard?payment=success&type=wallet&reference=${providerReference}`, request.url)
         );
       }
     }
 
     return NextResponse.redirect(
       new URL(
-        `/dashboard?payment=${isSuccess ? "success" : "failed"}&reference=${reference}`,
+        `/dashboard?payment=${isSuccess ? "success" : "failed"}&reference=${providerReference}`,
         request.url
       )
     );

@@ -51,9 +51,12 @@ Required environment variables:
 
 ### 5. Configure Paystack
 
-1. In your Paystack dashboard, set up your webhook/callback URL:
-   - Development: `http://localhost:3000/api/payments/verify`
-   - Production: `https://yourdomain.com/api/payments/verify`
+1. In your Paystack dashboard, set your webhook URL:
+   - Development: `http://localhost:3000/api/webhooks/paystack`
+   - Production: `https://yourdomain.com/api/webhooks/paystack`
+2. Payment callback/redirect is handled automatically per transaction by:
+   - `http://localhost:3000/api/payments/verify` (development)
+   - `https://yourdomain.com/api/payments/verify` (production)
 
 ### 6. Run the Development Server
 
@@ -122,4 +125,3 @@ npm start
 ## Support
 
 For issues or questions, refer to the documentation or contact support.
-

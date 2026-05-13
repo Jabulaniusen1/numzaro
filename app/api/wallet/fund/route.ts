@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
+import { initializeTransaction, PaystackError } from "@/lib/paystack/client";
 import { randomUUID } from "crypto";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,12 +14,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { amount } = body;
-    // Korapay wallet-funding popup is configured for NGN in this app.
-    // Keep the charge currency fixed to prevent unsupported-currency failures.
+    const amount = Number(body?.amount);
     const currency = "NGN";
 
     if (!amount || amount <= 0) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+    }
+
+    const amountInSubunit = Math.round(amount * 100);
+    if (!amountInSubunit || amountInSubunit <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
@@ -38,13 +44,42 @@ export async function POST(request: NextRequest) {
       user.user_metadata?.name ||
       email.split("@")[0];
 
-    // For the inline/popup SDK flow, we only generate a reference here.
-    // The Korapay SDK initializes the charge itself — pre-registering it
-    // via initializeCharge would cause a "duplicate payment reference" error.
     const reference = `NMZ-${randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
+    if (!appUrl) {
+      return NextResponse.json({ error: "NEXT_PUBLIC_APP_URL is not configured" }, { status: 500 });
+    }
 
-    return NextResponse.json({ reference, email, name, amount, currency, userId: user.id });
+    const callbackUrl = `${appUrl}/api/payments/verify?type=wallet`;
+
+    const initialized = await initializeTransaction({
+      email,
+      amount: amountInSubunit,
+      currency,
+      reference,
+      callback_url: callbackUrl,
+      metadata: {
+        type: "wallet_funding",
+        user_id: user.id,
+        source: "wallet_topup",
+      },
+    });
+
+    return NextResponse.json({
+      reference: initialized.data.reference,
+      email,
+      name,
+      amount,
+      currency,
+      userId: user.id,
+      access_code: initialized.data.access_code,
+      authorization_url: initialized.data.authorization_url,
+      checkout_url: initialized.data.authorization_url,
+    });
   } catch (error) {
+    if (error instanceof PaystackError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode || 500 });
+    }
     console.error("Wallet funding error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

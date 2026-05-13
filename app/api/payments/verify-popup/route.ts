@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCharge } from "@/lib/korapay/client";
+import { verifyTransaction } from "@/lib/paystack/client";
 import { authenticateRequest } from "@/lib/supabase/server";
-import { convertCurrency } from "@/lib/currency/rates";
+import { creditWalletFromSuccessfulPayment } from "@/lib/wallet/credit";
+import { parsePaystackMetadata, paystackAmountToMajorUnit } from "@/lib/paystack/utils";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { reference, type } = body; // type: 'wallet' or undefined
+    const reference = String(body?.reference || "");
+    const type = body?.type;
 
     if (!reference) {
       return NextResponse.json({ error: "Reference is required" }, { status: 400 });
     }
 
-    const result = await verifyCharge(reference);
-
+    const result = await verifyTransaction(reference);
     if (!result.status) {
       return NextResponse.json(
         { error: "Transaction verification failed", status: "failed" },
@@ -22,26 +25,22 @@ export async function POST(request: NextRequest) {
     }
 
     const { user, supabase } = await authenticateRequest(request);
-
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const charge = result.data;
-    const isSuccess = charge.status === "success";
-    const rawAmount = charge.amount;
-    const paidAmount =
-      typeof rawAmount === "number" ? rawAmount : parseFloat(String(rawAmount ?? "0"));
+    const transaction = result.data;
+    const metadata = parsePaystackMetadata(transaction.metadata);
+    const isSuccess = String(transaction.status || "").toLowerCase() === "success";
+    const paidAmount = paystackAmountToMajorUnit(transaction.amount);
+    const paidCurrency = String(transaction.currency || "NGN").toUpperCase();
+    const providerReference = String(transaction.reference || reference);
 
-    // Read-first payment write to avoid requiring a unique constraint on provider_transaction_id.
-    // This also handles duplicate SDK callbacks idempotently.
-    let payment: any = null;
     const { data: existingPayment, error: existingPaymentError } = await supabase
       .from("payments")
-      .select("*")
-      .eq("provider_transaction_id", charge.reference)
-      .eq("payment_provider", "korapay")
-      .eq("user_id", user.id)
+      .select("id, user_id, status")
+      .eq("provider_transaction_id", providerReference)
+      .eq("payment_provider", "paystack")
       .maybeSingle();
 
     if (existingPaymentError) {
@@ -49,107 +48,79 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Error storing payment", status: "error" }, { status: 500 });
     }
 
-    if (existingPayment) {
-      payment = existingPayment;
-    } else {
+    if (existingPayment?.user_id && existingPayment.user_id !== user.id) {
+      return NextResponse.json({ error: "Reference does not belong to this user" }, { status: 403 });
+    }
+
+    let payment = existingPayment;
+
+    if (!payment) {
       const { data: insertedPayment, error: insertPaymentError } = await supabase
         .from("payments")
         .insert({
           user_id: user.id,
           amount: paidAmount,
-          currency: charge.currency,
-          payment_provider: "korapay",
-          provider_transaction_id: charge.reference,
+          currency: paidCurrency,
+          payment_provider: "paystack",
+          provider_transaction_id: providerReference,
           status: isSuccess ? "Success" : "Failed",
         })
-        .select()
+        .select("id, user_id, status")
         .single();
 
       if (insertPaymentError) {
         console.error("Error inserting payment:", insertPaymentError);
         return NextResponse.json({ error: "Error storing payment", status: "error" }, { status: 500 });
       }
+
       payment = insertedPayment;
+    } else if (isSuccess && payment.status !== "Success") {
+      await supabase.from("payments").update({ status: "Success" }).eq("id", payment.id);
+      payment = { ...payment, status: "Success" };
     }
 
     if (isSuccess && payment) {
-      const metadata = charge.metadata ?? {};
       const isWalletFunding = type === "wallet" || metadata.type === "wallet_funding";
 
       if (isWalletFunding) {
-        // Guard against double-credit if the SDK fires callback twice
-        const { data: existingTx } = await supabase
-          .from("wallet_transactions")
-          .select("id")
-          .eq("payment_id", payment.id)
-          .maybeSingle();
+        const creditResult = await creditWalletFromSuccessfulPayment({
+          supabase,
+          userId: user.id,
+          paymentId: payment.id,
+          provider: "paystack",
+          providerTransactionId: providerReference,
+          paidAmount,
+          paidCurrency,
+          description: "Wallet deposit via Paystack",
+        });
 
-        if (existingTx) {
-          const { data: userProfile } = await supabase
-            .from("users")
-            .select("wallet_balance")
-            .eq("id", user.id)
-            .single();
+        if (creditResult.credited) {
           return NextResponse.json({
             status: "success",
             type: "wallet",
-            reference,
-            balanceAfter: parseFloat(userProfile?.wallet_balance || "0"),
+            reference: providerReference,
+            balanceAfter: creditResult.balanceAfter,
           });
         }
+
         const { data: userProfile } = await supabase
           .from("users")
           .select("wallet_balance")
           .eq("id", user.id)
           .single();
 
-        const balanceBefore = parseFloat(userProfile?.wallet_balance || "0.00");
-        if (!Number.isFinite(paidAmount) || paidAmount <= 0) {
-          return NextResponse.json(
-            { error: "Invalid payment amount from gateway", status: "failed" },
-            { status: 400 }
-          );
-        }
-        const paidCurrency = charge.currency || metadata.currency || "NGN";
-
-        let depositAmountNGN = paidAmount;
-        if (paidCurrency !== "NGN") {
-          try {
-            depositAmountNGN = await convertCurrency(paidAmount, paidCurrency, "NGN");
-          } catch (err) {
-            console.error("Currency conversion error:", err);
-          }
-        }
-
-        const balanceAfter = balanceBefore + depositAmountNGN;
-
-        await supabase
-          .from("users")
-          .update({ wallet_balance: balanceAfter })
-          .eq("id", user.id);
-
-        await supabase.from("wallet_transactions").insert({
-          user_id: user.id,
-          type: "deposit",
-          amount: depositAmountNGN,
-          balance_before: balanceBefore,
-          balance_after: balanceAfter,
-          payment_id: payment.id,
-          description: `Wallet deposit via Korapay (${paidCurrency} ${paidAmount.toFixed(2)})`,
-        });
-
         return NextResponse.json({
           status: "success",
           type: "wallet",
-          reference,
-          balanceAfter,
+          reference: providerReference,
+          balanceAfter: parseFloat(userProfile?.wallet_balance || "0"),
         });
       }
     }
 
     return NextResponse.json({
       status: isSuccess ? "success" : "failed",
-      reference,
+      reference: providerReference,
     });
   } catch (error) {
     console.error("Payment verification error:", error);

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
-import { initializeCharge, KorapayError } from "@/lib/korapay/client";
+import { initializeTransaction, PaystackError } from "@/lib/paystack/client";
 import { randomUUID } from "crypto";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,10 +14,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { amount, metadata } = body;
+    const amount = Number(body?.amount);
+    const rawMetadata = body?.metadata;
+    const currency = String(body?.currency || "NGN").toUpperCase();
+    const metadata =
+      rawMetadata && typeof rawMetadata === "object" && !Array.isArray(rawMetadata)
+        ? rawMetadata
+        : {};
 
-    if (!amount) {
+    if (!amount || amount <= 0) {
       return NextResponse.json({ error: "Amount is required" }, { status: 400 });
+    }
+
+    const amountInSubunit = Math.round(amount * 100);
+    if (!amountInSubunit || amountInSubunit <= 0) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
     const { data: userProfile } = await supabase
@@ -30,26 +43,32 @@ export async function POST(request: NextRequest) {
     }
 
     const reference = `NMZ-${randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-    const redirect_url = `${appUrl}/api/payments/verify`;
-    const notification_url = `${appUrl}/api/webhooks/korapay`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
+    if (!appUrl) {
+      return NextResponse.json({ error: "NEXT_PUBLIC_APP_URL is not configured" }, { status: 500 });
+    }
 
-    const result = await initializeCharge({
+    const paymentType = typeof metadata?.type === "string" ? metadata.type : undefined;
+    const callbackQuery = paymentType ? `?type=${encodeURIComponent(paymentType)}` : "";
+    const callbackUrl = `${appUrl}/api/payments/verify${callbackQuery}`;
+
+    const result = await initializeTransaction({
       email,
-      amount,           // Korapay uses main currency unit — no kobo conversion
-      currency: "NGN",
+      amount: amountInSubunit,
+      currency,
       reference,
-      redirect_url,
-      notification_url,
-      metadata: { ...metadata, user_id: user.id, type: "wallet_funding" },
+      callback_url: callbackUrl,
+      metadata: { ...metadata, user_id: user.id, type: paymentType || "wallet_funding" },
     });
 
     return NextResponse.json({
-      checkout_url: result.data.checkout_url,
+      checkout_url: result.data.authorization_url,
+      authorization_url: result.data.authorization_url,
+      access_code: result.data.access_code,
       reference: result.data.reference,
     });
   } catch (error) {
-    if (error instanceof KorapayError) {
+    if (error instanceof PaystackError) {
       return NextResponse.json({ error: error.message }, { status: error.statusCode || 500 });
     }
     console.error("Payment creation error:", error);
