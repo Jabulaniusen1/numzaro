@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { smsPoolClient } from "@/lib/smspool/client";
+import { getLiveFxRate } from "@/lib/currency/rates";
 
 async function getMarkupMultiplier() {
   try {
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const markup = await getMarkupMultiplier();
+    const usdToNgnRate = await getLiveFxRate("USD", "NGN").catch(() => 1500);
     const pricing = await smsPoolClient.getEsimCountries({ start: 0, length: 300 });
     const rows = Array.isArray(pricing?.data) ? pricing.data : [];
 
@@ -47,6 +49,9 @@ export async function GET(request: NextRequest) {
       const charged = Number.isFinite(rawPrice)
         ? parseFloat((rawPrice * markup).toFixed(4))
         : 0;
+      const chargedNgn = Number.isFinite(charged)
+        ? parseFloat((charged * usdToNgnRate).toFixed(2))
+        : 0;
       const current = merged.get(code);
 
       if (!current || charged < current.startingChargedUsd) {
@@ -56,6 +61,7 @@ export async function GET(request: NextRequest) {
           flag: flagFromIso2(code),
           startingPriceUsd: Number.isFinite(rawPrice) ? rawPrice : 0,
           startingChargedUsd: charged,
+          startingChargedNgn: chargedNgn,
         });
       }
     }

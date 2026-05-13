@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
     const [socialResult, numberResult, esimResult, usersWindowResult, usersCountResult] = await Promise.all([
       supabase
         .from("orders")
-        .select("customer_charge, status, created_at")
+        .select("charge, status, created_at")
         .gte("created_at", windowConfig.previousStart.toISOString()),
       supabase
         .from("number_purchases")
@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
 
     const socialOrders: BaseOrder[] = (socialResult.data || []).map((order: any) => ({
       source: "social_boost",
-      amount: toNumber(order.customer_charge),
+      amount: toNumber(order.charge),
       status: order.status || "unknown",
       created_at: order.created_at,
     }));

@@ -25,6 +25,7 @@ This file is the NEW changeset to apply on top of the original
    - Before purchase: user can switch quickly to fetch another option.
    - After purchase: user can tap "Get another number" for instant re-buy.
 7. Buy CTA text must truncate in UI if service names are long.
+8. Wallet funding provider is Paystack only (same as web).
 
 ================================================================================
   2) DIRECT SUPABASE VS API ROUTES (UPDATED)
@@ -189,11 +190,19 @@ Fund wallet:
 - Keep sending NGN from mobile:
   {
     "amount": 5000,
-    "currency": "NGN"
+    "currency": "NGN",
+    "provider": "paystack"
   }
 
 Verify:
 - `POST /api/payments/verify-popup`
+- Send:
+  {
+    "reference": "NMZ-...",
+    "type": "wallet",
+    "provider": "paystack"
+  }
+- Server enforces Paystack-only for wallet funding routes.
 
 ================================================================================
   7) ENVIRONMENT VARIABLES (UPDATED)

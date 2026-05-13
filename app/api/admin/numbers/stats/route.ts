@@ -18,16 +18,17 @@ export async function GET(request: NextRequest) {
     // Get total revenue from number purchases
     const { data: purchases, error: purchasesError } = await supabase
       .from("number_purchases")
-      .select("amount, actual_cost, profit, created_at");
+      .select("amount, profit, created_at");
 
     if (purchasesError) {
       console.error("Error fetching purchases:", purchasesError);
     }
 
     const totalRevenue = purchases?.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0) || 0;
-    // Get total costs and profit from number purchases (using actual_cost and profit fields)
-    const totalCosts = purchases?.reduce((sum, p) => sum + parseFloat(p.actual_cost?.toString() || "0"), 0) || 0;
+    // profit is stored in NGN; derive costs from revenue - profit (both NGN)
+    // actual_cost is the raw USD provider price — do NOT sum it directly
     const totalProfit = purchases?.reduce((sum, p) => sum + parseFloat(p.profit?.toString() || "0"), 0) || 0;
+    const totalCosts = totalRevenue - totalProfit;
 
     // Get stats by country
     const { data: numbersByCountry } = await supabase
@@ -52,15 +53,11 @@ export async function GET(request: NextRequest) {
       (sum, p) => sum + parseFloat(p.amount.toString()),
       0
     );
-
-    const thisMonthCosts = thisMonthPurchases.reduce(
-      (sum, p) => sum + parseFloat(p.actual_cost?.toString() || "0"),
-      0
-    );
     const thisMonthProfit = thisMonthPurchases.reduce(
       (sum, p) => sum + parseFloat(p.profit?.toString() || "0"),
       0
     );
+    const thisMonthCosts = thisMonthRevenue - thisMonthProfit;
 
     // Get total numbers
     const { count: totalNumbers } = await supabase

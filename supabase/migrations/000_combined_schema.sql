@@ -240,7 +240,7 @@ CREATE TABLE IF NOT EXISTS public.number_purchases (
   virtual_number_id     UUID REFERENCES public.virtual_numbers(id) ON DELETE CASCADE NOT NULL,
   amount                DECIMAL(10,2) NOT NULL,
   currency              VARCHAR(3) DEFAULT 'USD'
-                          CHECK (currency IN ('USD','RUB','EUR','GBP')),
+                          CHECK (currency IN ('USD','RUB','EUR','GBP','NGN')),
   status                VARCHAR(20) DEFAULT 'completed',
   wallet_transaction_id UUID REFERENCES public.wallet_transactions(id) ON DELETE SET NULL,
   actual_cost           DECIMAL(10,4),

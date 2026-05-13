@@ -44,7 +44,7 @@ export async function runRenewals() {
     const expiresAt = new Date(number.expires_at);
     const daysUntilExpiry = Math.floor((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     const isExpired = expiresAt <= now;
-    const monthlyCharge = parseFloat(number.monthly_cost ?? number.twilio_monthly_cost ?? "0");
+    const monthlyCharge = parseFloat(number.monthly_cost ?? "0");
     const userBalance = parseFloat(user.wallet_balance ?? "0");
 
     // ── Send reminder (still active, not yet expired) ─────────────────────
@@ -238,7 +238,7 @@ export async function runTextverifiedRenewals() {
     const daysUntilExpiry = Math.floor((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     const isExpired = expiresAt <= now;
     const rentalType = number.product_code === "nonrenewable" ? "nonrenewable" : "renewable";
-    const monthlyCharge = parseFloat(number.monthly_cost ?? number.twilio_monthly_cost ?? "0");
+    const monthlyCharge = parseFloat(number.monthly_cost ?? "0");
     const userBalance = parseFloat(user.wallet_balance ?? "0");
 
     if (!isExpired && daysUntilExpiry <= REMINDER_DAYS_BEFORE && !number.renewal_reminder_sent) {

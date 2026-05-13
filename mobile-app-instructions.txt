@@ -263,12 +263,12 @@ authenticated Supabase client respects the same RLS policies automatically.
 
   EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
   EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-  EXPO_PUBLIC_API_BASE_URL=https://your-deployed-nextjs-app.com
+  EXPO_PUBLIC_API_BASE_URL=http://localhost:3000
 
   EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are safe to
   expose — Supabase RLS policies prevent unauthorized data access.
 
-  EXPO_PUBLIC_API_BASE_URL is your deployed Next.js web app. It is only called
+  EXPO_PUBLIC_API_BASE_URL is your local/deployed Next.js web app. It is only called
   for the handful of operations that need server-side secrets.
 
   NEVER put SMSPOOL_API_KEY, PAYSTACK_SECRET_KEY, or EXCHANGE_RATE_API_KEY
@@ -784,8 +784,8 @@ Step 1: User enters amount in a Modal:
   Suggested quick amounts: 5,000 / 10,000 / 20,000 NGN
 
 Step 2: Initiate payment:
-  POST /api/wallet/fund   body: { amount, currency: "NGN" }
-  Returns: { access_code, reference, email }
+  POST /api/wallet/fund   body: { amount, currency: "NGN", provider: "paystack" }
+  Returns: { provider, access_code, reference, email }
 
 Step 3: Open Paystack in a WebView:
   npx expo install react-native-webview
@@ -796,13 +796,17 @@ Step 4: Detect redirect in WebView:
     if (navState.url.includes('your-callback-url') || navState.url.includes('numzaro://')) {
       setWebViewVisible(false);
       // Verify payment:
-      POST /api/payments/verify-popup  body: { reference, type: 'wallet' }
+      POST /api/payments/verify-popup  body: { reference, type: 'wallet', provider: 'paystack' }
     }
   }}
 
 Step 5: After verification:
   queryClient.invalidateQueries({ queryKey: ['balance'] })
   Show success toast
+
+Paystack enforcement:
+  /api/wallet/fund, /api/payments/create, and /api/payments/verify-popup
+  accept only provider = "paystack". Any other provider value returns 400.
 
 Deep link scheme in app.json:
   "scheme": "numzaro"
@@ -928,12 +932,15 @@ File: lib/api.ts
 
   // ── Wallet funding (uses Paystack secret key) ──
   export const initWalletFund = (amount: number, currency: string) =>
-    apiFetch('/api/wallet/fund', { method: 'POST', body: JSON.stringify({ amount, currency }) });
+    apiFetch('/api/wallet/fund', {
+      method: 'POST',
+      body: JSON.stringify({ amount, currency, provider: 'paystack' }),
+    });
 
   export const verifyPayment = (reference: string) =>
     apiFetch('/api/payments/verify-popup', {
       method: 'POST',
-      body: JSON.stringify({ reference, type: 'wallet' }),
+      body: JSON.stringify({ reference, type: 'wallet', provider: 'paystack' }),
     });
 
 CORS note:

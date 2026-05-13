@@ -35,7 +35,12 @@
       "WebFetch(domain:static.korapay.com)",
       "WebFetch(domain:static.korahq.com)",
       "WebFetch(domain:js.korahq.com)",
-      "WebFetch(domain:support.korapay.com)"
+      "WebFetch(domain:support.korapay.com)",
+      "Bash(xargs -I {} find {} -type f)",
+      "Bash(pnpm remove *)",
+      "Bash(supabase --version)",
+      "Bash(eas whoami *)",
+      "Bash(eas build *)"
     ]
   }
 }

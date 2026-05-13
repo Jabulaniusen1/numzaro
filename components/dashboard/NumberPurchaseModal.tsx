@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import { useRouter } from "next/navigation";
+import { sanitizeProviderErrorMessage } from "@/lib/errors/sanitize-provider-error";
 
 interface NumberPurchaseModalProps {
   open: boolean;
@@ -38,14 +39,6 @@ export function NumberPurchaseModal({
   const [numberType, setNumberType] = useState<"subscription" | "one_time_otp">("subscription");
   const [oneTimePrice, setOneTimePrice] = useState<number | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
-
-  const providerLabel = (provider?: string) => {
-    if (!provider) return null;
-    if (provider === "smspool") return "SMSPool";
-    if (provider === "textverified") return "TextVerified";
-    if (provider === "platfone") return "Platfone";
-    return provider;
-  };
 
   // Check if country is Israel (IL) - one-time OTP not allowed
   const isIsrael = number?.countryCode?.toUpperCase() === "IL";
@@ -112,9 +105,7 @@ export function NumberPurchaseModal({
       const data = await response.json();
 
       if (!response.ok) {
-        const label = providerLabel(data.provider || data.errorSource);
-        const prefix = label ? `${label}: ` : "";
-        throw new Error(`${prefix}${data.error || "Failed to purchase number"}`);
+        throw new Error(sanitizeProviderErrorMessage(data?.error, "Failed to purchase number"));
       }
 
       toast({
@@ -128,7 +119,7 @@ export function NumberPurchaseModal({
       }
       router.push("/dashboard/numbers/my-numbers");
     } catch (error: any) {
-      const errorMessage = error.message || "An error occurred";
+      const errorMessage = sanitizeProviderErrorMessage(error?.message, "An error occurred");
 
       // Check if it's a bundle requirement error
       const isBundleError = errorMessage.includes("Bundle") || errorMessage.includes("bundle");
@@ -278,5 +269,4 @@ export function NumberPurchaseModal({
     </Dialog>
   );
 }
-
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/lib/hooks/use-toast";
-import { RefreshCw, ChevronLeft, ChevronRight, Package, ExternalLink } from "lucide-react";
+import { RefreshCw, ChevronLeft, ChevronRight, Package, ExternalLink, XCircle } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +42,7 @@ export default function OrdersPage() {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const { toast } = useToast();
   const ngn = (n: number) => `₦${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -67,6 +68,30 @@ export default function OrdersPage() {
   const refreshOrders = async () => {
     await fetchOrders();
     toast({ title: "Orders refreshed" });
+  };
+
+  const handleCancel = async (orderId: string) => {
+    setCancellingId(orderId);
+    try {
+      const res = await fetch("/api/orders/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to cancel order");
+      toast({ title: "Order cancelled", description: `₦${(data.refunded || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} refunded to your wallet.` });
+      await fetchOrders();
+    } catch (err: any) {
+      toast({ title: "Cancel failed", description: err.message, variant: "destructive" });
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const isCancellable = (status: string) => {
+    const s = status.toLowerCase();
+    return s === "pending" || s === "in progress";
   };
 
   return (
@@ -155,6 +180,7 @@ export default function OrdersPage() {
                       <th className="py-3.5 px-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wide">Status</th>
                       <th className="py-3.5 px-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wide">Charge</th>
                       <th className="py-3.5 px-5 text-right text-xs font-bold text-gray-400 uppercase tracking-wide">Date</th>
+                      <th className="py-3.5 px-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wide">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
@@ -185,6 +211,22 @@ export default function OrdersPage() {
                         <td className="py-3.5 px-5 text-right text-xs text-gray-400">
                           {new Date(order.created_at).toLocaleDateString()}
                         </td>
+                        <td className="py-3.5 px-4 text-center">
+                          {isCancellable(order.status) && (
+                            <button
+                              onClick={() => handleCancel(order.id)}
+                              disabled={cancellingId === order.id}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {cancellingId === order.id ? (
+                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <XCircle className="h-3.5 w-3.5" />
+                              )}
+                              Cancel
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -213,6 +255,20 @@ export default function OrdersPage() {
                       <span className="text-gray-400 text-xs">{order.quantity.toLocaleString()} items · {new Date(order.created_at).toLocaleDateString()}</span>
                       <span className="font-black text-[#7C5CFC]">{ngn(order.charge || 0)}</span>
                     </div>
+                    {isCancellable(order.status) && (
+                      <button
+                        onClick={() => handleCancel(order.id)}
+                        disabled={cancellingId === order.id}
+                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {cancellingId === order.id ? (
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <XCircle className="h-3.5 w-3.5" />
+                        )}
+                        Cancel & Refund
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

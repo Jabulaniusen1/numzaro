@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
-import { Loader2, Download, MessageSquare, Shield, Phone, Wallet, CreditCard } from "lucide-react";
+import { Loader2, Download, Phone, Wallet, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
@@ -57,12 +57,6 @@ export default function TransactionsPage() {
   };
 
   const getTransactionIcon = (type: string, transactionType: string) => {
-    if (type === "twilio_charge") {
-      if (transactionType.includes("otp")) {
-        return <Shield className="h-4 w-4" />;
-      }
-      return <MessageSquare className="h-4 w-4" />;
-    }
     if (type === "number_purchase" || transactionType === "number_renewal") {
       return <Phone className="h-4 w-4" />;
     }
@@ -80,20 +74,6 @@ export default function TransactionsPage() {
   };
 
   const getTransactionBadge = (type: string, transactionType: string) => {
-    if (type === "twilio_charge") {
-      if (transactionType.includes("otp")) {
-        return <Badge variant="outline" className="bg-purple-50 dark:bg-purple-900/20">OTP</Badge>;
-      }
-      if (transactionType.includes("sms")) {
-        return <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/20">SMS</Badge>;
-      }
-      if (transactionType.includes("number_renewal")) {
-        return <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20">Renewal</Badge>;
-      }
-      if (transactionType.includes("number_purchase")) {
-        return <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20">Purchase</Badge>;
-      }
-    }
     if (type === "number_purchase") {
       return <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20">Purchase</Badge>;
     }
@@ -114,7 +94,6 @@ export default function TransactionsPage() {
     if (filter === "charges") return tx.amount < 0;
     if (filter === "deposits") return tx.amount > 0;
     if (filter === "numbers") return tx.type === "number_purchase" || tx.transaction_type === "number_renewal";
-    if (filter === "sms_otp") return tx.type === "twilio_charge";
     return true;
   });
 
@@ -217,13 +196,6 @@ export default function TransactionsPage() {
           onClick={() => setFilter("numbers")}
         >
           Numbers
-        </Button>
-        <Button
-          variant={filter === "sms_otp" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setFilter("sms_otp")}
-        >
-          SMS/OTP
         </Button>
       </div>
 

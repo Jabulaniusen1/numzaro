@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { smsPoolClient } from "@/lib/smspool/client";
+import { getLiveFxRate } from "@/lib/currency/rates";
 
 async function getMarkupMultiplier() {
   try {
@@ -14,7 +15,7 @@ async function getMarkupMultiplier() {
     const pct = data ? parseFloat(data.value) : 30.0;
     return 1 + pct / 100;
   } catch {
-    return 1.3; // default 30% markup
+    return 1.3;
   }
 }
 
@@ -26,6 +27,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const locationCode = String(body?.locationCode || "").trim().toUpperCase();
     const markupMultiplier = await getMarkupMultiplier();
+    const usdToNgnRate = await getLiveFxRate("USD", "NGN").catch(() => 1500);
 
     const gbToBytes = (gb: number) => {
       if (!Number.isFinite(gb) || gb <= 0) return 0;
@@ -65,6 +67,7 @@ export async function POST(request: NextRequest) {
           location: locationName,
           priceUsd,
           chargedUsd: parseFloat((priceUsd * markupMultiplier).toFixed(4)),
+          chargedNgn: parseFloat((priceUsd * markupMultiplier * usdToNgnRate).toFixed(2)),
           dataFormatted: formatBytes(volumeBytes),
         };
       });
@@ -86,6 +89,7 @@ export async function POST(request: NextRequest) {
           location: item.name || item.countryCode || "Global",
           priceUsd,
           chargedUsd: parseFloat((priceUsd * markupMultiplier).toFixed(4)),
+          chargedNgn: parseFloat((priceUsd * markupMultiplier * usdToNgnRate).toFixed(2)),
           dataFormatted: formatBytes(volumeBytes),
         };
       });

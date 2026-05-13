@@ -25,9 +25,9 @@ CREATE TABLE IF NOT EXISTS esim_orders (
   esim_status     text,              -- raw status from eSIM Access
   smdp_status     text,
 
-  -- Financials (all USD)
-  provider_cost   numeric(10, 4) NOT NULL,  -- cost from eSIM Access
-  charged_amount  numeric(10, 4) NOT NULL,  -- amount deducted from user wallet
+  -- Financials
+  provider_cost   numeric(10, 4) NOT NULL,  -- provider raw cost (USD)
+  charged_amount  numeric(10, 4) NOT NULL,  -- amount deducted from user wallet (NGN)
 
   created_at      timestamptz DEFAULT now(),
   updated_at      timestamptz DEFAULT now()

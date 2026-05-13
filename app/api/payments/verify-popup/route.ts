@@ -9,6 +9,14 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const provider = String(body?.provider || "paystack").toLowerCase();
+    if (provider !== "paystack") {
+      return NextResponse.json(
+        { error: "Unsupported payment provider. Use Paystack.", provider: "paystack" },
+        { status: 400 }
+      );
+    }
+
     const reference = String(body?.reference || "");
     const type = body?.type;
 
@@ -19,7 +27,7 @@ export async function POST(request: NextRequest) {
     const result = await verifyTransaction(reference);
     if (!result.status) {
       return NextResponse.json(
-        { error: "Transaction verification failed", status: "failed" },
+        { error: "Transaction verification failed", status: "failed", provider: "paystack" },
         { status: 400 }
       );
     }
@@ -97,6 +105,7 @@ export async function POST(request: NextRequest) {
         if (creditResult.credited) {
           return NextResponse.json({
             status: "success",
+            provider: "paystack",
             type: "wallet",
             reference: providerReference,
             balanceAfter: creditResult.balanceAfter,
@@ -111,6 +120,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
           status: "success",
+          provider: "paystack",
           type: "wallet",
           reference: providerReference,
           balanceAfter: parseFloat(userProfile?.wallet_balance || "0"),
@@ -120,6 +130,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       status: isSuccess ? "success" : "failed",
+      provider: "paystack",
       reference: providerReference,
     });
   } catch (error) {

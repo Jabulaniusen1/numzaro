@@ -174,7 +174,6 @@ export default function ServicesPage() {
     `₦${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   useEffect(() => {
-    console.log("Boost Socials page loaded");
     fetchServices();
     fetchBalance();
   }, []);

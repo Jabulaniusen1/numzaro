@@ -10,6 +10,7 @@ import { Search, List, Loader2, ChevronRight, Clock, ChevronLeft } from "lucide-
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { sanitizeProviderErrorMessage } from "@/lib/errors/sanitize-provider-error";
 import {
   FaWhatsapp, FaInstagram, FaFacebook, FaTelegram, FaGoogle,
   FaTwitter, FaTiktok, FaYoutube, FaSpotify, FaDiscord,
@@ -214,7 +215,11 @@ export default function NumbersPage() {
         }))
       );
     } catch (err: any) {
-      toast({ title: "Error", description: err?.message || "Failed to load services", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: sanitizeProviderErrorMessage(err?.message, "Failed to load services"),
+        variant: "destructive",
+      });
     } finally {
       setLoadingServices(false);
     }
@@ -228,7 +233,11 @@ export default function NumbersPage() {
       if (!res.ok) throw new Error(data?.error || `${res.status}`);
       setTvServices(data.services ?? []);
     } catch (err: any) {
-      toast({ title: "Error", description: err?.message || "Failed to load US services", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: sanitizeProviderErrorMessage(err?.message, "Failed to load US services"),
+        variant: "destructive",
+      });
     } finally {
       setLoadingTvServices(false);
     }
@@ -243,7 +252,11 @@ export default function NumbersPage() {
       if (!res.ok) throw new Error(data?.error || `${res.status}`);
       setCountries(data.countries ?? []);
     } catch (err: any) {
-      toast({ title: "Error", description: err?.message || "Failed to load countries", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: sanitizeProviderErrorMessage(err?.message, "Failed to load countries"),
+        variant: "destructive",
+      });
     } finally {
       setLoadingCountries(false);
     }
@@ -258,7 +271,11 @@ export default function NumbersPage() {
       if (!res.ok) throw new Error(data?.error || "Price unavailable");
       setTvPrice(data.price);
     } catch (err: any) {
-      toast({ title: "Price Error", description: err?.message || "Failed to fetch price", variant: "destructive" });
+      toast({
+        title: "Price Error",
+        description: sanitizeProviderErrorMessage(err?.message, "Failed to fetch price"),
+        variant: "destructive",
+      });
     } finally {
       setLoadingTvPrice(false);
     }
@@ -348,9 +365,7 @@ export default function NumbersPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        const label = data.provider || data.errorSource;
-        const prefix = label ? `${label}: ` : "";
-        throw new Error(`${prefix}${data.error || "Purchase failed"}`);
+        throw new Error(sanitizeProviderErrorMessage(data?.error, "Purchase failed"));
       }
 
       const displayName = region === "us"
@@ -370,7 +385,11 @@ export default function NumbersPage() {
       fetchBalance();
       router.push("/dashboard/numbers/my-numbers");
     } catch (e: any) {
-      toast({ title: "Purchase Failed", description: e.message, variant: "destructive" });
+      toast({
+        title: "Purchase Failed",
+        description: sanitizeProviderErrorMessage(e?.message, "Purchase failed"),
+        variant: "destructive",
+      });
     } finally {
       setPurchasing(false);
     }

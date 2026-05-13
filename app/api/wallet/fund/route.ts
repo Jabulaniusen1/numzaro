@@ -14,6 +14,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const provider = String(body?.provider || "paystack").toLowerCase();
+    if (provider !== "paystack") {
+      return NextResponse.json(
+        { error: "Unsupported payment provider. Use Paystack.", provider: "paystack" },
+        { status: 400 }
+      );
+    }
+
     const amount = Number(body?.amount);
     const currency = "NGN";
 
@@ -66,6 +74,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
+      provider: "paystack",
       reference: initialized.data.reference,
       email,
       name,

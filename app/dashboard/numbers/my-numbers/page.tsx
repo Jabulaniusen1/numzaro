@@ -10,6 +10,7 @@ import { Search, RefreshCw, Copy, Phone, Clock, CheckCircle2, XCircle, Loader2 }
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { format as dateFormat, differenceInSeconds, parseISO } from "date-fns";
+import { sanitizeProviderErrorMessage } from "@/lib/errors/sanitize-provider-error";
 import {
   FaWhatsapp, FaInstagram, FaFacebook, FaTelegram, FaGoogle,
   FaTwitter, FaTiktok, FaYoutube, FaSpotify, FaDiscord,
@@ -148,11 +149,15 @@ export default function MyNumbersPage() {
           country_code: n.country_code || "",
           country_name: n.country_name || "",
           otp_code:     n.otp_code,
-          provider:     n.provider || "platfone",
+          provider:     n.provider || "smspool",
         }))
       );
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: sanitizeProviderErrorMessage(err?.message, "Failed to fetch numbers"),
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -174,7 +179,11 @@ export default function MyNumbersPage() {
       if (data.otp_code) navigator.clipboard.writeText(data.otp_code).catch(() => {});
       await fetchNumbers();
     } catch (err: any) {
-      toast({ title: "Sync failed", description: err.message, variant: "destructive" });
+      toast({
+        title: "Sync failed",
+        description: sanitizeProviderErrorMessage(err?.message, "Sync failed"),
+        variant: "destructive",
+      });
     } finally {
       setSyncing(null);
     }
@@ -189,7 +198,11 @@ export default function MyNumbersPage() {
       toast({ title: "Number cancelled" });
       await fetchNumbers();
     } catch (err: any) {
-      toast({ title: "Cancel failed", description: err.message, variant: "destructive" });
+      toast({
+        title: "Cancel failed",
+        description: sanitizeProviderErrorMessage(err?.message, "Cancel failed"),
+        variant: "destructive",
+      });
     } finally {
       setCancelling(null);
     }

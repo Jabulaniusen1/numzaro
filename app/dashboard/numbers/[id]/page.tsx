@@ -75,6 +75,8 @@ export default function NumberDetailPage() {
     return null;
   }
 
+  const statusKey = String(number.status || "").toLowerCase();
+
   const statusColors: Record<string, string> = {
     active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
     suspended: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
@@ -124,7 +126,7 @@ export default function NumberDetailPage() {
           </div>
         </div>
         <div className="">
-          <Badge className={statusColors[number.status] || "self-start sm:self-auto"}>
+          <Badge className={statusColors[statusKey] || "self-start sm:self-auto"}>
             {number.status}
           </Badge>
         </div>
@@ -181,7 +183,7 @@ export default function NumberDetailPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Status</p>
-              <Badge className={statusColors[number.status] || ""}>
+              <Badge className={statusColors[statusKey] || ""}>
                 {number.status}
               </Badge>
             </div>

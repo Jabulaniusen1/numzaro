@@ -17,6 +17,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { sanitizeProviderErrorMessage } from "@/lib/errors/sanitize-provider-error";
 
 interface NumberActionsProps {
   numberId: string;
@@ -74,7 +75,7 @@ export function NumberActions({
     } catch (error: any) {
       toast({
         title: "Renewal Failed",
-        description: error.message || "Failed to renew number",
+        description: sanitizeProviderErrorMessage(error?.message, "Failed to renew number"),
         variant: "destructive",
       });
     } finally {
@@ -109,7 +110,7 @@ export function NumberActions({
     } catch (error: any) {
       toast({
         title: "Release Failed",
-        description: error.message || "Failed to release number",
+        description: sanitizeProviderErrorMessage(error?.message, "Failed to release number"),
         variant: "destructive",
       });
     } finally {

@@ -12,25 +12,18 @@ export async function GET() {
 
     const areaCodes = await textverifiedClient.getAreaCodes();
     if (!Array.isArray(areaCodes) || areaCodes.length === 0) {
-      return NextResponse.json(
-        { error: "No area codes returned from provider" },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: "No area codes returned from provider" }, { status: 502 });
     }
 
     const data = [
       { code: "any", name: "Any area code", flag: "🇺🇸" },
-      ...areaCodes.map((c) => ({
-        code: String(c.areaCode),
-        name: `${c.state} (${c.areaCode})`,
-        flag: "🇺🇸",
-      })),
+      ...areaCodes.map((c) => ({ code: String(c.areaCode), name: `${c.state} (${c.areaCode})`, flag: "🇺🇸" })),
     ];
 
     cache = { data, ts: Date.now() };
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error("[textverified/area-codes]", error.message);
+    console.error("[rentals/countries]", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

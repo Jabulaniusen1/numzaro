@@ -1,6 +1,5 @@
 /**
- * Comprehensive list of all countries supported by Twilio for phone numbers
- * Based on Twilio's global phone number availability (100+ countries)
+ * Comprehensive list of countries supported for virtual phone numbers (100+)
  * ISO 3166-1 alpha-2 country codes
  */
 

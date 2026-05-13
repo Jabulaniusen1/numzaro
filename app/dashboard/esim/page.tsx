@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useCurrency } from "@/lib/hooks/use-currency";
 import { cn } from "@/lib/utils";
 import {
   Search, RefreshCw, ChevronLeft, ChevronRight,
@@ -24,6 +25,7 @@ interface ESimPackage {
   location: string;
   priceUsd: number;
   chargedUsd: number;
+  chargedNgn?: number;
   dataFormatted: string;
 }
 
@@ -32,6 +34,7 @@ interface ESimCountry {
   name: string;
   flag: string;
   startingChargedUsd: number;
+  startingChargedNgn?: number;
 }
 
 interface ESimOrder {
@@ -49,6 +52,7 @@ interface ESimOrder {
   status: string;
   esim_status: string | null;
   charged_amount: number;
+  charged_currency?: string;
   created_at: string;
 }
 
@@ -105,6 +109,7 @@ function BuyModal({ pkg, onClose, onSuccess }: { pkg: ESimPackage; onClose: () =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { format: formatCurrency, convertFromUSD } = useCurrency();
 
   const handleBuy = async () => {
     setLoading(true); setError(null);
@@ -156,7 +161,9 @@ function BuyModal({ pkg, onClose, onSuccess }: { pkg: ESimPackage; onClose: () =
           </div>
           <div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex justify-between text-base font-bold">
             <span className="text-gray-700 dark:text-gray-200">Total</span>
-            <span className="text-[#7C5CFC]">${pkg.chargedUsd.toFixed(2)}</span>
+            <span className="text-[#7C5CFC]">
+              {formatCurrency(pkg.chargedNgn ?? convertFromUSD(pkg.chargedUsd))}
+            </span>
           </div>
         </div>
 
@@ -333,6 +340,7 @@ function OrderDetailModal({ order, onClose }: { order: ESimOrder; onClose: () =>
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [loadingUsage, setLoadingUsage] = useState(false);
   const { toast } = useToast();
+  const { format: formatCurrency, convertFromUSD } = useCurrency();
 
   const fetchUsage = async () => {
     if (!order.esim_tran_no) return;
@@ -378,7 +386,11 @@ function OrderDetailModal({ order, onClose }: { order: ESimOrder; onClose: () =>
             <span className={cn("text-xs font-bold px-3 py-1 rounded-full", statusStyle(order.status))}>
               {statusLabel(order.status)}
             </span>
-            <span className="text-xs text-gray-400">${order.charged_amount.toFixed(2)}</span>
+            <span className="text-xs text-gray-400">
+              {String(order.charged_currency || "NGN").toUpperCase() === "USD"
+                ? formatCurrency(convertFromUSD(order.charged_amount))
+                : formatCurrency(order.charged_amount)}
+            </span>
           </div>
 
           {/* QR Code + Installation Details + Connect Buttons */}
@@ -462,6 +474,7 @@ export default function ESimPage() {
   const [selectedOrder, setSelectedOrder] = useState<ESimOrder | null>(null);
 
   const { toast } = useToast();
+  const { format: formatCurrency, convertFromUSD } = useCurrency();
 
   const fetchCountries = useCallback(async () => {
     setLoadingCountries(true);
@@ -476,6 +489,7 @@ export default function ESimPage() {
           name: String(c.name || c.code || "Country"),
           flag: c.flag || flagFromIso2(String(c.code || "").toUpperCase()),
           startingChargedUsd: Number(c.startingChargedUsd || 0),
+          startingChargedNgn: Number(c.startingChargedNgn || 0),
         }))
       );
     } catch (err: any) {
@@ -537,6 +551,14 @@ export default function ESimPage() {
     if (!q) return true;
     return c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q);
   });
+
+  const formatOrderCharge = (order: ESimOrder) => {
+    const currency = String(order.charged_currency || "NGN").toUpperCase();
+    if (currency === "USD") {
+      return formatCurrency(convertFromUSD(order.charged_amount));
+    }
+    return formatCurrency(order.charged_amount);
+  };
 
   return (
     <div className="min-h-screen bg-[#F0F2FA] dark:bg-gray-900">
@@ -624,7 +646,7 @@ export default function ESimPage() {
                         <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{country.name}</p>
                         <p className="text-xs text-gray-400 mt-1">{country.code}</p>
                         <p className="text-xs text-[#7C5CFC] font-semibold mt-2">
-                          From ${country.startingChargedUsd.toFixed(2)}
+                          From {formatCurrency(country.startingChargedNgn || convertFromUSD(country.startingChargedUsd))}
                         </p>
                       </button>
                     ))}
@@ -712,7 +734,7 @@ export default function ESimPage() {
                         <option value="">— Choose a plan —</option>
                         {packages.map((pkg) => (
                           <option key={pkg.packageCode} value={pkg.packageCode}>
-                            {pkg.dataFormatted} · {pkg.duration} {pkg.durationUnit} — ${pkg.chargedUsd.toFixed(2)}
+                            {pkg.dataFormatted} · {pkg.duration} {pkg.durationUnit} — {formatCurrency(pkg.chargedNgn || convertFromUSD(pkg.chargedUsd))}
                           </option>
                         ))}
                       </select>
@@ -736,7 +758,9 @@ export default function ESimPage() {
                           <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl">
                             <BarChart3 className="h-4 w-4 text-[#7C5CFC] mb-1" />
                             <span className="text-xs text-gray-500 dark:text-gray-400">Price</span>
-                            <span className="text-sm font-bold text-[#7C5CFC] mt-0.5">${dropdownPkg.chargedUsd.toFixed(2)}</span>
+                            <span className="text-sm font-bold text-[#7C5CFC] mt-0.5">
+                              {formatCurrency(dropdownPkg.chargedNgn || convertFromUSD(dropdownPkg.chargedUsd))}
+                            </span>
                           </div>
                         </div>
                         <Button
@@ -809,7 +833,7 @@ export default function ESimPage() {
                         <span className={cn("text-xs font-bold px-2.5 py-0.5 rounded-full", statusStyle(order.status))}>
                           {statusLabel(order.status)}
                         </span>
-                        <span className="text-xs text-gray-400">${order.charged_amount.toFixed(2)}</span>
+                        <span className="text-xs text-gray-400">{formatOrderCharge(order)}</span>
                       </div>
                     </button>
                   ))}

@@ -3,6 +3,16 @@ import { textverifiedClient } from "@/lib/textverified/client";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { convertCurrency } from "@/lib/currency/rates";
 
+const RENTAL_DURATIONS: Array<{ key: string; label: string; days: number }> = [
+  { key: "oneDay",      label: "1 Day",    days: 1 },
+  { key: "threeDay",    label: "3 Days",   days: 3 },
+  { key: "sevenDay",    label: "1 Week",   days: 7 },
+  { key: "fourteenDay", label: "2 Weeks",  days: 14 },
+  { key: "thirtyDay",   label: "1 Month",  days: 30 },
+  { key: "ninetyDay",   label: "3 Months", days: 90 },
+  { key: "oneYear",     label: "1 Year",   days: 365 },
+];
+
 async function getMarkupMultiplier() {
   try {
     const supabase = createServiceRoleClient();
@@ -13,9 +23,8 @@ async function getMarkupMultiplier() {
       .single();
     const pct = data ? parseFloat(data.value) : 400.0;
     return 1 + pct / 100;
-  } catch (e) {
-    console.error("[textverified/pricing] markup fetch failed:", e);
-    return 5.0; // 400% fallback
+  } catch {
+    return 5.0;
   }
 }
 
@@ -25,16 +34,6 @@ export async function GET(request: NextRequest) {
   const mode = request.nextUrl.searchParams.get("mode") || "activation";
   const isRenewableParam = request.nextUrl.searchParams.get("isRenewable");
   const duration = request.nextUrl.searchParams.get("duration");
-
-  const RENTAL_DURATIONS: Array<{ key: string; label: string; days: number }> = [
-    { key: "oneDay", label: "1 Day", days: 1 },
-    { key: "threeDay", label: "3 Days", days: 3 },
-    { key: "sevenDay", label: "1 Week", days: 7 },
-    { key: "fourteenDay", label: "2 Weeks", days: 14 },
-    { key: "thirtyDay", label: "1 Month", days: 30 },
-    { key: "ninetyDay", label: "3 Months", days: 90 },
-    { key: "oneYear", label: "1 Year", days: 365 },
-  ];
 
   try {
     if (!service || !country) {
@@ -56,8 +55,7 @@ export async function GET(request: NextRequest) {
           capability: "sms",
         });
         const raw = parseFloat(String(price.price));
-        if (Number.isNaN(raw)) return null;
-        return raw;
+        return Number.isNaN(raw) ? null : raw;
       };
 
       if (duration) {
@@ -68,18 +66,7 @@ export async function GET(request: NextRequest) {
         const option = RENTAL_DURATIONS.find((d) => d.key === duration);
         const price = parseFloat((raw * markup).toFixed(2));
         const priceNGN = parseFloat((await convertCurrency(price, "USD", "NGN")).toFixed(2));
-        return NextResponse.json({
-          mode: "rental",
-          service,
-          areaCode: country,
-          isRenewable,
-          duration,
-          label: option?.label ?? duration,
-          days: option?.days ?? null,
-          price,
-          priceNGN,
-          rawPrice: raw,
-        });
+        return NextResponse.json({ mode: "rental", service, areaCode: country, isRenewable, duration, label: option?.label ?? duration, days: option?.days ?? null, price, priceNGN, rawPrice: raw });
       }
 
       const options: Array<{ duration: string; label: string; days: number; price: number; rawPrice: number }> = [];
@@ -87,8 +74,7 @@ export async function GET(request: NextRequest) {
         try {
           const raw = await loadDurationPrice(opt.key);
           if (raw == null) continue;
-          const price = parseFloat((raw * markup).toFixed(2));
-          options.push({ duration: opt.key, label: opt.label, days: opt.days, price, rawPrice: raw });
+          options.push({ duration: opt.key, label: opt.label, days: opt.days, price: parseFloat((raw * markup).toFixed(2)), rawPrice: raw });
         } catch {
           // skip unsupported duration
         }
@@ -101,27 +87,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ mode: "rental", service, areaCode: country, isRenewable, options });
     }
 
-    const pricing = await textverifiedClient.getVerificationPrice({
-      serviceName: service,
-      areaCode: Boolean(country && country !== "any"),
-      carrier: false,
-      numberType: "mobile",
-      capability: "sms",
-    });
-
+    const markup = await getMarkupMultiplier();
+    const pricing = await textverifiedClient.getVerificationPrice({ serviceName: service, areaCode: Boolean(country && country !== "any"), carrier: false, numberType: "mobile", capability: "sms" });
     const rawPrice = parseFloat(String(pricing.price));
     if (Number.isNaN(rawPrice)) {
       return NextResponse.json({ error: "Invalid price returned from provider" }, { status: 400 });
     }
-    const available = null;
 
-    const markup = await getMarkupMultiplier();
     const price = parseFloat((rawPrice * markup).toFixed(2));
     const priceNGN = parseFloat((await convertCurrency(price, "USD", "NGN")).toFixed(2));
-
-    return NextResponse.json({ service, country, price, priceNGN, rawPrice, available });
+    return NextResponse.json({ service, country, price, priceNGN, rawPrice, available: null });
   } catch (error: any) {
-    console.error("[textverified/pricing]", error.message);
+    console.error("[rentals/pricing]", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

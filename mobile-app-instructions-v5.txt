@@ -1,6 +1,6 @@
 ================================================================================
 MOBILE APP INSTRUCTIONS (V5) — LATEST BACKEND CONTRACT
-As of: April 20, 2026
+As of: May 13, 2026
 ================================================================================
 
 This file is the latest consolidated instruction set for mobile integration.
@@ -29,15 +29,16 @@ Unauthenticated responses:
 ================================================================================
 
 Canonical wallet currency in DB:
-- USD (`users.wallet_balance` is stored in USD)
+- NGN (`users.wallet_balance` is stored in NGN)
 
 Display currency:
-- Some endpoints return converted NGN values for display.
+- NGN is canonical for wallet/debits.
+- Some pricing endpoints still include USD provider figures for transparency.
 
 Critical route behavior:
 1. `GET /api/user/balance`
    - Auth required
-   - Returns user wallet balance converted to NGN for UI display
+   - Returns user wallet balance in NGN for UI display
    - Example:
      {
        "balance": "14500.22",
@@ -52,6 +53,7 @@ Critical route behavior:
 Implementation guidance:
 - Treat server-calculated pricing and insufficiency checks as authoritative.
 - For purchases, mobile should rely on API responses instead of local price math.
+- Do not assume quoted USD provider prices are wallet-debit amounts.
 
 
 ================================================================================
@@ -189,6 +191,7 @@ Success:
 
 Insufficient balance:
 - HTTP 402
+- Required/available values are NGN-denominated.
 
 
 ================================================================================
@@ -231,6 +234,7 @@ Countries:
   - `code`, `name`, `flag`
   - `startingPriceUsd` (provider raw)
   - `startingChargedUsd` (after markup)
+  - `startingChargedNgn` (wallet charge display)
 
 Packages:
 - `POST /api/esim/packages`
@@ -239,6 +243,7 @@ Packages:
   - `packageCode`, `name`, `location`
   - `price` (provider USD decimal)
   - `chargedUsd` (user price)
+  - `chargedNgn` (wallet charge display)
   - `dataFormatted`, etc.
 
 Order:
@@ -260,6 +265,9 @@ Important eSIM rule:
 Order response:
 - `qr_code_url`, `iccid`, `order_no` can be `null` initially.
 - Mobile must handle nullable activation fields.
+- Response also includes:
+  - `charged_currency` (currently `NGN`)
+  - `charged_amount_usd` (reference USD amount)
 
 Usage:
 - `POST /api/esim/usage`
@@ -301,17 +309,20 @@ Unified transaction feed:
 
 
 ================================================================================
-8) WALLET FUNDING (KORAPAY)
+8) WALLET FUNDING (PAYSTACK)
 ================================================================================
 
 Popup/inline flow (recommended for mobile):
-1. `POST /api/wallet/fund` with `{ "amount": <number>, "currency": "NGN" }` (auth)
-   - Returns `reference`, `email`, `name`, `amount`, `currency`
-2. Complete payment in Korapay SDK
-3. `POST /api/payments/verify-popup` with `{ "reference": "...", "type": "wallet" }` (auth)
+1. `POST /api/wallet/fund` with
+   `{ "amount": <number>, "currency": "NGN", "provider": "paystack" }` (auth)
+   - Returns `provider`, `reference`, `email`, `name`, `amount`, `currency`
+2. Complete payment in Paystack inline SDK / checkout
+3. `POST /api/payments/verify-popup` with
+   `{ "reference": "...", "type": "wallet", "provider": "paystack" }` (auth)
+4. Backend enforces Paystack-only for wallet funding endpoints; non-Paystack provider values return 400.
 
 Alternative redirect flow:
-1. `POST /api/payments/create` (auth)
+1. `POST /api/payments/create` with `{ "provider": "paystack", ... }` (auth)
 2. Open returned `checkout_url`
 3. Backend callback URL ends at `/api/payments/verify`
 

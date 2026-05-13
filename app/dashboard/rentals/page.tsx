@@ -9,6 +9,7 @@ import { Search, List, Loader2, ChevronRight, Clock, ChevronLeft, Calendar } fro
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { sanitizeProviderErrorMessage } from "@/lib/errors/sanitize-provider-error";
 
 interface Service {
   code: string;
@@ -95,14 +96,18 @@ export default function RentalsPage() {
     setLoadingServices(true);
     try {
       const reservationType = isRenewable ? "renewable" : "nonrenewable";
-      const res = await fetch(`/api/grizzly/services?page=${page}&limit=24&reservationType=${reservationType}`);
+      const res = await fetch(`/api/rentals/services?page=${page}&limit=24&reservationType=${reservationType}`);
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || `${res.status}`);
       setServices(data.services ?? data);
       setServicesPage(data.page ?? 1);
       setServicesTotalPages(data.totalPages ?? 1);
     } catch (err: any) {
-      toast({ title: "Error", description: err?.message || "Failed to load services", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: sanitizeProviderErrorMessage(err?.message, "Failed to load services"),
+        variant: "destructive",
+      });
     } finally {
       setLoadingServices(false);
     }
@@ -112,12 +117,16 @@ export default function RentalsPage() {
     if (areas.length) return;
     setLoadingAreas(true);
     try {
-      const res = await fetch("/api/grizzly/countries");
+      const res = await fetch("/api/rentals/countries");
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || `${res.status}`);
       setAreas(data);
     } catch (err: any) {
-      toast({ title: "Error", description: err?.message || "Failed to load area codes", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: sanitizeProviderErrorMessage(err?.message, "Failed to load area codes"),
+        variant: "destructive",
+      });
     } finally {
       setLoadingAreas(false);
     }
@@ -136,13 +145,17 @@ export default function RentalsPage() {
     setLoadingOptions(true);
     try {
       const pricingParams = `mode=rental&service=${service.code}&country=${area.code}&isRenewable=${renewable}`;
-      const res = await fetch(`/api/grizzly/pricing?${pricingParams}`);
+      const res = await fetch(`/api/rentals/pricing?${pricingParams}`);
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || `${res.status}`);
       if (!data?.options) throw new Error("No pricing options returned");
       setOptions(data.options);
     } catch (err: any) {
-      toast({ title: "Error", description: err?.message || "Could not load rental pricing", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: sanitizeProviderErrorMessage(err?.message, "Could not load rental pricing"),
+        variant: "destructive",
+      });
     } finally {
       setLoadingOptions(false);
     }
@@ -161,14 +174,6 @@ export default function RentalsPage() {
     if (!selectedService || !selectedArea || !selectedOption) return;
     setPurchasing(true);
     try {
-      const providerLabel = (provider?: string) => {
-        if (!provider) return null;
-        if (provider === "smspool") return "SMSPool";
-        if (provider === "textverified") return "TextVerified";
-        if (provider === "platfone") return "Platfone";
-        return provider;
-      };
-
       const body = {
         serviceName: selectedService.code,
         areaCode: selectedArea.code === "any" ? null : selectedArea.code,
@@ -184,9 +189,7 @@ export default function RentalsPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        const label = providerLabel(data.provider || data.errorSource);
-        const prefix = label ? `${label}: ` : "";
-        throw new Error(`${prefix}${data.error || "Purchase failed"}`);
+        throw new Error(sanitizeProviderErrorMessage(data?.error, "Purchase failed"));
       }
 
       toast({
@@ -202,7 +205,11 @@ export default function RentalsPage() {
       fetchBalance();
       router.push("/dashboard/numbers/my-numbers");
     } catch (e: any) {
-      toast({ title: "Purchase Failed", description: e.message, variant: "destructive" });
+      toast({
+        title: "Purchase Failed",
+        description: sanitizeProviderErrorMessage(e?.message, "Purchase failed"),
+        variant: "destructive",
+      });
     } finally {
       setPurchasing(false);
     }

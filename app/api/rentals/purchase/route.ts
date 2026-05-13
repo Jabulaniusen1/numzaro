@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { textverifiedClient } from "@/lib/textverified/client";
+import { getLiveFxRate } from "@/lib/currency/rates";
 
 function providerError(
   provider: "textverified" | "system",
@@ -64,6 +65,20 @@ function parseIso(value: string | null | undefined) {
   return isNaN(date.getTime()) ? null : date;
 }
 
+async function usdToNgn(usdAmount: number): Promise<number> {
+  let rate = 1500;
+  try {
+    rate = await getLiveFxRate("USD", "NGN");
+  } catch {
+    // fall back to static value
+  }
+  return usdAmount * rate;
+}
+
+function formatNaira(ngnAmount: number) {
+  return `₦${ngnAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { user, supabase } = await authenticateRequest(request);
@@ -75,7 +90,6 @@ export async function POST(request: NextRequest) {
       areaCode,
       isRenewable,
       duration,
-      maxPrice,
     } = body;
 
     if (!serviceName || !duration || !RENTAL_DURATIONS.has(duration)) {
@@ -100,7 +114,8 @@ export async function POST(request: NextRequest) {
     }
 
     const markupMultiplier = await getMarkupMultiplier();
-    let userCharged = parseFloat((rawPrice * markupMultiplier).toFixed(2));
+    let userChargedUsd = parseFloat((rawPrice * markupMultiplier).toFixed(2));
+    let userChargedNgn = parseFloat((await usdToNgn(userChargedUsd)).toFixed(2));
 
     const { data: userData } = await supabase
       .from("users")
@@ -109,9 +124,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     const userBalance = parseFloat(userData?.wallet_balance || "0");
-    if (userBalance < userCharged) {
+    if (userBalance < userChargedNgn) {
       return NextResponse.json(
-        { error: `Insufficient balance. Required: $${userCharged.toFixed(2)}, Available: $${userBalance.toFixed(2)}` },
+        { error: `Insufficient balance. Required: ${formatNaira(userChargedNgn)}, Available: ${formatNaira(userBalance)}` },
         { status: 402 }
       );
     }
@@ -138,10 +153,11 @@ export async function POST(request: NextRequest) {
 
     if (typeof rental.totalCost === "number" && rental.totalCost > 0) {
       rawPrice = rental.totalCost;
-      userCharged = parseFloat((rawPrice * markupMultiplier).toFixed(2));
-      if (userBalance < userCharged) {
+      userChargedUsd = parseFloat((rawPrice * markupMultiplier).toFixed(2));
+      userChargedNgn = parseFloat((await usdToNgn(userChargedUsd)).toFixed(2));
+      if (userBalance < userChargedNgn) {
         return NextResponse.json(
-          { error: `Insufficient balance after purchase. Required: $${userCharged.toFixed(2)}, Available: $${userBalance.toFixed(2)}` },
+          { error: `Insufficient balance after purchase. Required: ${formatNaira(userChargedNgn)}, Available: ${formatNaira(userBalance)}` },
           { status: 402 }
         );
       }
@@ -160,12 +176,10 @@ export async function POST(request: NextRequest) {
         phone_number: phoneNumber,
         country_code: "US",
         country_name: displayCountryName,
-        twilio_sid: reservationId,
         textverified_id: reservationId,
         status: "active",
         capabilities: ["sms"],
-        twilio_monthly_cost: rawPrice,
-        monthly_cost: userCharged,
+        monthly_cost: userChargedNgn,
         number_type: "rental",
         provider: "textverified",
         product: serviceName,
@@ -184,25 +198,27 @@ export async function POST(request: NextRequest) {
 
     await supabase
       .from("users")
-      .update({ wallet_balance: userBalance - userCharged })
+      .update({ wallet_balance: userBalance - userChargedNgn })
       .eq("id", user.id);
 
     await supabase.from("wallet_transactions").insert({
       user_id: user.id,
       type: "order_payment",
-      amount: -userCharged,
+      amount: -userChargedNgn,
       balance_before: userBalance,
-      balance_after: userBalance - userCharged,
+      balance_after: userBalance - userChargedNgn,
       description: `Textverified Rental ${serviceName}: ${phoneNumber}`,
     });
+
+    const providerCostNgn = parseFloat((await usdToNgn(rawPrice)).toFixed(2));
 
     await supabase.from("number_purchases").insert({
       user_id: user.id,
       virtual_number_id: virtualNumber.id,
-      amount: userCharged,
+      amount: userChargedNgn,
       actual_cost: rawPrice,
-      profit: parseFloat((userCharged - rawPrice).toFixed(2)),
-      currency: "USD",
+      profit: parseFloat((userChargedNgn - providerCostNgn).toFixed(2)),
+      currency: "NGN",
       status: "completed",
     });
 

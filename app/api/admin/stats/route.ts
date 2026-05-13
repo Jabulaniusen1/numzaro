@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     // Get total revenue, costs, and profit
     const { data: orders } = await supabase
       .from("orders")
-      .select("customer_charge, api_cost, profit, created_at");
+      .select("charge, api_cost, profit, created_at");
 
     if (!orders) {
       return NextResponse.json({
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     const totalRevenue = orders.reduce(
-      (sum, order) => sum + (parseFloat(order.customer_charge?.toString() || "0") || 0),
+      (sum, order) => sum + (parseFloat(order.charge?.toString() || "0") || 0),
       0
     );
     const totalCosts = orders.reduce(
@@ -61,17 +61,17 @@ export async function GET(request: NextRequest) {
 
     const { data: thisMonthOrders } = await supabase
       .from("orders")
-      .select("customer_charge, api_cost, profit")
+      .select("charge, api_cost, profit")
       .gte("created_at", thisMonth.toISOString());
 
     const { data: lastMonthOrders } = await supabase
       .from("orders")
-      .select("customer_charge, api_cost, profit")
+      .select("charge, api_cost, profit")
       .gte("created_at", lastMonth.toISOString())
       .lt("created_at", thisMonth.toISOString());
 
     const thisMonthRevenue = thisMonthOrders?.reduce(
-      (sum, order) => sum + (parseFloat(order.customer_charge?.toString() || "0") || 0),
+      (sum, order) => sum + (parseFloat(order.charge?.toString() || "0") || 0),
       0
     ) || 0;
     const thisMonthProfit = thisMonthOrders?.reduce(
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
       0
     ) || 0;
     const lastMonthRevenue = lastMonthOrders?.reduce(
-      (sum, order) => sum + (parseFloat(order.customer_charge?.toString() || "0") || 0),
+      (sum, order) => sum + (parseFloat(order.charge?.toString() || "0") || 0),
       0
     ) || 0;
     const lastMonthProfit = lastMonthOrders?.reduce(

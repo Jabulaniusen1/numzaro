@@ -22,8 +22,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const normalizedOrders = (orders || []).map((order: any) => ({
+      ...order,
+      charged_currency: "NGN",
+    }));
+
     return NextResponse.json({
-      orders: orders || [],
+      orders: normalizedOrders,
       pagination: {
         page,
         limit,

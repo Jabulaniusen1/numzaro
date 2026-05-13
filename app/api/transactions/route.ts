@@ -9,36 +9,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get all transaction types
-    const [walletTransactions, twilioCharges, numberPurchases, payments] = await Promise.all([
-      // Wallet transactions
+    const [walletTransactions, numberPurchases, payments] = await Promise.all([
       supabase
         .from("wallet_transactions")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
-      
-      // Twilio charges
-      supabase
-        .from("twilio_charges")
-        .select(`
-          *,
-          virtual_numbers(phone_number)
-        `)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false }),
-      
-      // Number purchases
+
       supabase
         .from("number_purchases")
-        .select(`
-          *,
-          virtual_numbers(phone_number)
-        `)
+        .select(`*, virtual_numbers(phone_number)`)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
-      
-      // Payments (wallet funding)
+
       supabase
         .from("payments")
         .select("*")
@@ -46,10 +29,8 @@ export async function GET(request: NextRequest) {
         .order("created_at", { ascending: false }),
     ]);
 
-    // Combine all transactions into a unified array
     const transactions: any[] = [];
 
-    // Add wallet transactions
     if (walletTransactions.data) {
       walletTransactions.data.forEach((tx) => {
         transactions.push({
@@ -69,30 +50,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Add Twilio charges
-    if (twilioCharges.data) {
-      twilioCharges.data.forEach((charge) => {
-        const phoneNumber = (charge.virtual_numbers as any)?.phone_number || null;
-        transactions.push({
-          id: charge.id,
-          type: "twilio_charge",
-          transaction_type: charge.charge_type,
-          amount: -parseFloat(charge.user_charged.toString()), // Negative for charges
-          actual_cost: parseFloat(charge.actual_cost.toString()),
-          user_charged: parseFloat(charge.user_charged.toString()),
-          description: getTwilioChargeDescription(charge.charge_type, phoneNumber, charge.metadata),
-          created_at: charge.created_at,
-          metadata: {
-            virtual_number_id: charge.virtual_number_id,
-            phone_number: phoneNumber,
-            twilio_sid: charge.twilio_sid,
-            ...charge.metadata,
-          },
-        });
-      });
-    }
-
-    // Add number purchases
     if (numberPurchases.data) {
       numberPurchases.data.forEach((purchase) => {
         const phoneNumber = (purchase.virtual_numbers as any)?.phone_number || null;
@@ -100,7 +57,7 @@ export async function GET(request: NextRequest) {
           id: purchase.id,
           type: "number_purchase",
           transaction_type: "number_purchase",
-          amount: -parseFloat(purchase.amount.toString()), // Negative for purchases
+          amount: -parseFloat(purchase.amount.toString()),
           description: `Phone number purchase: ${phoneNumber || "Unknown"}`,
           created_at: purchase.created_at,
           metadata: {
@@ -112,7 +69,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Add payments (wallet funding)
     if (payments.data) {
       payments.data.forEach((payment) => {
         transactions.push({
@@ -132,10 +88,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Sort all transactions by created_at (newest first)
-    transactions.sort((a, b) => {
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+    transactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     return NextResponse.json({ transactions });
   } catch (error: any) {
@@ -146,34 +99,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-function getTwilioChargeDescription(
-  chargeType: string,
-  phoneNumber: string | null,
-  metadata: any
-): string {
-  const phone = phoneNumber || metadata?.phone_number || "Unknown number";
-  
-  switch (chargeType) {
-    case "incoming_sms":
-      return `Incoming SMS to ${phone}`;
-    case "incoming_sms_failed":
-      return `Incoming SMS to ${phone} (charge failed)`;
-    case "otp_received":
-      const service = metadata?.service || "Unknown";
-      const code = metadata?.otp_code || "";
-      return `OTP received from ${service}${code ? ` - ${code}` : ""} (${phone})`;
-    case "otp_received_failed":
-      return `OTP received (charge failed) - ${phone}`;
-    case "number_purchase":
-      return `Phone number purchase: ${phone}`;
-    case "number_renewal":
-      return `Phone number renewal: ${phone}`;
-    default:
-      return `Twilio charge: ${chargeType} - ${phone}`;
-  }
-}
-
-
-
-
