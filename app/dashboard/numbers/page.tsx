@@ -165,6 +165,7 @@ export default function NumbersPage() {
   const [tvServices, setTvServices]         = useState<TvService[]>([]);
   const [loadingTvServices, setLoadingTvServices] = useState(false);
   const [tvPrice, setTvPrice]               = useState<number | null>(null);
+  const [tvPriceIsNgn, setTvPriceIsNgn]     = useState(false);
   const [loadingTvPrice, setLoadingTvPrice] = useState(false);
 
   const [countries, setCountries]           = useState<SmsPoolCountry[]>([]);
@@ -231,7 +232,14 @@ export default function NumbersPage() {
       const res  = await fetch("/api/numbers/tv-services");
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `${res.status}`);
-      setTvServices(data.services ?? []);
+      const seen = new Set<string>();
+      const deduped = (data.services ?? []).filter((s: TvService) => {
+        const key = s.serviceName.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setTvServices(deduped);
     } catch (err: any) {
       toast({
         title: "Error",
@@ -264,6 +272,7 @@ export default function NumbersPage() {
 
   async function fetchTvPrice(serviceName: string) {
     setTvPrice(null);
+    setTvPriceIsNgn(false);
     setLoadingTvPrice(true);
     try {
       const res  = await fetch(`/api/numbers/tv-price?service=${encodeURIComponent(serviceName)}`);
@@ -274,6 +283,26 @@ export default function NumbersPage() {
       toast({
         title: "Price Error",
         description: sanitizeProviderErrorMessage(err?.message, "Failed to fetch price"),
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingTvPrice(false);
+    }
+  }
+
+  async function fetchWhatsAppPrice() {
+    setTvPrice(null);
+    setTvPriceIsNgn(true);
+    setLoadingTvPrice(true);
+    try {
+      const res  = await fetch("/api/numbers/whatsapp/price");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Price unavailable");
+      setTvPrice(data.data.priceNgn);
+    } catch (err: any) {
+      toast({
+        title: "Price Error",
+        description: sanitizeProviderErrorMessage(err?.message, "Failed to fetch WhatsApp price"),
         variant: "destructive",
       });
     } finally {
@@ -302,7 +331,11 @@ export default function NumbersPage() {
     if (region === "us") {
       const tvSvc = service as TvService;
       setStep("confirm");
-      fetchTvPrice(tvSvc.serviceName);
+      if (tvSvc.serviceName.toLowerCase().includes("whatsapp")) {
+        fetchWhatsAppPrice();
+      } else {
+        fetchTvPrice(tvSvc.serviceName);
+      }
     } else {
       const smpSvc = service as SmsPoolService;
       setStep("country");
@@ -335,17 +368,25 @@ export default function NumbersPage() {
 
     setPurchasing(true);
     try {
+      let endpoint = "/api/numbers/purchase";
       let body: Record<string, any>;
 
       if (region === "us") {
         const tvSvc = selectedService as TvService;
-        body = {
-          serviceName: tvSvc.serviceName,
-          countryShortCode: "US",
-          countryName: "United States",
-          country: "1",
-          serviceCode: tvSvc.serviceName,
-        };
+        const isWhatsApp = tvSvc.serviceName.toLowerCase().includes("whatsapp");
+
+        if (isWhatsApp) {
+          endpoint = "/api/numbers/whatsapp/purchase";
+          body = {};
+        } else {
+          body = {
+            serviceName: tvSvc.serviceName,
+            countryShortCode: "US",
+            countryName: "United States",
+            country: "1",
+            serviceCode: tvSvc.serviceName,
+          };
+        }
       } else {
         const smpSvc = selectedService as SmsPoolService;
         body = {
@@ -357,7 +398,7 @@ export default function NumbersPage() {
         };
       }
 
-      const res = await fetch("/api/numbers/purchase", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -395,14 +436,44 @@ export default function NumbersPage() {
     }
   }
 
-  // Filtered lists
-  const filteredSmpServices = services.filter((s) =>
-    s.name.toLowerCase().includes(serviceSearch.toLowerCase()) ||
-    s.code.toLowerCase().includes(serviceSearch.toLowerCase())
-  );
-  const filteredTvServices = tvServices.filter((s) =>
-    s.serviceName.toLowerCase().includes(serviceSearch.toLowerCase())
-  );
+  // Popular services shown first (in this exact order)
+  const POPULAR_ORDER = [
+    "whatsapp", "instagram", "facebook", "telegram", "tiktok",
+    "google", "twitter", "snapchat", "discord", "youtube",
+    "linkedin", "uber", "paypal", "amazon", "spotify",
+    "reddit", "pinterest", "steam", "apple", "skype",
+    "viber", "wechat", "line", "ebay",
+  ];
+
+  function popularityIndex(name: string, code: string): number {
+    const haystack = `${name} ${code}`.toLowerCase();
+    const idx = POPULAR_ORDER.findIndex((kw) => haystack.includes(kw));
+    return idx === -1 ? POPULAR_ORDER.length : idx;
+  }
+
+  // Filtered lists — popular services first, then alphabetical
+  const filteredSmpServices = services
+    .filter((s) =>
+      s.name.toLowerCase().includes(serviceSearch.toLowerCase()) ||
+      s.code.toLowerCase().includes(serviceSearch.toLowerCase())
+    )
+    .sort((a, b) => {
+      const pa = popularityIndex(a.name, a.code);
+      const pb = popularityIndex(b.name, b.code);
+      if (pa !== pb) return pa - pb;
+      return a.name.localeCompare(b.name);
+    });
+
+  const filteredTvServices = tvServices
+    .filter((s) =>
+      s.serviceName.toLowerCase().includes(serviceSearch.toLowerCase())
+    )
+    .sort((a, b) => {
+      const pa = popularityIndex(a.serviceName, a.serviceName);
+      const pb = popularityIndex(b.serviceName, b.serviceName);
+      if (pa !== pb) return pa - pb;
+      return a.serviceName.localeCompare(b.serviceName);
+    });
   const filteredCountries = countries.filter((c) =>
     c.name.toLowerCase().includes(countrySearch.toLowerCase())
   );
@@ -547,9 +618,9 @@ export default function NumbersPage() {
                 <p className="text-center py-10 text-sm text-gray-400">No services found.</p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                  {filteredTvServices.map((svc) => (
+                  {filteredTvServices.map((svc, i) => (
                     <button
-                      key={svc.serviceName}
+                      key={`${svc.serviceName}-${i}`}
                       onClick={() => selectService(svc)}
                       className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-gray-100 dark:border-gray-700 hover:border-[#7C5CFC] hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all"
                     >
@@ -714,7 +785,7 @@ export default function NumbersPage() {
                       </span>
                     ) : tvPrice !== null ? (
                       <span className="text-2xl font-black text-[#7C5CFC]">
-                        {formatCurrency(convertFromUSD(tvPrice))}
+                        {tvPriceIsNgn ? formatCurrency(tvPrice) : formatCurrency(convertFromUSD(tvPrice))}
                       </span>
                     ) : (
                       <span className="text-sm text-red-500">Price unavailable</span>
@@ -759,7 +830,7 @@ export default function NumbersPage() {
                   loadingTvPrice
                     ? "Fetching price…"
                     : tvPrice !== null
-                      ? `Buy Number — ${formatCurrency(convertFromUSD(tvPrice))}`
+                      ? `Buy Number — ${tvPriceIsNgn ? formatCurrency(tvPrice) : formatCurrency(convertFromUSD(tvPrice))}`
                       : "Price unavailable"
                 ) : userPrice !== null ? (
                   `Buy Number — ${formatCurrency(convertFromUSD(userPrice))}`

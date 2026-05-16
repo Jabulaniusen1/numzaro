@@ -27,6 +27,14 @@ async function cancelWithProvider(number: any) {
       console.error("SMSPool cancel error:", e);
     }
   }
+  if (number.provider === "pvadeals" && number.textverified_id) {
+    try {
+      const { pvadealsClient } = await import("@/lib/pvadeals/client");
+      await pvadealsClient.flagNumber(number.textverified_id);
+    } catch (e) {
+      console.error("PVADeals flag error:", e);
+    }
+  }
 }
 
 async function refundNumberPurchase(virtualNumberId: string, userId: string, supabase: any): Promise<void> {

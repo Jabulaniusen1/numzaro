@@ -7,9 +7,16 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const services = await textverifiedClient.getServicesList({
+    const raw = await textverifiedClient.getServicesList({
       numberType: "mobile",
       reservationType: "verification",
+    });
+    const seen = new Set<string>();
+    const services = raw.filter((s) => {
+      const key = s.serviceName.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
     return NextResponse.json({ services });
   } catch (err: any) {
