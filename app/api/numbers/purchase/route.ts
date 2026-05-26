@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { smsPoolClient } from "@/lib/smspool/client";
 import { textverifiedClient } from "@/lib/textverified/client";
 import { getLiveFxRate } from "@/lib/currency/rates";
+import { sendPushNotificationToUser } from "@/lib/notifications/push";
 
 type ProviderName = "smspool" | "textverified" | "system";
 
@@ -153,6 +154,12 @@ async function handleTextverifiedActivation(body: any, user: { id: string }, sup
   await supabase.from("number_purchases").insert({ user_id: user.id, virtual_number_id: virtualNumber.id, amount: userCharged, actual_cost: actualCost, profit: parseFloat((userCharged - (await usdToNgn(actualCost))).toFixed(2)), currency: "NGN", status: "completed" });
   await createServiceRoleClient().from("notifications").insert({ user_id: user.id, type: "transaction", title: "Number Purchased", message: `${phoneNumber} — ${serviceName}`, data: { type: "number_purchased", number_id: virtualNumber.id, provider: "textverified", mode: "activation" } });
 
+  await sendPushNotificationToUser(user.id, {
+    title: "Number Purchased",
+    body: `${serviceName}: ${phoneNumber}`,
+    data: { type: "number_purchased", number_id: virtualNumber.id, provider: "textverified", mode: "activation" },
+  });
+
   return NextResponse.json({ success: true, number: virtualNumber });
 }
 
@@ -250,6 +257,12 @@ export async function POST(request: NextRequest) {
     await supabase.from("wallet_transactions").insert({ user_id: user.id, type: "order_payment", amount: -userCharged, balance_before: userBalance, balance_after: userBalance - userCharged, description: `SMSPool ${displayName} (${displayCountryName}): ${phoneNumber}` });
     await supabase.from("number_purchases").insert({ user_id: user.id, virtual_number_id: virtualNumber.id, amount: userCharged, actual_cost: rawPrice, profit: parseFloat((userCharged - (await usdToNgn(rawPrice))).toFixed(2)), currency: "NGN", status: "completed" });
     await createServiceRoleClient().from("notifications").insert({ user_id: user.id, type: "transaction", title: "Number Purchased", message: `${phoneNumber} — ${displayName}`, data: { type: "number_purchased", number_id: virtualNumber.id, provider: "smspool", mode: "activation" } });
+
+    await sendPushNotificationToUser(user.id, {
+      title: "Number Purchased",
+      body: `${displayName}: ${phoneNumber}`,
+      data: { type: "number_purchased", number_id: virtualNumber.id, provider: "smspool", mode: "activation" },
+    });
 
     return NextResponse.json({ success: true, number: virtualNumber });
   } catch (error: any) {

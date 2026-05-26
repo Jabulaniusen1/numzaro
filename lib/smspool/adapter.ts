@@ -1,5 +1,6 @@
 
 import { smsPoolClient } from "./client";
+import { sendPushNotificationToUser } from "@/lib/notifications/push";
 
 function extractCode(message: string): string | null {
   const match = message.match(/\b\d{4,8}\b/);
@@ -75,6 +76,20 @@ export async function syncSmsPoolActivation(
             status: "pending",
             created_at: new Date().toISOString(),
           });
+
+          const { data: numberMeta } = await supabase
+            .from("virtual_numbers")
+            .select("user_id, phone_number")
+            .eq("id", numberId)
+            .maybeSingle();
+
+          if (numberMeta?.user_id) {
+            await sendPushNotificationToUser(numberMeta.user_id, {
+              title: "New OTP Received",
+              body: `OTP ${code} arrived for ${numberMeta.phone_number ?? "your number"}`,
+              data: { type: "otp", number_id: numberId, code },
+            });
+          }
         }
       }
 
@@ -140,6 +155,20 @@ export async function syncSmsPoolRental(
               status: "pending",
               created_at: new Date().toISOString(),
             });
+
+            const { data: numberMeta } = await supabase
+              .from("virtual_numbers")
+              .select("user_id, phone_number")
+              .eq("id", numberId)
+              .maybeSingle();
+
+            if (numberMeta?.user_id) {
+              await sendPushNotificationToUser(numberMeta.user_id, {
+                title: "New OTP Received",
+                body: `OTP ${code} arrived for ${numberMeta.phone_number ?? "your number"}`,
+                data: { type: "otp", number_id: numberId, code },
+              });
+            }
           }
         }
       }

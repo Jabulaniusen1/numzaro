@@ -3,6 +3,7 @@ import { verifyTransaction } from "@/lib/paystack/client";
 import { authenticateRequest } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createTransactionNotification } from "@/lib/notifications/create";
+import { sendPushNotificationToUser } from "@/lib/notifications/push";
 import { creditWalletFromSuccessfulPayment } from "@/lib/wallet/credit";
 import { parsePaystackMetadata, paystackAmountToMajorUnit } from "@/lib/paystack/utils";
 
@@ -107,6 +108,17 @@ export async function GET(request: NextRequest) {
             currency: "NGN",
             payment_id: payment.id,
             description: "Wallet funded via Paystack",
+          });
+
+          await sendPushNotificationToUser(paymentOwnerId, {
+            title: "Wallet Funded",
+            body: `Your wallet was funded with ₦${fundedAmount.toLocaleString()}`,
+            data: {
+              type: "wallet_funded",
+              payment_id: payment.id,
+              amount: fundedAmount,
+              currency: "NGN",
+            },
           });
         }
 

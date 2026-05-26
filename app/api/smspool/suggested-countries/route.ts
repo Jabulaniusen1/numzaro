@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { smsPoolClient } from "@/lib/smspool/client";
+import { getLiveFxRate } from "@/lib/currency/rates";
 
 async function getMarkupMultiplier() {
   try {
@@ -38,9 +39,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "service query param is required" }, { status: 400 });
     }
 
-    const [markupMultiplier, suggested] = await Promise.all([
+    const [markupMultiplier, suggested, usdToNgnRate] = await Promise.all([
       getMarkupMultiplier(),
       smsPoolClient.getSuggestedCountries(service),
+      getLiveFxRate("USD", "NGN"),
     ]);
 
     const countries = (suggested || [])
@@ -48,6 +50,9 @@ export async function GET(request: NextRequest) {
         const rawPrice = parseFloat(String((item as any).high_price ?? item.price ?? "0"));
         const sellPrice = Number.isFinite(rawPrice) && rawPrice > 0
           ? parseFloat((rawPrice * markupMultiplier).toFixed(2))
+          : 0;
+        const sellPriceNgn = Number.isFinite(sellPrice) && sellPrice > 0
+          ? parseFloat((sellPrice * usdToNgnRate).toFixed(2))
           : 0;
         const shortCode = String(item.short_name || "").toUpperCase();
         return {
@@ -57,7 +62,10 @@ export async function GET(request: NextRequest) {
           flag: flagFromIso2(shortCode),
           available: 1, // Suggested countries are expected to be purchasable now.
           sellPrice,
+          sellPriceCurrency: "USD",
+          sellPriceNgn,
           rawPrice: Number.isFinite(rawPrice) ? rawPrice : 0,
+          rawPriceCurrency: "USD",
           pool: item.pool ?? null,
         };
       })
@@ -69,4 +77,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message || "Failed to fetch countries" }, { status: 500 });
   }
 }
-

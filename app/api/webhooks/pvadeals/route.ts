@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { sendPushNotificationToUser } from "@/lib/notifications/push";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,12 @@ export async function POST(request: NextRequest) {
           service_name: "WhatsApp",
           status: "pending",
           expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+        });
+
+        await sendPushNotificationToUser(vn.user_id, {
+          title: "New OTP Received",
+          body: `OTP ${otpCode} arrived for ${number || "your number"}`,
+          data: { type: "otp", number_id: vn.id, code: otpCode },
         });
       }
 

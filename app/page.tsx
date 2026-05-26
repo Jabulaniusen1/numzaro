@@ -9,7 +9,7 @@ import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Phone, ShoppingBag, Wifi } from "lucide-react"
-import { FaApple, FaFacebookF, FaGooglePlay, FaInstagram, FaLinkedinIn, FaTiktok, FaYoutube } from "react-icons/fa"
+import { FaFacebookF, FaGooglePlay, FaInstagram, FaLinkedinIn, FaTiktok, FaYoutube } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
 
 const reviews = [
@@ -114,92 +114,10 @@ function ServiceCTA({ destination, children, variant = "default" }: { destinatio
 }
 
 export default function HomePage() {
-  const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
-  const [waitlistEmail, setWaitlistEmail] = useState("");
-  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
-
-  const openWaitlist = () => {
-    setIsWaitlistOpen(true);
-    setWaitlistSubmitted(false);
-  };
-  const closeWaitlist = () => {
-    setIsWaitlistOpen(false);
-    setWaitlistEmail("");
-    setWaitlistSubmitted(false);
-  };
-
-  const handleWaitlistSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!waitlistEmail.trim()) return;
-    setWaitlistSubmitted(true);
-  };
-
-  useEffect(() => {
-    if (!isWaitlistOpen || !waitlistSubmitted) return;
-    const timer = setTimeout(() => {
-      closeWaitlist();
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [isWaitlistOpen, waitlistSubmitted]);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-secondary/5 to-primary/10 dark:from-gray-950 dark:via-primary/10 dark:to-secondary/10">
       {/* Navigation */}
       <Navbar />
-
-      {isWaitlistOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-primary/20 bg-white p-6 shadow-2xl dark:border-primary/30 dark:bg-gray-900">
-            <div className="mb-4">
-              <p className="text-xs uppercase tracking-widest text-primary/60">Coming Soon</p>
-              <h3 className="text-2xl font-semibold text-primary">Download App</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-3 mb-5">
-              <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-gray-900 px-3 py-2 text-white">
-                <FaApple className="h-5 w-5" />
-                <div className="leading-tight">
-                  <p className="text-[10px] uppercase tracking-widest text-white/70">App Store</p>
-                  <p className="text-sm font-semibold">Coming soon</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 rounded-xl border border-secondary/20 bg-gray-900 px-3 py-2 text-white">
-                <FaGooglePlay className="h-5 w-5" />
-                <div className="leading-tight">
-                  <p className="text-[10px] uppercase tracking-widest text-white/70">Google Play</p>
-                  <p className="text-sm font-semibold">Coming soon</p>
-                </div>
-              </div>
-            </div>
-            <p className="text-sm sm:text-base text-primary/80 mb-6">
-              The Numzaro mobile app is almost here. Join the wait list to get early access and launch updates.
-            </p>
-            {waitlistSubmitted ? (
-              <div className="rounded-xl border border-secondary/30 bg-secondary/10 p-4 text-sm text-primary/80">
-                Thanks! You’re on the wait list. We’ll email you when the app is ready.
-              </div>
-            ) : (
-              <form onSubmit={handleWaitlistSubmit} className="space-y-3">
-                <input
-                  type="email"
-                  value={waitlistEmail}
-                  onChange={(e) => setWaitlistEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="h-12 w-full rounded-xl border border-primary/20 bg-white/80 px-4 text-sm text-primary outline-none placeholder:text-primary/50 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 dark:bg-gray-900 dark:border-primary/30"
-                  required
-                />
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button type="submit" className="w-full">
-                    Join wait list
-                  </Button>
-                  <Button variant="outline" className="w-full" type="button" onClick={closeWaitlist}>
-                    Close
-                  </Button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Hero Section */}
       <section className="relative min-h-[85vh] sm:min-h-[90vh] flex items-center justify-center overflow-hidden">
@@ -237,42 +155,36 @@ export default function HomePage() {
                   Buy virtual phone numbers for SMS verification, activate eSIM data plans in seconds, and scale your social media marketing across top platforms.
                 </p>
                   
-                {/* Dual CTAs */}
+                {/* Hero CTAs */}
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start items-center mt-6 sm:mt-8 px-4 lg:px-0 flex-wrap">
                   <div className="w-full sm:w-auto">
                     <ServiceCTA destination="numbers" variant="default">
                       <div className="flex items-center gap-2 justify-center">
                         <Phone className="w-5 h-5" />
-                        Get Virtual Numbers
+                        Get Started
                       </div>
                     </ServiceCTA>
                   </div>
                   <div className="w-full sm:w-auto">
-                    <ServiceCTA destination="esim" variant="default">
-                      <div className="flex items-center gap-2 justify-center">
-                        <Wifi className="w-5 h-5" />
-                        Get eSIM Data
-                      </div>
-                    </ServiceCTA>
+                    <Button
+                      asChild
+                      size="lg"
+                      variant="outline"
+                      className="w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-5 md:py-6 text-base sm:text-lg border-2 border-primary/40 text-primary hover:border-primary/60 hover:bg-primary/5 dark:hover:bg-primary/10 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                    >
+                      <a
+                        href="https://play.google.com/store/apps/details?id=com.jabulaniusen.numzaro"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Download Numzaro app from Google Play Store"
+                      >
+                        <span className="flex items-center gap-2 justify-center">
+                          <FaGooglePlay className="w-5 h-5" />
+                          Download App
+                        </span>
+                      </a>
+                    </Button>
                   </div>
-                  <div className="w-full sm:w-auto">
-                    <ServiceCTA destination="services" variant="outline">
-                      <div className="flex items-center gap-2 justify-center">
-                        <ShoppingBag className="w-5 h-5" />
-                        Grow Social Media
-                      </div>
-                    </ServiceCTA>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-center lg:justify-start px-4 lg:px-0">
-                  <button
-                    type="button"
-                    onClick={openWaitlist}
-                    className="text-sm font-medium text-primary/80 hover:text-primary underline underline-offset-4 decoration-primary/40"
-                  >
-                    Download app (coming soon) — Join wait list
-                  </button>
                 </div>
 
                 <div className="md:hidden mt-6 sm:mt-8 flex flex-wrap justify-center lg:justify-start gap-3 sm:gap-4 text-xs sm:text-sm text-primary/70">
@@ -983,28 +895,107 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="container mx-auto px-4 py-20 text-center bg-gradient-to-r from-primary to-secondary rounded-2xl my-20 dark:from-primary dark:to-secondary">
-        <h2 className="text-4xl font-bold mb-6 text-white">Virtual Numbers, eSIM Data & Social Growth — All in One Place</h2>
-        <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-          Join thousands of customers who trust Numzaro for SMS verification, instant eSIM connectivity, and social media marketing packages.
-        </p>
-        <div className="flex flex-wrap justify-center gap-4">
-          <Link href="/dashboard/numbers">
-            <Button size="lg" variant="outline" className="border-white hover:bg-white/10 hover:text-white">
-              Buy SMS Numbers
-            </Button>
-          </Link>
-          <Link href="/dashboard/esim">
-            <Button size="lg" variant="outline" className="border-white hover:bg-white/10 hover:text-white">
-              Get eSIM Data
-            </Button>
-          </Link>
-          <Link href="/dashboard/services">
-            <Button size="lg" variant="outline" className="border-white hover:bg-white/10 hover:text-white">
-              View Growth Services
-            </Button>
-          </Link>
+      {/* Mobile App CTA Section */}
+      <section className="container mx-auto my-20 overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-secondary px-4 py-12 sm:px-8 sm:py-14 lg:px-12 lg:py-16 dark:from-primary dark:to-secondary">
+        <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_1.15fr]">
+          <div className="relative mx-auto w-full max-w-[320px] lg:mx-0">
+            <div className="orb-drift absolute -left-8 top-10 h-28 w-28 rounded-full bg-white/20 blur-xl" />
+            <div className="orb-drift absolute -right-10 bottom-16 h-36 w-36 rounded-full bg-black/15 blur-2xl" style={{ animationDelay: "-2s" }} />
+
+            <div className="phone-float relative mx-auto h-[520px] w-[260px] rounded-[2.8rem] border border-white/40 bg-white/10 p-2 shadow-[0_24px_80px_rgba(10,10,35,0.45)] backdrop-blur-xl">
+              <div className="absolute left-1/2 top-2 h-5 w-24 -translate-x-1/2 rounded-full bg-black/35" />
+
+              <div className="relative h-full w-full overflow-hidden rounded-[2.3rem] border border-white/25 bg-white/95 p-4 text-primary">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-medium text-primary/60">NUMZARO APP</p>
+                    <h3 className="text-lg font-bold">Dashboard</h3>
+                  </div>
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-secondary" />
+                </div>
+
+                <div className="card-fade rounded-2xl bg-gradient-to-r from-primary to-secondary p-4 text-white shadow-md">
+                  <p className="text-xs text-white/80">Wallet Balance</p>
+                  <p className="mt-1 text-2xl font-bold">₦24,600</p>
+                  <p className="mt-1 text-xs text-white/80">+₦6,200 this week</p>
+                </div>
+
+                <div className="card-fade delay-1 mt-4 grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-xl border border-primary/10 bg-primary/5 p-3">
+                    <p className="text-primary/70">Active Numbers</p>
+                    <p className="mt-1 text-base font-semibold text-primary">12</p>
+                  </div>
+                  <div className="rounded-xl border border-primary/10 bg-primary/5 p-3">
+                    <p className="text-primary/70">eSIM Countries</p>
+                    <p className="mt-1 text-base font-semibold text-primary">100+</p>
+                  </div>
+                </div>
+
+                <div className="card-fade delay-2 mt-4 rounded-xl border border-primary/10 bg-white p-3 shadow-sm">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-medium text-primary/70">Live Activity</p>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      synced
+                    </span>
+                  </div>
+                  <div className="flex items-end gap-1.5">
+                    <span className="signal-bar h-7 w-2 rounded-full bg-primary/40" />
+                    <span className="signal-bar h-10 w-2 rounded-full bg-primary/50" />
+                    <span className="signal-bar h-5 w-2 rounded-full bg-secondary/55" />
+                    <span className="signal-bar h-12 w-2 rounded-full bg-primary/65" />
+                    <span className="signal-bar h-8 w-2 rounded-full bg-secondary/60" />
+                    <span className="signal-bar h-11 w-2 rounded-full bg-primary/65" />
+                  </div>
+                </div>
+
+                <div className="card-fade delay-3 mt-4 rounded-xl border border-primary/10 bg-gradient-to-r from-primary/10 to-secondary/15 p-3">
+                  <p className="text-xs font-medium text-primary/80">Fast Actions</p>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] font-semibold text-primary">
+                    <span className="rounded-lg bg-white/80 px-2 py-1 text-center">Numbers</span>
+                    <span className="rounded-lg bg-white/80 px-2 py-1 text-center">eSIM</span>
+                    <span className="rounded-lg bg-white/80 px-2 py-1 text-center">Orders</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center lg:text-left">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-white/75">Now on Android</p>
+            <h2 className="text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl">
+              Manage Numzaro on Mobile, Anywhere You Go
+            </h2>
+            <p className="mt-5 max-w-2xl text-lg text-white/90">
+              Buy numbers, activate eSIM plans, track orders, and receive OTP updates from one fast mobile experience built for creators and teams.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center lg:justify-start">
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="border-white bg-white text-primary hover:bg-white/90 hover:text-primary"
+              >
+                <a
+                  href="https://play.google.com/store/apps/details?id=com.jabulaniusen.numzaro"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Download Numzaro app from Google Play Store"
+                >
+                  <span className="flex items-center gap-2">
+                    <FaGooglePlay className="h-4 w-4" />
+                    Download App
+                  </span>
+                </a>
+              </Button>
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-center gap-3 text-sm text-white/80 lg:justify-start">
+              <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1">Real-time OTP alerts</span>
+              <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1">Instant eSIM access</span>
+              <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1">Secure wallet funding</span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1133,6 +1124,61 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+
+      <style jsx>{`
+        @keyframes phoneFloat {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-12px); }
+        }
+
+        @keyframes orbDrift {
+          0%, 100% { transform: translate(0px, 0px); }
+          50% { transform: translate(8px, -10px); }
+        }
+
+        @keyframes bars {
+          0%, 100% { transform: scaleY(0.7); opacity: 0.4; }
+          50% { transform: scaleY(1); opacity: 1; }
+        }
+
+        @keyframes cardFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(18px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .phone-float {
+          animation: phoneFloat 6s ease-in-out infinite;
+        }
+
+        .orb-drift {
+          animation: orbDrift 8s ease-in-out infinite;
+        }
+
+        .signal-bar {
+          transform-origin: bottom;
+          animation: bars 1.8s ease-in-out infinite;
+        }
+
+        .signal-bar:nth-child(2) { animation-delay: 0.15s; }
+        .signal-bar:nth-child(3) { animation-delay: 0.3s; }
+        .signal-bar:nth-child(4) { animation-delay: 0.45s; }
+        .signal-bar:nth-child(5) { animation-delay: 0.6s; }
+        .signal-bar:nth-child(6) { animation-delay: 0.75s; }
+
+        .card-fade {
+          animation: cardFadeIn 0.7s ease-out both;
+        }
+
+        .card-fade.delay-1 { animation-delay: 0.15s; }
+        .card-fade.delay-2 { animation-delay: 0.3s; }
+        .card-fade.delay-3 { animation-delay: 0.45s; }
+      `}</style>
     </div>
   )
 }

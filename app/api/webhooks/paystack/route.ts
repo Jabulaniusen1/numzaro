@@ -3,6 +3,8 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { creditWalletFromSuccessfulPayment } from "@/lib/wallet/credit";
 import { parsePaystackMetadata, paystackAmountToMajorUnit } from "@/lib/paystack/utils";
+import { createTransactionNotification } from "@/lib/notifications/create";
+import { sendPushNotificationToUser } from "@/lib/notifications/push";
 
 export const dynamic = "force-dynamic";
 
@@ -121,6 +123,24 @@ export async function POST(request: NextRequest) {
   });
 
   if (creditResult.credited) {
+    const fundedAmount = Number(creditResult.depositAmountNGN || 0);
+    await createTransactionNotification(paymentOwnerId, "wallet_funded", fundedAmount, {
+      currency: "NGN",
+      payment_id: paymentId,
+      description: "Wallet funded via Paystack webhook",
+    });
+
+    await sendPushNotificationToUser(paymentOwnerId, {
+      title: "Wallet Funded",
+      body: `Your wallet was funded with ₦${fundedAmount.toLocaleString()}`,
+      data: {
+        type: "wallet_funded",
+        payment_id: paymentId,
+        amount: fundedAmount,
+        currency: "NGN",
+      },
+    });
+
     console.log(
       `[webhook/paystack] credited ₦${creditResult.depositAmountNGN} to user ${paymentOwnerId} (ref: ${reference})`
     );
