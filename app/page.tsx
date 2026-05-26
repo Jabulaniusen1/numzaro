@@ -8,9 +8,22 @@ import { ThemeToggle } from "@/components/ThemeToggle"
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { Phone, ShoppingBag, Wifi } from "lucide-react"
-import { FaFacebookF, FaGooglePlay, FaInstagram, FaLinkedinIn, FaTiktok, FaYoutube } from "react-icons/fa"
-import { FaXTwitter } from "react-icons/fa6"
+import { HugeiconsIcon } from "@hugeicons/react"
+import {
+  Call02Icon,
+  Facebook02Icon,
+  FlashIcon,
+  GlobeIcon,
+  InstagramIcon,
+  Linkedin02Icon,
+  NewTwitterIcon,
+  PlayStoreIcon,
+  Refresh01Icon,
+  ShoppingBag03Icon,
+  TiktokIcon,
+  Wifi01Icon,
+  YoutubeIcon,
+} from "@hugeicons/core-free-icons"
 
 const reviews = [
   {
@@ -160,7 +173,7 @@ export default function HomePage() {
                   <div className="w-full sm:w-auto">
                     <ServiceCTA destination="numbers" variant="default">
                       <div className="flex items-center gap-2 justify-center">
-                        <Phone className="w-5 h-5" />
+                        <HugeiconsIcon icon={Call02Icon} className="h-5 w-5" />
                         Get Started
                       </div>
                     </ServiceCTA>
@@ -179,7 +192,7 @@ export default function HomePage() {
                         aria-label="Download Numzaro app from Google Play Store"
                       >
                         <span className="flex items-center gap-2 justify-center">
-                          <FaGooglePlay className="w-5 h-5" />
+                          <HugeiconsIcon icon={PlayStoreIcon} className="h-5 w-5" />
                           Download App
                         </span>
                       </a>
@@ -253,18 +266,18 @@ export default function HomePage() {
                 <span className="text-xs uppercase tracking-widest text-primary/60">Platforms</span>
                 <div className="flex items-center gap-2">
                   {[
-                    { Icon: FaInstagram, color: "text-[#E1306C]" },
-                    { Icon: FaTiktok, color: "text-[#010101]" },
-                    { Icon: FaYoutube, color: "text-[#FF0000]" },
-                    { Icon: FaFacebookF, color: "text-[#1877F2]" },
-                    { Icon: FaXTwitter, color: "text-[#000000]" },
-                    { Icon: FaLinkedinIn, color: "text-[#0A66C2]" },
-                  ].map(({ Icon, color }, index) => (
+                    { icon: InstagramIcon, color: "text-[#E1306C]" },
+                    { icon: TiktokIcon, color: "text-[#010101]" },
+                    { icon: YoutubeIcon, color: "text-[#FF0000]" },
+                    { icon: Facebook02Icon, color: "text-[#1877F2]" },
+                    { icon: NewTwitterIcon, color: "text-[#000000]" },
+                    { icon: Linkedin02Icon, color: "text-[#0A66C2]" },
+                  ].map(({ icon, color }, index) => (
                     <span
                       key={`social-strip-${index}`}
                       className="h-9 w-9 rounded-full border border-primary/15 bg-white/70 dark:bg-white/5 flex items-center justify-center"
                     >
-                      <Icon className={`h-4 w-4 ${color}`} />
+                      <HugeiconsIcon icon={icon} className={`h-4 w-4 ${color}`} />
                     </span>
                   ))}
                 </div>
@@ -306,7 +319,7 @@ export default function HomePage() {
           <Card className="border-2 border-secondary/30 dark:border-secondary/40 bg-gradient-to-br from-secondary/10 to-primary/10 dark:from-secondary/10 dark:to-primary/10 hover:shadow-xl transition-all duration-300 hover:scale-105">
             <CardHeader className="pb-3 sm:pb-4">
               <div className="w-16 h-16 md:w-20 md:h-20 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center mb-4 shadow-md">
-                <Phone className="w-8 h-8 md:w-10 md:h-10 text-white" />
+                <HugeiconsIcon icon={Call02Icon} className="h-8 w-8 text-white md:h-10 md:w-10" />
               </div>
               <CardTitle className="text-xl sm:text-2xl md:text-3xl text-primary dark:text-primary">Virtual Phone Numbers</CardTitle>
               <CardDescription className="text-sm sm:text-base text-primary/70 dark:text-primary/70">
@@ -363,7 +376,7 @@ export default function HomePage() {
             </div>
             <CardHeader className="pb-3 sm:pb-4">
               <div className="w-16 h-16 md:w-20 md:h-20 rounded-lg bg-gradient-to-br from-secondary to-primary flex items-center justify-center mb-4 shadow-md">
-                <Wifi className="w-8 h-8 md:w-10 md:h-10 text-white" />
+                <HugeiconsIcon icon={Wifi01Icon} className="h-8 w-8 text-white md:h-10 md:w-10" />
               </div>
               <CardTitle className="text-xl sm:text-2xl md:text-3xl text-primary dark:text-primary">eSIM Data Plans</CardTitle>
               <CardDescription className="text-sm sm:text-base text-primary/70 dark:text-primary/70">
@@ -412,7 +425,7 @@ export default function HomePage() {
           <Card className="border-2 border-primary/30 dark:border-primary/40 bg-gradient-to-br from-primary/10 to-secondary/10 dark:from-primary/10 dark:to-secondary/10 hover:shadow-xl transition-all duration-300 hover:scale-105">
             <CardHeader className="pb-3 sm:pb-4">
               <div className="w-16 h-16 md:w-20 md:h-20 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center mb-4 shadow-md">
-                <ShoppingBag className="w-8 h-8 md:w-10 md:h-10 text-white" />
+                <HugeiconsIcon icon={ShoppingBag03Icon} className="h-8 w-8 text-white md:h-10 md:w-10" />
               </div>
               <CardTitle className="text-xl sm:text-2xl md:text-3xl text-primary dark:text-primary">Social Media Boosting</CardTitle>
               <CardDescription className="text-sm sm:text-base text-primary/70 dark:text-primary/70">
@@ -477,7 +490,7 @@ export default function HomePage() {
             {/* Left: Content */}
             <div className="p-8 sm:p-10 md:p-12 flex flex-col justify-center">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/20 border border-secondary/30 text-secondary text-xs font-semibold uppercase tracking-widest mb-5 w-fit">
-                <Wifi className="w-3.5 h-3.5" />
+                <HugeiconsIcon icon={Wifi01Icon} className="h-3.5 w-3.5" />
                 New — eSIM Data
               </div>
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-4 leading-tight">
@@ -488,13 +501,13 @@ export default function HomePage() {
               </p>
               <div className="grid sm:grid-cols-2 gap-3 mb-8">
                 {[
-                  { icon: "🌍", label: "100+ Countries" },
-                  { icon: "⚡", label: "Instant Activation" },
-                  { icon: "📶", label: "4G / 5G Networks" },
-                  { icon: "🔄", label: "Flexible Plans" },
+                  { icon: GlobeIcon, label: "100+ Countries" },
+                  { icon: FlashIcon, label: "Instant Activation" },
+                  { icon: Wifi01Icon, label: "4G / 5G Networks" },
+                  { icon: Refresh01Icon, label: "Flexible Plans" },
                 ].map(({ icon, label }) => (
                   <div key={label} className="flex items-center gap-3 rounded-xl border border-primary/15 bg-white/60 dark:bg-white/5 px-4 py-3">
-                    <span className="text-xl">{icon}</span>
+                    <HugeiconsIcon icon={icon} className="h-5 w-5 text-secondary" />
                     <span className="text-sm font-medium text-primary">{label}</span>
                   </div>
                 ))}
@@ -502,7 +515,7 @@ export default function HomePage() {
               <div>
                 <ServiceCTA destination="esim" variant="default">
                   <div className="flex items-center gap-2">
-                    <Wifi className="w-5 h-5" />
+                    <HugeiconsIcon icon={Wifi01Icon} className="h-5 w-5" />
                     Browse eSIM Plans
                   </div>
                 </ServiceCTA>
@@ -550,7 +563,7 @@ export default function HomePage() {
                 Active in 🇺🇸 USA
               </div>
               <div className="absolute bottom-12 left-4 bg-white dark:bg-gray-900 border border-primary/20 rounded-xl px-3 py-2 shadow-lg text-xs font-semibold text-primary flex items-center gap-1.5 rotate-1">
-                <Wifi className="w-3 h-3 text-secondary" />
+                <HugeiconsIcon icon={Wifi01Icon} className="h-3 w-3 text-secondary" />
                 10GB · 30 days
               </div>
             </div>
@@ -983,7 +996,7 @@ export default function HomePage() {
                   aria-label="Download Numzaro app from Google Play Store"
                 >
                   <span className="flex items-center gap-2">
-                    <FaGooglePlay className="h-4 w-4" />
+                    <HugeiconsIcon icon={PlayStoreIcon} className="h-4 w-4" />
                     Download App
                   </span>
                 </a>
@@ -1011,17 +1024,13 @@ export default function HomePage() {
               </p>
               <div className="flex gap-4">
                 <a href="#" className="text-gray-400 hover:text-secondary transition-colors">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                  </svg>
+                  <HugeiconsIcon icon={Facebook02Icon} className="h-5 w-5" />
                 </a>
                 <a href="#" className="text-gray-400 hover:text-secondary transition-colors">
-                  <FaXTwitter className="w-5 h-5" />
+                  <HugeiconsIcon icon={NewTwitterIcon} className="h-5 w-5" />
                 </a>
                 <a href="#" className="text-gray-400 hover:text-secondary transition-colors">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                  </svg>
+                  <HugeiconsIcon icon={InstagramIcon} className="h-5 w-5" />
                 </a>
               </div>
             </div>
