@@ -360,7 +360,8 @@ export default function MyNumbersPage() {
                       </button>
                       <button
                         onClick={() => handleCancel(n.id)}
-                        disabled={cancelling === n.id}
+                        disabled={cancelling === n.id || !!n.otp_code}
+                        title={n.otp_code ? "A verification code has already been received on this number, so it can no longer be cancelled." : undefined}
                         className="h-9 px-4 rounded-xl border border-gray-200 dark:border-gray-600 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-60"
                       >
                         {cancelling === n.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Cancel"}

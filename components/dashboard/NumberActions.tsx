@@ -26,6 +26,7 @@ interface NumberActionsProps {
   monthlyCost: number;
   expiresAt?: string;
   numberType?: string;
+  otpReceived?: boolean;
   onRenewed?: () => void;
   onReleased?: () => void;
 }
@@ -37,6 +38,7 @@ export function NumberActions({
   monthlyCost,
   expiresAt,
   numberType,
+  otpReceived,
   onRenewed,
   onReleased,
 }: NumberActionsProps) {
@@ -146,43 +148,55 @@ export function NumberActions({
             )}
           </Button>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                disabled={renewing || releasing}
-                className="w-full sm:w-auto"
-              >
-                {releasing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Releasing...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4 mr-2" />
+          {otpReceived ? (
+            <Button
+              variant="destructive"
+              disabled
+              title="A verification code has already been received on this number, so it can no longer be released for a refund."
+              className="w-full sm:w-auto"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Release Number
+            </Button>
+          ) : (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  disabled={renewing || releasing}
+                  className="w-full sm:w-auto"
+                >
+                  {releasing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Releasing...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Release Number
+                    </>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Release Number</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to release {phoneNumber}? This action
+                    cannot be undone. You will receive a prorated refund based on
+                    the remaining days in your billing period.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleRelease}>
                     Release Number
-                  </>
-                )}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Release Number</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to release {phoneNumber}? This action
-                  cannot be undone. You will receive a prorated refund based on
-                  the remaining days in your billing period.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleRelease}>
-                  Release Number
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </>
       )}
 

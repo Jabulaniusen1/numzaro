@@ -166,6 +166,7 @@ export default function NumberDetailPage() {
               monthlyCost={number.monthly_cost || 0}
               expiresAt={number.expires_at || undefined}
               numberType={number.number_type}
+              otpReceived={(number.otp_count || 0) > 0}
               onRenewed={fetchNumber}
               onReleased={() => router.push("/dashboard/numbers")}
             />

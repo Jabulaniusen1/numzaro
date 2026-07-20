@@ -37,6 +37,14 @@ async function cancelWithProvider(number: any) {
   }
 }
 
+async function hasReceivedOtp(virtualNumberId: string, supabase: any): Promise<boolean> {
+  const { count } = await supabase
+    .from("otp_codes")
+    .select("*", { count: "exact", head: true })
+    .eq("number_id", virtualNumberId);
+  return (count || 0) > 0;
+}
+
 async function refundNumberPurchase(virtualNumberId: string, userId: string, supabase: any): Promise<void> {
   const { data: purchase } = await supabase
     .from("number_purchases")
@@ -143,6 +151,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: "Number is already cancelled" }, { status: 400 });
     }
 
+    if (await hasReceivedOtp(id, supabase)) {
+      return NextResponse.json(
+        { error: "This number has already received a verification code and can no longer be cancelled." },
+        { status: 400 }
+      );
+    }
+
     await cancelWithProvider(number);
     await supabase.from("virtual_numbers").update({ status: "cancelled" }).eq("id", id);
 
@@ -198,6 +213,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const normalizedStatus = String(number.status || "").toLowerCase();
       if (normalizedStatus === "cancelled" || normalizedStatus === "canceled") {
         return NextResponse.json({ error: "Number is already cancelled" }, { status: 400 });
+      }
+      if (await hasReceivedOtp(id, supabase)) {
+        return NextResponse.json(
+          { error: "This number has already received a verification code and can no longer be cancelled." },
+          { status: 400 }
+        );
       }
       await cancelWithProvider(number);
       await supabase.from("virtual_numbers").update({ status: "cancelled" }).eq("id", id);
