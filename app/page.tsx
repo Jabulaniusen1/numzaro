@@ -186,7 +186,7 @@ export default function HomePage() {
                       className="w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-5 md:py-6 text-base sm:text-lg border-2 border-primary/40 text-primary hover:border-primary/60 hover:bg-primary/5 dark:hover:bg-primary/10 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                     >
                       <a
-                        href="https://play.google.com/store/apps/details?id=com.jabulaniusen.numzaroappapp"
+                        href="https://play.google.com/store/apps/details?id=com.jabulaniusen.numzaroapp"
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label="Download Numzaro app from Google Play Store"
