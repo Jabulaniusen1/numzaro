@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { OTPDisplay } from "@/components/dashboard/OTPDisplay";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useOTPNotifications } from "@/lib/hooks/useOTPNotifications";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
 
 interface OTP {
   id: string;
@@ -27,15 +27,55 @@ export default function NumberOTPsPage() {
   const { toast } = useToast();
   const [otps, setOTPs] = useState<OTP[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const inFlightRef = useRef(false);
 
   // Real-time OTPs
   const { otps: realtimeOTPs } = useOTPNotifications(params.id as string);
 
+  const fetchOTPs = useCallback(
+    async (silent = false) => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      if (silent) setRefreshing(true);
+      else setLoading(true);
+      try {
+        // Backend re-syncs with the provider on every call and polls
+        // briefly, so repeated calls pick up codes that arrive late.
+        const response = await fetch(`/api/numbers/${params.id}/otps`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch OTPs");
+        }
+
+        const data = await response.json();
+        setOTPs(data.otps || []);
+      } catch (error: any) {
+        if (!silent) {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to load OTPs",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (silent) setRefreshing(false);
+        else setLoading(false);
+        inFlightRef.current = false;
+      }
+    },
+    [params.id, toast]
+  );
+
   useEffect(() => {
     if (params.id) {
-      fetchOTPs();
+      fetchOTPs(false);
+      // Auto-refresh while the user waits for a verification code.
+      const interval = setInterval(() => {
+        fetchOTPs(true);
+      }, 10000);
+      return () => clearInterval(interval);
     }
-  }, [params.id]);
+  }, [params.id, fetchOTPs]);
 
   // Merge real-time OTPs with fetched OTPs
   useEffect(() => {
@@ -58,27 +98,6 @@ export default function NumberOTPsPage() {
     }
   }, [realtimeOTPs]);
 
-  const fetchOTPs = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/numbers/${params.id}/otps`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch OTPs");
-      }
-
-      const data = await response.json();
-      setOTPs(data.otps || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load OTPs",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleMarkUsed = async (otpId: string) => {
     try {
       const response = await fetch(`/api/numbers/${params.id}/otps`, {
@@ -97,7 +116,7 @@ export default function NumberOTPsPage() {
       }
 
       // Refresh OTPs
-      fetchOTPs();
+      fetchOTPs(true);
 
       toast({
         title: "Success",
@@ -122,8 +141,23 @@ export default function NumberOTPsPage() {
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold">OTPs</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">All OTP codes received for this number</p>
+          <p className="text-muted-foreground text-sm sm:text-base">
+            All OTP codes received for this number{refreshing ? " • checking for new codes…" : ""}
+          </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchOTPs(true)}
+          disabled={refreshing || loading}
+        >
+          {refreshing || loading ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-2" />
+          )}
+          Check again
+        </Button>
       </div>
 
       <OTPDisplay otps={otps} loading={loading} onMarkUsed={handleMarkUsed} />

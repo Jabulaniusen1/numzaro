@@ -3,6 +3,11 @@ import { smsPoolClient } from "./client";
 import { sendPushNotificationToUser } from "@/lib/notifications/push";
 
 function extractCode(message: string): string | null {
+  const spaced = message.match(/(\d[\d\s\-]{2,10}\d)/);
+  if (spaced) {
+    const digits = spaced[1].replace(/[\s\-]/g, "");
+    if (/^\d{4,8}$/.test(digits)) return digits;
+  }
   const match = message.match(/\b\d{4,8}\b/);
   return match ? match[0] : null;
 }
@@ -67,6 +72,7 @@ export async function syncSmsPoolActivation(
           .select("id")
           .eq("number_id", numberId)
           .eq("code", code)
+          .eq("status", "pending")
           .maybeSingle();
 
         if (!existingOtp) {
@@ -110,13 +116,32 @@ export async function syncSmsPoolActivation(
 export async function syncSmsPoolRental(
   numberId: string,
   rentalCode: string,
-  supabase: any
+  supabase: any,
+  options?: {
+    attempts?: number;
+    delayMs?: number;
+  }
 ) {
   try {
-    const result = await smsPoolClient.getRentalMessages(rentalCode);
-    if (!result.success || !Array.isArray(result.messages) || result.messages.length === 0) return;
+    const attempts = Math.max(1, options?.attempts ?? 4);
+    const delayMs = Math.max(250, options?.delayMs ?? 2000);
 
-    for (const msg of result.messages) {
+    let messages: Array<{ message: string; sender: string; date?: string; timestamp?: string }> = [];
+    // Rentals keep receiving SMS over time — poll briefly so a code that
+    // lands just after page open is still captured on this request.
+    for (let i = 0; i < attempts; i++) {
+      const result = await smsPoolClient.getRentalMessages(rentalCode);
+      if (result.success && Array.isArray(result.messages) && result.messages.length > 0) {
+        messages = result.messages;
+        break;
+      }
+      if (i < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+    if (messages.length === 0) return;
+
+    for (const msg of messages) {
       const content = msg.message;
       if (!content) continue;
 
@@ -146,6 +171,7 @@ export async function syncSmsPoolRental(
             .select("id")
             .eq("number_id", numberId)
             .eq("code", code)
+            .eq("status", "pending")
             .maybeSingle();
 
           if (!existingOtp) {

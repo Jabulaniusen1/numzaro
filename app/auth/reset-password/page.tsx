@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -9,14 +9,71 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Eye, EyeOff, CheckCircle } from "lucide-react";
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F0F2FA] dark:bg-gray-950 px-4">
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+        </div>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
+  );
+}
+
+function ResetPasswordForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  // Establish the recovery session: handles ?code=... (direct landing),
+  // ?error=... (failed exchange in /auth/callback), or an existing session.
+  useEffect(() => {
+    const init = async () => {
+      const supabase = createClient();
+      const urlError = searchParams.get("error");
+      if (urlError) {
+        setError(`Reset link invalid or expired: ${urlError} Request a new link.`);
+        setVerifying(false);
+        return;
+      }
+      const code = searchParams.get("code");
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          setError(`Reset link invalid or expired: ${exchangeError.message} Request a new link.`);
+          setVerifying(false);
+          return;
+        }
+      }
+      const { data: { session } } = await supabase.auth.getSession();
+      setSessionReady(!!session);
+      if (!session) {
+        setError("This reset link is invalid or has expired. Request a new one below.");
+      }
+      setVerifying(false);
+    };
+    init();
+
+    // If the recovery session lands after mount, pick it up.
+    const supabase = createClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session) {
+        setSessionReady(true);
+        setError(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,10 +137,23 @@ export default function ResetPasswordPage() {
         </div>
 
         {/* Form */}
+        {verifying ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-500 dark:text-gray-400">
+            <Loader2 className="h-4 w-4 animate-spin" /> Verifying reset link…
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 px-4 py-3 text-sm text-red-700 dark:text-red-300">
               {error}
+              {!sessionReady && (
+                <>
+                  {" "}
+                  <Link href="/auth/forgot-password" className="font-semibold underline">
+                    Request a new link
+                  </Link>
+                </>
+              )}
             </div>
           )}
 
@@ -139,12 +209,13 @@ export default function ResetPasswordPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !sessionReady}
             className="w-full h-12 rounded-2xl bg-[#7C5CFC] hover:bg-[#6B4EFF] text-white text-sm font-bold shadow-lg shadow-violet-200 dark:shadow-none transition-all disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Updating...</> : "Update password"}
           </button>
         </form>
+        )}
       </div>
     </div>
   );

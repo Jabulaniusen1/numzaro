@@ -43,6 +43,38 @@ export function getRenewalReminderEmail(
   `;
 }
 
+export function getPasswordResetEmail(resetLink: string): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Reset your Numzaro password</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #7C5CFC 0%, #6B4EFF 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">Reset your password</h1>
+      </div>
+      <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+        <p>Hello,</p>
+        <p>We received a request to reset the password for your Numzaro account. Click the button below to set a new password. This link expires soon.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetLink}" style="background: #7C5CFC; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">Reset password</a>
+        </div>
+        <p style="font-size: 12px; color: #666;">If the button doesn't work, copy and paste this link into your browser:<br><span style="word-break: break-all;">${resetLink}</span></p>
+        <p style="font-size: 12px; color: #666;">If you didn't request this, you can safely ignore this email.</p>
+        <p style="margin-top: 10px; font-size: 12px; color: #666;">
+          Best regards,<br>
+          The Numzaro Team
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+
 export function getNumberRestrictedEmail(
   phoneNumber: string,
   expiryDate: string

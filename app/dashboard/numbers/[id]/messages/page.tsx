@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { MessagesList } from "@/components/dashboard/MessagesList";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useNumberMessages } from "@/lib/hooks/useNumberMessages";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Search, Filter } from "lucide-react";
+import { ArrowLeft, Loader2, Search, Filter, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -37,18 +37,59 @@ export default function NumberMessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [filteredMessages, setFilteredMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [directionFilter, setDirectionFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const inFlightRef = useRef(false);
 
   // Real-time messages
   const { messages: realtimeMessages } = useNumberMessages(params.id as string);
 
+  const fetchMessages = useCallback(
+    async (silent = false) => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      if (silent) setRefreshing(true);
+      else setLoading(true);
+      try {
+        // Backend re-syncs with the provider on every call and polls
+        // briefly, so repeated calls pick up codes that arrive late.
+        const response = await fetch(`/api/numbers/${params.id}/messages`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch messages");
+        }
+
+        const data = await response.json();
+        setMessages(data.messages || []);
+      } catch (error: any) {
+        if (!silent) {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to load messages",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (silent) setRefreshing(false);
+        else setLoading(false);
+        inFlightRef.current = false;
+      }
+    },
+    [params.id, toast]
+  );
+
   useEffect(() => {
     if (params.id) {
-      fetchMessages();
+      fetchMessages(false);
+      // Auto-refresh while the user waits for a verification code.
+      // Skipped automatically while a request is still in flight.
+      const interval = setInterval(() => {
+        fetchMessages(true);
+      }, 10000);
+      return () => clearInterval(interval);
     }
-  }, [params.id]);
+  }, [params.id, fetchMessages]);
 
   // Merge real-time messages with fetched messages
   useEffect(() => {
@@ -70,8 +111,8 @@ export default function NumberMessagesPage() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (m) =>
-          m.body.toLowerCase().includes(query) ||
-          m.from_number.toLowerCase().includes(query) ||
+          (m.body ?? "").toLowerCase().includes(query) ||
+          (m.from_number ?? "").toLowerCase().includes(query) ||
           m.otp_code?.toLowerCase().includes(query) ||
           m.otp_service?.toLowerCase().includes(query)
       );
@@ -92,27 +133,6 @@ export default function NumberMessagesPage() {
     setFilteredMessages(filtered);
   }, [messages, searchQuery, directionFilter, typeFilter]);
 
-  const fetchMessages = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/numbers/${params.id}/messages`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch messages");
-      }
-
-      const data = await response.json();
-      setMessages(data.messages || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load messages",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -123,8 +143,23 @@ export default function NumberMessagesPage() {
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold">Messages</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">All messages for this number</p>
+          <p className="text-muted-foreground text-sm sm:text-base">
+            All messages for this number{refreshing ? " • checking for new codes…" : ""}
+          </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchMessages(true)}
+          disabled={refreshing || loading}
+        >
+          {refreshing || loading ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-2" />
+          )}
+          Check again
+        </Button>
       </div>
 
       <Card>

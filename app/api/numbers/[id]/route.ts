@@ -103,10 +103,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         if (number.number_type === "rental") {
           const { syncTextverifiedRental } = await import("@/lib/textverified/adapter");
           const reservationType = number.product_code === "nonrenewable" ? "nonrenewable" : "renewable";
-          await syncTextverifiedRental(number.id, number.textverified_id, reservationType, supabase);
+          await syncTextverifiedRental(number.id, number.textverified_id, reservationType, supabase, {
+            attempts: 6,
+            delayMs: 2000,
+          });
         } else {
           const { syncTextverifiedVerification } = await import("@/lib/textverified/adapter");
-          await syncTextverifiedVerification(number.id, number.textverified_id, supabase);
+          await syncTextverifiedVerification(number.id, number.textverified_id, supabase, {
+            attempts: 6,
+            delayMs: 2000,
+          });
         }
       } catch (syncError) {
         console.error("Failed to sync Textverified messages:", syncError);
@@ -117,13 +123,28 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       try {
         if (number.number_type === "rental" && number.rental_code) {
           const { syncSmsPoolRental } = await import("@/lib/smspool/adapter");
-          await syncSmsPoolRental(number.id, number.rental_code, supabase);
+          await syncSmsPoolRental(number.id, number.rental_code, supabase, {
+            attempts: 4,
+            delayMs: 2000,
+          });
         } else if (number.textverified_id) {
           const { syncSmsPoolActivation } = await import("@/lib/smspool/adapter");
           await syncSmsPoolActivation(number.id, number.textverified_id, supabase, { attempts: 8, delayMs: 1500 });
         }
       } catch (syncError) {
         console.error("Failed to sync SMSPool messages:", syncError);
+      }
+    }
+
+    if (number.provider === "pvadeals" && number.textverified_id) {
+      try {
+        const { syncPVADealsNumber } = await import("@/lib/pvadeals/adapter");
+        await syncPVADealsNumber(number.id, number.textverified_id, supabase, {
+          attempts: 4,
+          delayMs: 2000,
+        });
+      } catch (syncError) {
+        console.error("Failed to sync PVADeals messages:", syncError);
       }
     }
 
@@ -190,21 +211,38 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         if (number.number_type === "rental") {
           const { syncTextverifiedRental } = await import("@/lib/textverified/adapter");
           const reservationType = number.product_code === "nonrenewable" ? "nonrenewable" : "renewable";
-          await syncTextverifiedRental(number.id, number.textverified_id, reservationType, supabase);
+          await syncTextverifiedRental(number.id, number.textverified_id, reservationType, supabase, {
+            attempts: 6,
+            delayMs: 2000,
+          });
         } else {
           const { syncTextverifiedVerification } = await import("@/lib/textverified/adapter");
-          await syncTextverifiedVerification(number.id, number.textverified_id, supabase);
+          await syncTextverifiedVerification(number.id, number.textverified_id, supabase, {
+            attempts: 6,
+            delayMs: 2000,
+          });
         }
         return NextResponse.json({ success: true });
       }
       if (number.provider === "smspool") {
         if (number.number_type === "rental" && number.rental_code) {
           const { syncSmsPoolRental } = await import("@/lib/smspool/adapter");
-          await syncSmsPoolRental(number.id, number.rental_code, supabase);
+          await syncSmsPoolRental(number.id, number.rental_code, supabase, {
+            attempts: 4,
+            delayMs: 2000,
+          });
         } else {
           const { syncSmsPoolActivation } = await import("@/lib/smspool/adapter");
           await syncSmsPoolActivation(number.id, number.textverified_id, supabase, { attempts: 8, delayMs: 1500 });
         }
+        return NextResponse.json({ success: true });
+      }
+      if (number.provider === "pvadeals" && number.textverified_id) {
+        const { syncPVADealsNumber } = await import("@/lib/pvadeals/adapter");
+        await syncPVADealsNumber(number.id, number.textverified_id, supabase, {
+          attempts: 4,
+          delayMs: 2000,
+        });
         return NextResponse.json({ success: true });
       }
     }

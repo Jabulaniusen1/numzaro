@@ -22,22 +22,32 @@ export async function GET(
       return NextResponse.json({ error: "Number not found" }, { status: 404 });
     }
 
-    // Sync messages before returning OTPs
+    // Sync messages before returning OTPs (poll briefly — the code often
+    // arrives seconds after the page is opened)
     if (number.provider === "textverified" && number.textverified_id) {
       if (number.number_type === "rental") {
         const { syncTextverifiedRental } = await import("@/lib/textverified/adapter");
         const reservationType = number.product_code === "nonrenewable" ? "nonrenewable" : "renewable";
-        await syncTextverifiedRental(number.id, number.textverified_id, reservationType, supabase);
+        await syncTextverifiedRental(number.id, number.textverified_id, reservationType, supabase, {
+          attempts: 6,
+          delayMs: 2000,
+        });
       } else {
         const { syncTextverifiedVerification } = await import("@/lib/textverified/adapter");
-        await syncTextverifiedVerification(number.id, number.textverified_id, supabase);
+        await syncTextverifiedVerification(number.id, number.textverified_id, supabase, {
+          attempts: 6,
+          delayMs: 2000,
+        });
       }
     }
 
     if (number.provider === "smspool") {
       if (number.number_type === "rental" && number.rental_code) {
         const { syncSmsPoolRental } = await import("@/lib/smspool/adapter");
-        await syncSmsPoolRental(number.id, number.rental_code, supabase);
+        await syncSmsPoolRental(number.id, number.rental_code, supabase, {
+          attempts: 4,
+          delayMs: 2000,
+        });
       } else if (number.textverified_id) {
         const { syncSmsPoolActivation } = await import("@/lib/smspool/adapter");
         await syncSmsPoolActivation(number.id, number.textverified_id, supabase, {
@@ -45,6 +55,14 @@ export async function GET(
           delayMs: 1500,
         });
       }
+    }
+
+    if (number.provider === "pvadeals" && number.textverified_id) {
+      const { syncPVADealsNumber } = await import("@/lib/pvadeals/adapter");
+      await syncPVADealsNumber(number.id, number.textverified_id, supabase, {
+        attempts: 4,
+        delayMs: 2000,
+      });
     }
 
     const searchParams = request.nextUrl.searchParams;

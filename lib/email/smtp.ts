@@ -4,7 +4,7 @@
  * - SMTP_HOST (default: smtp.gmail.com)
  * - SMTP_PORT (default: 587)
  * - SMTP_USER (Gmail address)
- * - SMTP_PASSWORD (Gmail App Password)
+ * - SMTP_PASSWORD or SMTP_PASS (Gmail App Password)
  * - SMTP_FROM (sender email, defaults to SMTP_USER)
  */
 
@@ -27,11 +27,14 @@ function getTransporter(): nodemailer.Transporter {
   const host = process.env.SMTP_HOST || "smtp.gmail.com";
   const port = parseInt(process.env.SMTP_PORT || "587", 10);
   const user = process.env.SMTP_USER;
-  const password = process.env.SMTP_PASSWORD;
+  // Accept both SMTP_PASSWORD and SMTP_PASS (.env.example uses SMTP_PASS)
+  const password = process.env.SMTP_PASSWORD || process.env.SMTP_PASS;
   const from = process.env.SMTP_FROM || user;
 
   if (!user || !password) {
-    throw new Error("SMTP_USER and SMTP_PASSWORD environment variables are required");
+    throw new Error(
+      "SMTP is not configured: set SMTP_USER and SMTP_PASSWORD (or SMTP_PASS) environment variables"
+    );
   }
 
   transporter = nodemailer.createTransport({

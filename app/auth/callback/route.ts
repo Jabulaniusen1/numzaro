@@ -4,12 +4,21 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const tokenHash = requestUrl.searchParams.get("token_hash");
   const type = requestUrl.searchParams.get("type");
   const redirectParam = requestUrl.searchParams.get("redirect");
 
+  const supabase = await createClient();
+
+  // PKCE flow (modern Supabase email links): ?code=...
   if (code) {
-    const supabase = await createClient();
-    await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      console.error("[auth/callback] code exchange failed:", error.message);
+      return NextResponse.redirect(
+        new URL(`/auth/reset-password?error=${encodeURIComponent(error.message)}`, requestUrl.origin)
+      );
+    }
 
     // Password recovery — skip profile creation, go straight to reset page
     if (type === "recovery") {
@@ -40,9 +49,23 @@ export async function GET(request: Request) {
         });
       }
     }
+  } else if (tokenHash && type) {
+    // Legacy / direct-verify flow: ?token_hash=...&type=recovery
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: type as any,
+    });
+    if (error) {
+      console.error("[auth/callback] token verify failed:", error.message);
+      return NextResponse.redirect(
+        new URL(`/auth/reset-password?error=${encodeURIComponent(error.message)}`, requestUrl.origin)
+      );
+    }
+    if (type === "recovery") {
+      return NextResponse.redirect(new URL("/auth/reset-password", requestUrl.origin));
+    }
   }
 
   const redirectPath = redirectParam || "/dashboard";
   return NextResponse.redirect(new URL(redirectPath, requestUrl.origin));
 }
-

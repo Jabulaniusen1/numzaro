@@ -26,6 +26,9 @@ export interface PVADealsRequest {
   reuseCounter: number;
   endTime: string;
   createdAt: string;
+  // Extra fields vary by API version / request state (sms text, code, …).
+  // Kept open so fallback polling can extract an OTP without breaking types.
+  [key: string]: unknown;
 }
 
 class PVADealsClient {

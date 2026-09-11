@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Loader2, Mail, ArrowLeft } from "lucide-react";
 
@@ -18,13 +17,23 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     setError(null);
 
-    const supabase = createClient();
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
-    });
-
-    if (resetError) {
-      setError(resetError.message);
+    try {
+      // Server route sends the recovery link through our own SMTP —
+      // Supabase's built-in mailer silently drops mail when its SMTP
+      // isn't configured, which is why "no email arrives".
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error || "Failed to send reset link. Please try again.");
+        setLoading(false);
+        return;
+      }
+    } catch {
+      setError("Failed to send reset link. Please check your connection and try again.");
       setLoading(false);
       return;
     }
